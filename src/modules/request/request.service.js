@@ -305,6 +305,188 @@ class RequestService {
   static getHistoricalSearch(search = '', limit = 100) {
     return RequestModel.findAll({ search, limit });
   }
+
+  static async updatePendingRequest(trackingNumber, userId, { purpose, formData, attachmentFile }) {
+    const req = RequestModel.findByTrackingNumber(trackingNumber);
+    if (!req) throw new Error('Request not found.');
+    if (req.user_id !== userId) throw new Error('Unauthorized to modify this request.');
+    if (req.status !== 'PENDING') throw new Error('Only pending requests can be modified.');
+
+    let attachmentPath = req.attachment_path;
+    let attachmentName = req.attachment_name;
+    if (attachmentFile) {
+      attachmentPath = `/uploads/${attachmentFile.filename}`;
+      attachmentName = attachmentFile.originalname;
+    }
+
+    const updated = RequestModel.updateRequest(req.id, {
+      purpose: purpose ? purpose.trim() : req.purpose,
+      formData: typeof formData === 'string' ? formData : JSON.stringify(formData || {}),
+      attachmentPath,
+      attachmentName
+    });
+
+    AdminModel.logAudit(
+      userId,
+      req.citizen_name || 'Citizen User',
+      'UPDATE_REQUEST',
+      'document_requests',
+      req.id,
+      `Citizen updated details for pending request ${trackingNumber}`
+    );
+
+    return updated;
+  }
+
+  static cancelRequest(trackingNumber, userId, reason = 'Cancelled by applicant') {
+    const req = RequestModel.findByTrackingNumber(trackingNumber);
+    if (!req) throw new Error('Request not found.');
+    if (req.user_id !== userId) throw new Error('Unauthorized to cancel this request.');
+    if (req.status !== 'PENDING') throw new Error('Only pending requests can be cancelled.');
+
+    RequestModel.delete(req.id);
+
+    AdminModel.logAudit(
+      userId,
+      req.citizen_name || 'Citizen User',
+      'CANCEL_REQUEST',
+      'document_requests',
+      req.id,
+      `Citizen cancelled pending request ${trackingNumber}. Reason: ${reason}`
+    );
+
+    return true;
+  }
+
+  static async createWalkInRequest({ citizenId, citizenName, citizenEmail, contactNumber, staffUser, documentTypeId, purpose, formData, attachmentFile }) {
+    const CitizenModel = require('../citizen/citizen.model');
+    let citizen = null;
+    if (citizenId) {
+      citizen = CitizenModel.findUserById(citizenId);
+    }
+    if (!citizen && citizenEmail) {
+      citizen = CitizenModel.findUserByEmail(citizenEmail);
+    }
+    if (!citizen && (citizenName || citizenEmail)) {
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('WalkIn@123456', 10);
+      const email = citizenEmail || `walkin_${Date.now()}@local.barangay`;
+      const fullName = citizenName || 'Walk-in Citizen';
+      const newUserId = CitizenModel.createUser({
+        email,
+        passwordHash: hashedPassword,
+        fullName,
+        phone: contactNumber || null
+      });
+      citizen = CitizenModel.findUserById(newUserId);
+    }
+    if (!citizen) throw new Error('Selected citizen resident not found.');
+    const resolvedCitizenId = citizen.id;
+
+    const docType = DocumentModel.findById(documentTypeId);
+    if (!docType || !docType.is_active) throw new Error('The selected document type is currently unavailable.');
+
+    const trackingNumber = this.generateTrackingNumber();
+    let attachmentPath = null;
+    let attachmentName = null;
+    if (attachmentFile) {
+      attachmentPath = `/uploads/${attachmentFile.filename}`;
+      attachmentName = attachmentFile.originalname;
+    }
+
+    const created = RequestModel.create({
+      trackingNumber,
+      userId: resolvedCitizenId,
+      documentTypeId,
+      purpose: purpose ? purpose.trim() : 'Walk-in Application',
+      formData: typeof formData === 'string' ? formData : JSON.stringify(formData || {}),
+      attachmentPath,
+      attachmentName,
+      fee: docType.fee,
+      paymentStatus: docType.fee === 0 ? 'WAIVED' : 'UNPAID'
+    });
+
+    NotificationService.send(
+      resolvedCitizenId,
+      'Walk-in Document Request Filed',
+      `A walk-in request for ${docType.name} (Tracking: ${trackingNumber}) was filed at Barangay Central Desk by Staff ${staffUser.full_name || staffUser.fullName}.`,
+      `/citizen/requests/${trackingNumber}`
+    );
+
+    AdminModel.logAudit(
+      staffUser.id,
+      staffUser.full_name || staffUser.fullName,
+      'WALK_IN_REQUEST',
+      'document_requests',
+      created.id,
+      `Staff filed walk-in request for ${citizen.full_name} (${trackingNumber})`
+    );
+
+    return created;
+  }
+
+  static updateStaffNotes(requestId, staffUser, notes) {
+    const req = RequestModel.findById(requestId);
+    if (!req) throw new Error('Request not found.');
+
+    RequestModel.updateStatus(requestId, {
+      rejectionReason: notes || ''
+    });
+
+    AdminModel.logAudit(
+      staffUser.id,
+      staffUser.full_name || staffUser.fullName,
+      'UPDATE_NOTES',
+      'document_requests',
+      requestId,
+      `Staff updated processing remarks for ${req.tracking_number}`
+    );
+
+    return RequestModel.findById(requestId);
+  }
+
+  static deleteRequestByAdmin(arg1, arg2) {
+    const requestId = typeof arg1 === 'number' || (!isNaN(arg1) && typeof arg1 !== 'object') ? Number(arg1) : Number(arg2);
+    const adminUser = typeof arg1 === 'object' && arg1 !== null ? arg1 : arg2;
+
+    const req = RequestModel.findById(requestId);
+    if (!req) throw new Error('Request record not found.');
+
+    RequestModel.delete(requestId);
+
+    if (adminUser) {
+      AdminModel.logAudit(
+        adminUser.id,
+        adminUser.full_name || adminUser.fullName,
+        'DELETE_REQUEST',
+        'document_requests',
+        requestId,
+        `Administrator permanently deleted request ${req.tracking_number} (${req.document_name})`
+      );
+    }
+
+    return true;
+  }
+
+  static deleteIssuedDocumentByAdmin(arg1, arg2) {
+    const issuedDocId = typeof arg1 === 'number' || (!isNaN(arg1) && typeof arg1 !== 'object') ? Number(arg1) : Number(arg2);
+    const adminUser = typeof arg1 === 'object' && arg1 !== null ? arg1 : arg2;
+
+    RequestModel.deleteIssuedDocument(issuedDocId);
+
+    if (adminUser) {
+      AdminModel.logAudit(
+        adminUser.id,
+        adminUser.full_name || adminUser.fullName,
+        'DELETE_ISSUED_DOC',
+        'issued_documents',
+        issuedDocId,
+        `Administrator permanently removed issued certificate record #${issuedDocId}`
+      );
+    }
+
+    return true;
+  }
 }
 
 module.exports = RequestService;

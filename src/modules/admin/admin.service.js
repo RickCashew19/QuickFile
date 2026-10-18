@@ -178,6 +178,73 @@ class AdminService {
     }
     return staff;
   }
+
+  static async deleteStaffAccount(adminUser, staffId) {
+    const existing = AdminModel.getStaffById(staffId);
+    if (!existing) {
+      throw new Error('Staff member not found.');
+    }
+
+    AdminModel.deleteStaffUser(staffId);
+
+    AdminModel.logAudit(
+      adminUser.id,
+      adminUser.fullName || adminUser.full_name,
+      'STAFF_DELETED',
+      'users',
+      staffId,
+      `Permanently deleted staff account for ${existing.full_name} (${existing.email})`
+    );
+
+    return true;
+  }
+
+  static getAllCitizens() {
+    return AdminModel.getAllCitizens();
+  }
+
+  static toggleCitizenStatus(adminUser, citizenId, isActive) {
+    const CitizenModel = require('../citizen/citizen.model');
+    const existing = CitizenModel.findUserById(citizenId);
+    if (!existing) {
+      throw new Error('Citizen resident not found.');
+    }
+
+    const updated = AdminModel.toggleCitizenStatus(citizenId, isActive);
+
+    const actionText = isActive ? 'ACTIVATED' : 'DEACTIVATED';
+    AdminModel.logAudit(
+      adminUser.id,
+      adminUser.fullName || adminUser.full_name,
+      `CITIZEN_${actionText}`,
+      'users',
+      citizenId,
+      `${actionText} citizen account for ${existing.full_name} (${existing.email})`
+    );
+
+    return updated;
+  }
+
+  static deleteCitizenAccount(adminUser, citizenId) {
+    const CitizenModel = require('../citizen/citizen.model');
+    const existing = CitizenModel.findUserById(citizenId);
+    if (!existing) {
+      throw new Error('Citizen resident not found.');
+    }
+
+    AdminModel.deleteCitizenUser(citizenId);
+
+    AdminModel.logAudit(
+      adminUser.id,
+      adminUser.fullName || adminUser.full_name,
+      'CITIZEN_DELETED',
+      'users',
+      citizenId,
+      `Permanently removed citizen user account for ${existing.full_name} (${existing.email})`
+    );
+
+    return true;
+  }
 }
 
 module.exports = AdminService;

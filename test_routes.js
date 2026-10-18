@@ -70,6 +70,8 @@ async function testViews() {
   const staffRoutes = [
     '/staff/dashboard',
     '/staff/requests',
+    '/staff/requests/walk-in',
+    '/staff/requests/live-stats',
     '/staff/records',
     '/staff/verify',
     '/staff/reports'
@@ -102,6 +104,8 @@ async function testViews() {
     '/admin/dashboard',
     '/admin/document-types',
     '/admin/staff-management',
+    '/admin/citizens',
+    '/admin/live-stats',
     '/admin/reports',
     '/admin/records',
     '/admin/issued-documents',

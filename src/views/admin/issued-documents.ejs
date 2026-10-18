@@ -126,6 +126,13 @@
                       </button>
                     </form>
                   <% } %>
+
+                  <!-- Permanent Record Deletion (D) -->
+                  <form action="/admin/issued-documents/<%= doc.id %>/delete" method="POST" onsubmit="return confirm('PERMANENTLY DELETE certificate record <%= doc.certificate_number %>?');" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" title="Delete Issued Record">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </form>
                 </div>
 
                 <!-- Revoke Modal (ADM-IDV-01) -->

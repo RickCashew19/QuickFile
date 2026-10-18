@@ -51,6 +51,24 @@ class NotificationService {
       UPDATE notifications SET is_read = 1 WHERE user_id = ?
     `).run(userId);
   }
+
+  static markOneAsRead(id, userId) {
+    this.db.prepare(`
+      UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?
+    `).run(id, userId);
+  }
+
+  static delete(id, userId) {
+    return this.db.prepare(`
+      DELETE FROM notifications WHERE id = ? AND user_id = ?
+    `).run(id, userId);
+  }
+
+  static clearAll(userId) {
+    return this.db.prepare(`
+      DELETE FROM notifications WHERE user_id = ?
+    `).run(userId);
+  }
 }
 
 module.exports = NotificationService;

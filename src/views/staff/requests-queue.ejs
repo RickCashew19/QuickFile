@@ -8,9 +8,12 @@
     <h2 class="fw-bold mb-0">Citizen Document Requests Queue</h2>
     <p class="text-muted mb-0">Inspect citizen applications, verify requirements, and manage the document preparation workflow.</p>
   </div>
-  <div class="col-md-4 text-md-end mt-3 mt-md-0">
+  <div class="col-md-4 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
+    <a href="/staff/requests/walk-in" class="btn btn-warning rounded-pill btn-sm fw-semibold text-dark">
+      <i class="bi bi-person-plus-fill me-1"></i> File Walk-in
+    </a>
     <a href="/staff/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
-      <i class="bi bi-arrow-left me-1"></i> Staff Dashboard
+      <i class="bi bi-arrow-left me-1"></i> Dashboard
     </a>
   </div>
 </div>
@@ -153,6 +156,28 @@
     </div>
   <% } %>
 </div>
+
+<!-- Live Queue Auto-Refresh Script -->
+<script>
+  (function() {
+    let initialCount = <%= requests ? requests.length : 0 %>;
+    setInterval(async () => {
+      try {
+        const res = await fetch('/staff/requests/live-stats');
+        if (res.ok) {
+          const stats = await res.json();
+          if (stats.success) {
+            // If total or pending changed, reload so staff sees new incoming citizen requests immediately
+            if (stats.totalRequests !== initialCount && window.location.search === '') {
+              console.log('[QuickFile Real-Time] Queue updated remotely. Refreshing view...');
+              window.location.reload();
+            }
+          }
+        }
+      } catch (e) {}
+    }, 10000);
+  })();
+</script>
 
 <%- include('../layouts/footer') %>
 

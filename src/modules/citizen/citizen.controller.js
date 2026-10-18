@@ -456,6 +456,147 @@ class CitizenController {
       res.redirect('/citizen/login?error=' + encodeURIComponent(err.message));
     }
   }
+
+  // GET: Edit Pending Request Form
+  static renderEditRequest(req, res) {
+    try {
+      const { trackingNumber } = req.params;
+      const requestData = RequestService.getRequestByTracking(trackingNumber);
+
+      if (requestData.user_id !== req.user.id) {
+        return res.status(403).render('layouts/error', {
+          title: 'Unauthorized Access',
+          message: 'You are not authorized to edit this document request.'
+        });
+      }
+
+      if (requestData.status !== 'PENDING') {
+        return res.redirect(`/citizen/requests/${trackingNumber}?error=` + encodeURIComponent('Only pending requests can be modified.'));
+      }
+
+      let parsedFormData = {};
+      try {
+        parsedFormData = JSON.parse(requestData.form_data || '{}');
+      } catch (e) {
+        parsedFormData = {};
+      }
+
+      const docType = DocumentService.getDocumentType(requestData.document_type_id);
+
+      res.render('citizen/request-edit', {
+        title: `Edit Request ${trackingNumber} - QuickFile`,
+        reqData: requestData,
+        formData: parsedFormData,
+        docType,
+        error: req.query.error || null,
+        success: req.query.success || null
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Update Pending Request Handler
+  static async handleUpdateRequest(req, res) {
+    try {
+      const { trackingNumber } = req.params;
+      const { purpose, ...formDataFields } = req.body;
+
+      const updated = await RequestService.updatePendingRequest(trackingNumber, req.user.id, {
+        purpose,
+        formData: formDataFields,
+        attachmentFile: req.file || null
+      });
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Request updated successfully!', request: updated });
+      }
+
+      res.redirect(`/citizen/requests/${trackingNumber}?success=` + encodeURIComponent('Your application details have been updated.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect(`/citizen/requests/${req.params.trackingNumber}/edit?error=` + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Cancel / Delete Pending Request
+  static handleCancelRequest(req, res) {
+    try {
+      const { trackingNumber } = req.params;
+      const reason = req.body.reason || 'Cancelled by applicant';
+
+      RequestService.cancelRequest(trackingNumber, req.user.id, reason);
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Request cancelled successfully.' });
+      }
+
+      res.redirect('/citizen/history?success=' + encodeURIComponent(`Request ${trackingNumber} has been cancelled.`));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect(`/citizen/requests/${req.params.trackingNumber}?error=` + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Delete Single Notification
+  static handleDeleteNotification(req, res) {
+    try {
+      const { id } = req.params;
+      NotificationService.delete(Number(id), req.user.id);
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Notification deleted.' });
+      }
+
+      res.redirect('/citizen/notifications?success=' + encodeURIComponent('Notification deleted.'));
+    } catch (err) {
+      res.redirect('/citizen/notifications?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Clear All Notifications
+  static handleClearNotifications(req, res) {
+    try {
+      NotificationService.clearAll(req.user.id);
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'All notifications cleared.' });
+      }
+
+      res.redirect('/citizen/notifications?success=' + encodeURIComponent('All notifications cleared.'));
+    } catch (err) {
+      res.redirect('/citizen/notifications?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Live Request Status API for real-time frontend updates (no manual page reload needed)
+  static getRequestStatusApi(req, res) {
+    try {
+      const { trackingNumber } = req.params;
+      const requestData = RequestService.getRequestByTracking(trackingNumber);
+
+      if (requestData.user_id !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'staff') {
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+
+      return res.json({
+        success: true,
+        trackingNumber: requestData.tracking_number,
+        status: requestData.status,
+        paymentStatus: requestData.payment_status,
+        certificateNumber: requestData.certificate_number,
+        validityStatus: requestData.validity_status,
+        rejectionReason: requestData.rejection_reason,
+        updatedAt: requestData.updated_at
+      });
+    } catch (err) {
+      return res.status(404).json({ success: false, message: err.message });
+    }
+  }
 }
 
 module.exports = CitizenController;

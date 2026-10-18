@@ -31,8 +31,16 @@ router.post('/staff/:staffId/update', AdminController.handleUpdateStaff);
 // ADM-URM-03: Staff Account Deactivation / Activation
 router.post('/staff/:staffId/status', AdminController.handleToggleStaffStatus);
 
+// Staff Deletion (Permanent Removal)
+router.post('/staff/:staffId/delete', AdminController.handleDeleteStaff);
+
 // ADM-URM-04: Access Control Management (Permissions)
 router.post('/staff/:staffId/permissions', AdminController.handleUpdateAccessControl);
+
+// ADM-CUM: Citizen User Management (CRUD)
+router.get('/citizens', AdminController.renderCitizens);
+router.post('/citizens/:id/status', AdminController.handleToggleCitizenStatus);
+router.post('/citizens/:id/delete', AdminController.handleDeleteCitizen);
 
 // ADM-DTM: Document Type & Requirement Management
 // ADM-DTM-01: Document Type Addition
@@ -52,6 +60,7 @@ router.get('/reports', AdminController.renderReports);
 // ADM-CRS-01: Historical Record Retrieval
 // ADM-CRS-02: Issued Document Record Verification
 router.get('/records', AdminController.renderRecords);
+router.post('/requests/:id/delete', AdminController.handleDeleteRequest);
 
 // ADM-IDV: Issued Document Verification & Monitoring
 // ADM-IDV-01: Document Validity Confirmation
@@ -59,11 +68,15 @@ router.get('/records', AdminController.renderRecords);
 router.get('/issued-documents', AdminController.renderIssuedDocuments);
 router.post('/issued-documents/:id/revoke', AdminController.handleRevokeDocument);
 router.post('/issued-documents/:id/reinstate', AdminController.handleReinstateDocument);
+router.post('/issued-documents/:id/delete', AdminController.handleDeleteIssuedDocument);
 
 // ADM-SAO: System Activity & Records Oversight
 // ADM-SAO-01: Records Oversight
 // ADM-SAO-02: Transaction Accountability
 router.get('/audit-logs', AdminController.renderAuditLogs);
+
+// Live Admin Stats API
+router.get('/live-stats', AdminController.getLiveStatsApi);
 
 module.exports = router;
 

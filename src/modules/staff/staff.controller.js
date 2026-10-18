@@ -331,6 +331,94 @@ class StaffController {
       res.redirect('/staff/dashboard?error=' + encodeURIComponent(err.message));
     }
   }
+
+  // GET: Walk-in Application Form (Staff filing on behalf of citizen)
+  static renderWalkInForm(req, res) {
+    try {
+      const AdminModel = require('../admin/admin.model');
+      const citizens = AdminModel.getAllCitizens();
+      const documentTypes = DocumentService.getActiveCatalog();
+
+      res.render('staff/walk-in-form', {
+        title: 'File Walk-in Citizen Request - QuickFile Staff',
+        citizens,
+        documentTypes,
+        selectedCitizenId: req.query.citizenId || '',
+        error: req.query.error || null,
+        success: req.query.success || null
+      });
+    } catch (err) {
+      res.redirect('/staff/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Create Walk-in Request
+  static async handleWalkInRequest(req, res) {
+    try {
+      const { citizenId, documentTypeId, purpose, ...formDataFields } = req.body;
+
+      const created = await RequestService.createWalkInRequest({
+        citizenId: Number(citizenId),
+        staffUser: req.user,
+        documentTypeId: Number(documentTypeId),
+        purpose,
+        formData: formDataFields,
+        attachmentFile: req.file || null
+      });
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(201).json({ success: true, message: 'Walk-in request created!', request: created });
+      }
+
+      res.redirect(`/staff/requests/${created.id}?success=` + encodeURIComponent(`Walk-in request created for tracking #${created.tracking_number}`));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/staff/requests/walk-in?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Update Staff Remarks / Notes on Request
+  static handleUpdateNotes(req, res) {
+    try {
+      const requestId = Number(req.params.id);
+      const { notes } = req.body;
+
+      RequestModel.updateStatus(requestId, {
+        rejectionReason: notes || ''
+      });
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Processing notes updated.' });
+      }
+
+      res.redirect(`/staff/requests/${requestId}?success=` + encodeURIComponent('Notes updated.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect(`/staff/requests/${req.params.id}?error=` + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Live Queue Statistics API for staff UI auto-refresh
+  static getLiveStatsApi(req, res) {
+    try {
+      const overview = RequestModel.getOverviewStats();
+      return res.json({
+        success: true,
+        totalRequests: overview.total_requests || 0,
+        pendingRequests: overview.pending_requests || 0,
+        underReviewRequests: overview.under_review_requests || 0,
+        approvedRequests: overview.approved_requests || 0,
+        readyRequests: overview.ready_requests || 0,
+        releasedRequests: overview.released_requests || 0
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
 }
 
 module.exports = StaffController;

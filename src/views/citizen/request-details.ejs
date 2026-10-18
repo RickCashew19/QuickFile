@@ -11,7 +11,15 @@
         <h2 class="fw-bold mb-0">Tracking: <span class="font-monospace text-primary"><%= reqData.tracking_number %></span></h2>
         <small class="text-muted">Submitted on <%= new Date(reqData.created_at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' }) %></small>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
+        <% if (reqData.status === 'PENDING') { %>
+          <a href="/citizen/requests/<%= reqData.tracking_number %>/edit" class="btn btn-warning rounded-pill btn-sm text-dark fw-semibold">
+            <i class="bi bi-pencil-square me-1"></i> Edit Application
+          </a>
+          <button type="button" class="btn btn-outline-danger rounded-pill btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
+            <i class="bi bi-x-circle me-1"></i> Cancel Request
+          </button>
+        <% } %>
         <a href="/citizen/history" class="btn btn-outline-secondary rounded-pill btn-sm">
           <i class="bi bi-clock-history me-1"></i> My History
         </a>
@@ -219,6 +227,58 @@
     </div>
   </div>
 </div>
+
+<!-- Cancel Request Modal -->
+<% if (reqData.status === 'PENDING') { %>
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/citizen/requests/<%= reqData.tracking_number %>/cancel" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Cancel Document Application</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to cancel your application for <strong><%= reqData.document_name %></strong> (<code><%= reqData.tracking_number %></code>)?</p>
+          <p class="text-muted small">This application will be cancelled immediately and removed from the active processing queue.</p>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Reason for Cancellation</label>
+            <textarea name="reason" class="form-control" rows="2" placeholder="e.g. Applied for wrong document, will re-apply later..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Keep Application</button>
+          <button type="submit" class="btn btn-danger rounded-pill px-4">Confirm Cancellation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- Real-Time Auto-Update Script (Updates citizen's screen automatically when staff processes request) -->
+<script>
+  (function() {
+    const trackingNum = "<%= reqData.tracking_number %>";
+    const currentStatus = "<%= reqData.status %>";
+
+    // Poll status every 8 seconds
+    setInterval(async () => {
+      try {
+        const res = await fetch(`/citizen/requests/${trackingNum}/status`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.status && data.status !== currentStatus) {
+            console.log(`[QuickFile Real-Time] Status changed from ${currentStatus} to ${data.status}. Refreshing view...`);
+            window.location.reload();
+          }
+        }
+      } catch (err) {
+        // Silently retry on next interval
+      }
+    }, 8000);
+  })();
+</script>
 
 <%- include('../layouts/footer') %>
 

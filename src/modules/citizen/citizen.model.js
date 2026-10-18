@@ -1,13 +1,14 @@
 const { getDatabase } = require('../../config/db');
 
 class CitizenModel {
-  static createUser({ email, passwordHash, fullName, phone }) {
+  static createUser({ email, passwordHash, password, fullName, phone }) {
     const db = getDatabase();
+    const hash = passwordHash || password || '';
     const stmt = db.prepare(`
       INSERT INTO users (email, password_hash, role, full_name, phone, is_active)
       VALUES (?, ?, 'citizen', ?, ?, 1)
     `);
-    const result = stmt.run(email.toLowerCase().trim(), passwordHash, fullName.trim(), phone || null);
+    const result = stmt.run(email.toLowerCase().trim(), hash, fullName.trim(), phone || null);
     return result.lastInsertRowid;
   }
 

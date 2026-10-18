@@ -4,6 +4,7 @@ const StaffController = require('./staff.controller');
 const { authenticateUser } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.middleware');
 const { requirePermission } = require('../../middleware/permission.middleware');
+const upload = require('../../middleware/upload.middleware');
 
 // Public Staff IAM Routes
 // STF-IAM-01: Staff Login
@@ -17,14 +18,20 @@ router.post('/logout', StaffController.logout);
 // Protected Staff Portal
 router.use(authenticateUser, requireRole(['staff', 'admin']));
 
-// Staff Dashboard
+// Staff Dashboard & Live Stats API
 router.get('/dashboard', StaffController.renderDashboard);
+router.get('/requests/live-stats', StaffController.getLiveStatsApi);
+
+// Walk-in Citizen Application (Staff filing on behalf of resident)
+router.get('/requests/walk-in', requirePermission('can_prepare_documents'), StaffController.renderWalkInForm);
+router.post('/requests/walk-in', requirePermission('can_prepare_documents'), upload.single('attachment'), StaffController.handleWalkInRequest);
 
 // STF-RVP-01: Request Viewing Queue
 router.get('/requests', requirePermission('can_review_requests'), StaffController.renderRequestsQueue);
 
 // STF-RVP-02: Requirement Review & Inspection
 router.get('/requests/:id', requirePermission('can_review_requests'), StaffController.renderRequestDetails);
+router.post('/requests/:id/notes', requirePermission('can_review_requests'), StaffController.handleUpdateNotes);
 
 // STF-RVP-02 & STF-RSM-01: Under Review Status
 router.post('/requests/:id/review', requirePermission('can_review_requests'), StaffController.handleStartReview);

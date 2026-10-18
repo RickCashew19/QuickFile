@@ -154,9 +154,13 @@ class RequestModel {
   }
 
   static updateStatus(id, { status, rejectionReason, reviewedBy, preparedBy, releasedBy, releasedAt, archivedAt, paymentStatus }) {
-    const fields = ['status = ?', 'updated_at = CURRENT_TIMESTAMP'];
-    const params = [status];
+    const fields = ['updated_at = CURRENT_TIMESTAMP'];
+    const params = [];
 
+    if (status !== undefined) {
+      fields.push('status = ?');
+      params.push(status);
+    }
     if (rejectionReason !== undefined) {
       fields.push('rejection_reason = ?');
       params.push(rejectionReason);
@@ -320,13 +324,55 @@ class RequestModel {
         dt.name,
         dt.code,
         COUNT(r.id) as request_count,
-        SUM(CASE WHEN r.status = 'RELEASED' THEN 1 ELSE 0 END) as released_count,
-        SUM(CASE WHEN r.payment_status = 'PAID' THEN r.fee ELSE 0 END) as revenue
+        SUM(CASE WHEN r.status = 'RELEASED' THEN 1 ELSE 0 END) as released_count
       FROM document_types dt
       LEFT JOIN document_requests r ON r.document_type_id = dt.id
       GROUP BY dt.id
       ORDER BY request_count DESC
     `).all();
+  }
+
+  static updateRequest(id, { purpose, formData, attachmentPath, attachmentName, documentTypeId }) {
+    const fields = ['updated_at = CURRENT_TIMESTAMP'];
+    const params = [];
+
+    if (purpose !== undefined) {
+      fields.push('purpose = ?');
+      params.push(purpose);
+    }
+    if (formData !== undefined) {
+      fields.push('form_data = ?');
+      params.push(formData);
+    }
+    if (attachmentPath !== undefined) {
+      fields.push('attachment_path = ?');
+      params.push(attachmentPath);
+    }
+    if (attachmentName !== undefined) {
+      fields.push('attachment_name = ?');
+      params.push(attachmentName);
+    }
+    if (documentTypeId !== undefined) {
+      fields.push('document_type_id = ?');
+      params.push(documentTypeId);
+    }
+
+    params.push(id);
+    const sql = `UPDATE document_requests SET ${fields.join(', ')} WHERE id = ?`;
+    this.db.prepare(sql).run(...params);
+    return this.findById(id);
+  }
+
+  static delete(id) {
+    const transaction = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM issued_documents WHERE request_id = ?').run(id);
+      return this.db.prepare('DELETE FROM document_requests WHERE id = ?').run(id);
+    });
+    return transaction();
+  }
+
+  static deleteIssuedDocument(id) {
+    return this.db.prepare('DELETE FROM issued_documents WHERE id = ?').run(id);
   }
 }
 

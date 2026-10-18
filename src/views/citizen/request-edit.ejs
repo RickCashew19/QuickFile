@@ -1,0 +1,123 @@
+<%- include('../layouts/header', { title: 'Edit Application - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            Pending Application Modification
+          </span>
+          <h2 class="fw-bold mb-1">Edit Application: <%= reqData.tracking_number %></h2>
+          <p class="mb-0 text-white-50">
+            Document: <strong><%= reqData.document_name %></strong> &bull; You may modify your application details while it is pending review.
+          </p>
+        </div>
+        <div>
+          <a href="/citizen/requests/<%= reqData.tracking_number %>" class="btn btn-outline-light rounded-pill px-4">
+            <i class="bi bi-arrow-left me-1"></i> Back to Tracking
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card card-custom p-4 shadow-sm">
+      <h5 class="fw-bold mb-3"><i class="bi bi-pencil-square text-primary me-2"></i>Update Application Information</h5>
+
+      <form action="/citizen/requests/<%= reqData.tracking_number %>/edit" method="POST" enctype="multipart/form-data">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Stated Purpose *</label>
+            <input type="text" name="purpose" class="form-control" value="<%= reqData.purpose %>" required>
+            <small class="text-muted">Explain why this official barangay certification is needed.</small>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Full Legal Name</label>
+            <input type="text" name="fullName" class="form-control" value="<%= formData.fullName || reqData.citizen_name %>">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Contact Number</label>
+            <input type="text" name="contactNumber" class="form-control" value="<%= formData.contactNumber || '' %>">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Complete Residential Address</label>
+            <input type="text" name="completeAddress" class="form-control" value="<%= formData.completeAddress || '' %>">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Civil Status</label>
+            <select name="civilStatus" class="form-select">
+              <option value="Single" <%= formData.civilStatus === 'Single' ? 'selected' : '' %>>Single</option>
+              <option value="Married" <%= formData.civilStatus === 'Married' ? 'selected' : '' %>>Married</option>
+              <option value="Widowed" <%= formData.civilStatus === 'Widowed' ? 'selected' : '' %>>Widowed</option>
+              <option value="Separated" <%= formData.civilStatus === 'Separated' ? 'selected' : '' %>>Separated</option>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Cedula (CTC) Number</label>
+            <input type="text" name="cedulaNumber" class="form-control" value="<%= formData.cedulaNumber || '' %>" placeholder="Optional">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Upload New / Replacement Requirement File</label>
+            <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+            <small class="text-muted">
+              Current Attachment: <strong><%= reqData.attachment_name || 'None' %></strong>. Leave blank to keep current file.
+            </small>
+          </div>
+
+          <div class="col-12 d-flex justify-content-between align-items-center mt-4">
+            <a href="/citizen/requests/<%= reqData.tracking_number %>" class="btn btn-outline-secondary rounded-pill px-4">
+              Cancel
+            </a>
+            <button type="submit" class="btn btn-primary rounded-pill px-5 fw-semibold">
+              <i class="bi bi-check2-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card card-custom p-4 shadow-sm">
+      <h6 class="fw-bold text-uppercase text-muted small mb-3">Document Requirements</h6>
+      <p class="fw-bold mb-1"><%= docType.name %></p>
+      <p class="small text-muted mb-3"><%= docType.description %></p>
+
+      <ul class="small ps-3 mb-4">
+        <% (docType.requirements_text || '').split('\n').filter(r => r.trim()).forEach(function(r) { %>
+          <li class="mb-1"><%= r.replace(/^[•\-\*]\s*/, '') %></li>
+        <% }); %>
+      </ul>
+
+      <div class="p-3 bg-light rounded-3">
+        <div class="d-flex justify-content-between small mb-1">
+          <span>Fee:</span>
+          <strong>₱<%= Number(docType.fee).toFixed(2) %></strong>
+        </div>
+        <div class="d-flex justify-content-between small">
+          <span>Processing Days:</span>
+          <strong><%= docType.processing_days %> Day(s)</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

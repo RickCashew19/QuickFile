@@ -1,0 +1,146 @@
+<%- include('../layouts/header', { title: 'Citizen User Accounts (ADM-CUM) - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            ADM-CUM &bull; Citizen User & Resident Account Oversight
+          </span>
+          <h2 class="fw-bold mb-1">Citizen Accounts Management</h2>
+          <p class="mb-0 text-white-50">
+            Monitor registered residents, verify account validity, activate/disable access, and manage citizen user records.
+          </p>
+        </div>
+        <div>
+          <a href="/admin/dashboard" class="btn btn-outline-light rounded-pill px-4">
+            <i class="bi bi-arrow-left me-1"></i> Admin Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<!-- Registered Citizens Table -->
+<div class="card card-custom p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h5 class="fw-bold mb-0">Registered Barangay Residents (<%= citizens ? citizens.length : 0 %> Accounts)</h5>
+      <span class="text-muted small">All citizens registered for online document requesting and official certifications.</span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Resident Name</th>
+          <th>Email Address</th>
+          <th>Purok / Zone</th>
+          <th>Contact Number</th>
+          <th class="text-center">Voter Status</th>
+          <th class="text-center">Total Requests</th>
+          <th class="text-center">Account Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (citizens && citizens.length > 0) { %>
+          <% citizens.forEach(function(c) { %>
+            <tr>
+              <td>
+                <div class="fw-bold"><%= c.full_name %></div>
+                <small class="text-muted">Registered: <%= new Date(c.created_at).toLocaleDateString() %></small>
+              </td>
+              <td><code><%= c.email %></code></td>
+              <td><%= c.purok_zone || 'Barangay Central' %></td>
+              <td><%= c.contact_number || c.phone || 'N/A' %></td>
+              <td class="text-center">
+                <% if (c.voter_status === 'Registered') { %>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Voter</span>
+                <% } else { %>
+                  <span class="badge bg-secondary-subtle text-muted">Non-Voter</span>
+                <% } %>
+              </td>
+              <td class="text-center fw-bold text-primary"><%= c.total_requests %></td>
+              <td class="text-center">
+                <% if (c.is_active) { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">Active</span>
+                <% } else { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">Disabled</span>
+                <% } %>
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-1">
+                  <!-- Toggle Status (Activate / Disable) -->
+                  <form action="/admin/citizens/<%= c.id %>/status" method="POST" class="d-inline">
+                    <input type="hidden" name="isActive" value="<%= c.is_active ? '0' : '1' %>">
+                    <% if (c.is_active) { %>
+                      <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill" title="Disable account">
+                        <i class="bi bi-person-slash me-1"></i> Disable
+                      </button>
+                    <% } else { %>
+                      <button type="submit" class="btn btn-sm btn-outline-success rounded-pill" title="Activate account">
+                        <i class="bi bi-person-check me-1"></i> Activate
+                      </button>
+                    <% } %>
+                  </form>
+
+                  <!-- Delete Citizen (CRUD Delete) -->
+                  <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" data-bs-toggle="modal" data-bs-target="#deleteCitizenModal-<%= c.id %>" title="Delete account">
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </div>
+
+                <!-- Delete Citizen Modal -->
+                <div class="modal fade" id="deleteCitizenModal-<%= c.id %>" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog text-start">
+                    <div class="modal-content">
+                      <form action="/admin/citizens/<%= c.id %>/delete" method="POST">
+                        <div class="modal-header bg-danger text-white">
+                          <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Citizen Account</h5>
+                          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <p>Are you sure you want to permanently remove <strong><%= c.full_name %></strong> (<code><%= c.email %></code>)?</p>
+                          <p class="text-danger small mb-0"><strong>Warning:</strong> This will delete their profile, associated requests, and notifications. This action is irreversible.</p>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn btn-danger rounded-pill px-4">Permanently Delete</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No registered citizens found.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

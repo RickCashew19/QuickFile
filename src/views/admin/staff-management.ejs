@@ -110,26 +110,35 @@
           </button>
         </form>
 
-        <!-- Actions: Edit & Deactivation (ADM-URM-02 & ADM-URM-03) -->
-        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-auto gap-2">
+        <!-- Actions: Edit, Deactivation & Deletion (ADM-URM-02, ADM-URM-03, ADM-URM-05) -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-auto gap-2">
           <!-- Edit Trigger -->
           <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editStaffModal-<%= s.id %>">
-            <i class="bi bi-pencil-square me-1"></i> Edit Account (ADM-URM-02)
+            <i class="bi bi-pencil-square me-1"></i> Edit Account
           </button>
 
-          <!-- Toggle Deactivation (ADM-URM-03) -->
-          <form action="/admin/staff/<%= s.id %>/status" method="POST" class="d-inline">
-            <input type="hidden" name="isActive" value="<%= s.is_active ? 'false' : 'true' %>">
-            <% if (s.is_active) { %>
-              <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('Deactivate staff member <%= s.full_name %>? They will no longer be able to log in.');">
-                <i class="bi bi-person-x-fill me-1"></i> Deactivate (ADM-URM-03)
+          <div class="d-flex gap-2">
+            <!-- Toggle Deactivation (ADM-URM-03) -->
+            <form action="/admin/staff/<%= s.id %>/status" method="POST" class="d-inline">
+              <input type="hidden" name="isActive" value="<%= s.is_active ? 'false' : 'true' %>">
+              <% if (s.is_active) { %>
+                <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill px-3" onclick="return confirm('Deactivate staff member <%= s.full_name %>? They will no longer be able to log in.');">
+                  <i class="bi bi-person-x-fill me-1"></i> Deactivate
+                </button>
+              <% } else { %>
+                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
+                  <i class="bi bi-person-check-fill me-1"></i> Reactivate
+                </button>
+              <% } %>
+            </form>
+
+            <!-- Permanent Deletion (ADM-URM-05) -->
+            <form action="/admin/staff/<%= s.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('PERMANENTLY DELETE staff account for <%= s.full_name %>? This cannot be undone.');">
+              <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" title="Permanently Delete Staff">
+                <i class="bi bi-trash3-fill me-1"></i> Delete
               </button>
-            <% } else { %>
-              <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
-                <i class="bi bi-person-check-fill me-1"></i> Reactivate Staff
-              </button>
-            <% } %>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

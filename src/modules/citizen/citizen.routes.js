@@ -51,10 +51,22 @@ router.post('/request', upload.single('attachment'), CitizenController.handleSub
 // CIT-RST-01: Request Status Tracking & Document Viewing
 router.get('/requests/:trackingNumber', CitizenController.renderRequestDetails);
 
+// Live Request Status API for client-side auto-updates
+router.get('/requests/:trackingNumber/status', CitizenController.getRequestStatusApi);
+
+// Request Modification (Edit Pending Request)
+router.get('/requests/:trackingNumber/edit', CitizenController.renderEditRequest);
+router.post('/requests/:trackingNumber/edit', upload.single('attachment'), CitizenController.handleUpdateRequest);
+
+// Request Cancellation (Cancel Pending Request)
+router.post('/requests/:trackingNumber/cancel', CitizenController.handleCancelRequest);
+
 // CIT-RHV-01: Request History Viewing
 router.get('/history', CitizenController.renderHistory);
 
-// CIT-RST-02: In-App System Notifications
+// CIT-RST-02: In-App System Notifications & Management
 router.get('/notifications', CitizenController.renderNotifications);
+router.post('/notifications/:id/delete', CitizenController.handleDeleteNotification);
+router.post('/notifications/clear', CitizenController.handleClearNotifications);
 
 module.exports = router;

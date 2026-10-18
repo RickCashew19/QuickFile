@@ -1,0 +1,129 @@
+<%- include('../layouts/header', { title: 'File Walk-in Request - QuickFile Staff' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            STF-DPP &bull; Walk-in Counter Service
+          </span>
+          <h2 class="fw-bold mb-1">File Walk-in Document Request</h2>
+          <p class="mb-0 text-white-50">
+            Assisted counter filing for walk-in residents and senior citizens at Barangay Central Hall.
+          </p>
+        </div>
+        <div>
+          <a href="/staff/requests" class="btn btn-outline-light rounded-pill px-4">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card card-custom p-4 shadow-sm">
+      <h5 class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-primary me-2"></i>Citizen & Application Details</h5>
+
+      <form action="/staff/requests/walk-in" method="POST" enctype="multipart/form-data">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Select Resident Citizen *</label>
+            <select name="citizenId" id="citizenSelect" class="form-select form-select-lg" required>
+              <option value="">-- Choose a registered resident --</option>
+              <% if (citizens) { %>
+                <% citizens.forEach(function(c) { %>
+                  <option value="<%= c.id %>" <%= selectedCitizenId == c.id ? 'selected' : '' %>>
+                    <%= c.full_name %> (<%= c.email %>) - <%= c.purok_zone || 'Barangay Central' %>
+                  </option>
+                <% }); %>
+              <% } %>
+            </select>
+            <small class="text-muted">Select the resident for whom this certificate is being issued.</small>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Document Type *</label>
+            <select name="documentTypeId" class="form-select" required>
+              <option value="">-- Select Document --</option>
+              <% if (documentTypes) { %>
+                <% documentTypes.forEach(function(dt) { %>
+                  <option value="<%= dt.id %>">
+                    <%= dt.name %> (₱<%= dt.fee.toFixed(2) %>)
+                  </option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Official Purpose *</label>
+            <input type="text" name="purpose" class="form-control" placeholder="e.g. Employment, Bank requirement, Postal ID" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Applicant Contact Number</label>
+            <input type="text" name="contactNumber" class="form-control" placeholder="e.g. 09171234567">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Cedula (CTC) Number</label>
+            <input type="text" name="cedulaNumber" class="form-control" placeholder="Optional">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Upload Supporting Requirement Document (Optional)</label>
+            <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+            <small class="text-muted">Valid ID scan or supporting document presented by the walk-in applicant.</small>
+          </div>
+
+          <div class="col-12 d-flex justify-content-between align-items-center mt-4">
+            <a href="/staff/requests" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+            <button type="submit" class="btn btn-primary rounded-pill px-5 fw-semibold">
+              <i class="bi bi-file-earmark-plus me-1"></i> Submit Walk-in Request
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card card-custom p-4 shadow-sm bg-light border-0">
+      <h6 class="fw-bold text-uppercase text-muted small mb-3">Counter Assistance Guide</h6>
+      <p class="small text-muted mb-3">
+        When processing walk-in applications:
+      </p>
+      <ol class="small ps-3 mb-4 text-muted">
+        <li class="mb-2">Verify physical Government ID or Purok identification presented.</li>
+        <li class="mb-2">Ensure applicant is registered as a barangay resident.</li>
+        <li class="mb-2">Confirm official purpose to determine fee exemption (e.g. Indigency).</li>
+        <li>Once filed, the request will immediately appear in your operational queue for review and certificate preparation.</li>
+      </ol>
+
+      <div class="p-3 bg-white border rounded-3">
+        <span class="small fw-bold d-block mb-1 text-primary"><i class="bi bi-info-circle me-1"></i>Automatic Notification:</span>
+        <span class="small text-muted">The resident will automatically receive an in-app notice and tracking link on their portal account.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

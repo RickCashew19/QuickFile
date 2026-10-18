@@ -354,6 +354,131 @@ class AdminController {
       res.redirect('/admin/dashboard?error=' + encodeURIComponent(err.message));
     }
   }
+
+  // POST: Delete Staff Account (ADM-URM)
+  static async handleDeleteStaff(req, res) {
+    try {
+      const { staffId } = req.params;
+      await AdminService.deleteStaffAccount(req.user, Number(staffId));
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Staff account deleted permanently.' });
+      }
+
+      res.redirect('/admin/staff-management?success=' + encodeURIComponent('Staff account permanently deleted.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/staff-management?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Citizen User Management Console (ADM-CUM)
+  static async renderCitizens(req, res) {
+    try {
+      const citizens = await AdminService.getAllCitizens();
+      res.render('admin/citizens', {
+        title: 'Citizen Accounts Management (ADM-CUM) - QuickFile',
+        citizens,
+        success: req.query.success || null,
+        error: req.query.error || null
+      });
+    } catch (err) {
+      res.redirect('/admin/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Toggle Citizen Status (Active / Disabled)
+  static async handleToggleCitizenStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const isActive = req.body.isActive === '1' || req.body.isActive === true || req.body.isActive === 'true';
+      await AdminService.toggleCitizenStatus(req.user, Number(id), isActive);
+
+      const msg = `Citizen account has been ${isActive ? 'activated' : 'disabled'}.`;
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: msg });
+      }
+
+      res.redirect('/admin/citizens?success=' + encodeURIComponent(msg));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/citizens?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Delete Citizen Account
+  static async handleDeleteCitizen(req, res) {
+    try {
+      const { id } = req.params;
+      await AdminService.deleteCitizenAccount(req.user, Number(id));
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Citizen account and associated records deleted permanently.' });
+      }
+
+      res.redirect('/admin/citizens?success=' + encodeURIComponent('Citizen account and associated records deleted.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/citizens?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Delete Request Record (Admin)
+  static handleDeleteRequest(req, res) {
+    try {
+      const { id } = req.params;
+      RequestService.deleteRequestByAdmin(Number(id), req.user);
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Request deleted permanently.' });
+      }
+
+      res.redirect('/admin/records?success=' + encodeURIComponent('Request record deleted successfully.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/records?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Delete Issued Document Record (Admin)
+  static handleDeleteIssuedDocument(req, res) {
+    try {
+      const { id } = req.params;
+      RequestService.deleteIssuedDocumentByAdmin(Number(id), req.user);
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: 'Issued document record deleted.' });
+      }
+
+      res.redirect('/admin/issued-documents?success=' + encodeURIComponent('Issued document record deleted.'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/issued-documents?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Live Admin Stats API
+  static getLiveStatsApi(req, res) {
+    try {
+      const overview = RequestModel.getOverviewStats();
+      return res.json({
+        success: true,
+        ...overview
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
 }
 
 module.exports = AdminController;

@@ -9,9 +9,18 @@
         </span>
         <h2 class="fw-bold mb-0">My Notifications</h2>
       </div>
-      <a href="/citizen/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
-        <i class="bi bi-arrow-left me-1"></i> Dashboard
-      </a>
+      <div class="d-flex gap-2">
+        <% if (notifications && notifications.length > 0) { %>
+          <form action="/citizen/notifications/clear" method="POST" onsubmit="return confirm('Clear all notifications?');">
+            <button type="submit" class="btn btn-outline-danger rounded-pill btn-sm">
+              <i class="bi bi-trash me-1"></i> Clear All
+            </button>
+          </form>
+        <% } %>
+        <a href="/citizen/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
+          <i class="bi bi-arrow-left me-1"></i> Dashboard
+        </a>
+      </div>
     </div>
 
     <div class="card card-custom p-4 border-0 shadow-sm">
@@ -27,11 +36,18 @@
                   <p class="text-muted small mb-1"><%= n.message %></p>
                   <small class="text-secondary"><%= new Date(n.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) %></small>
                 </div>
-                <% if (n.link) { %>
-                  <a href="<%= n.link %>" class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0">
-                    View &rarr;
-                  </a>
-                <% } %>
+                <div class="d-flex gap-1 flex-shrink-0">
+                  <% if (n.link) { %>
+                    <a href="<%= n.link %>" class="btn btn-sm btn-outline-primary rounded-pill">
+                      View &rarr;
+                    </a>
+                  <% } %>
+                  <form action="/citizen/notifications/<%= n.id %>/delete" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill" title="Delete notification">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           <% }); %>

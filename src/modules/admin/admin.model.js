@@ -159,6 +159,50 @@ class AdminModel {
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(actorId, actorName, action, targetType, targetId, details);
   }
+
+  static deleteStaffUser(userId) {
+    const db = getDatabase();
+    const transaction = db.transaction(() => {
+      db.prepare('DELETE FROM staff_permissions WHERE user_id = ?').run(userId);
+      db.prepare('DELETE FROM staff_details WHERE user_id = ?').run(userId);
+      return db.prepare("DELETE FROM users WHERE id = ? AND role = 'staff'").run(userId);
+    });
+    return transaction();
+  }
+
+  static getAllCitizens() {
+    const db = getDatabase();
+    return db.prepare(`
+      SELECT 
+        u.id, u.email, u.role, u.full_name, u.phone, u.is_active, u.created_at, u.updated_at,
+        cp.first_name, cp.middle_name, cp.last_name, cp.purok_zone, cp.street_address,
+        cp.contact_number, cp.voter_status, cp.civil_status,
+        (SELECT COUNT(*) FROM document_requests WHERE user_id = u.id) as total_requests
+      FROM users u
+      LEFT JOIN citizen_profiles cp ON cp.user_id = u.id
+      WHERE u.role = 'citizen'
+      ORDER BY u.created_at DESC
+    `).all();
+  }
+
+  static toggleCitizenStatus(userId, isActive) {
+    const db = getDatabase();
+    db.prepare("UPDATE users SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'citizen'").run(isActive ? 1 : 0, userId);
+    return db.prepare('SELECT id, email, full_name, is_active FROM users WHERE id = ?').get(userId);
+  }
+
+  static deleteCitizenUser(userId) {
+    const db = getDatabase();
+    const transaction = db.transaction(() => {
+      db.prepare('DELETE FROM citizen_profiles WHERE user_id = ?').run(userId);
+      db.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId);
+      db.prepare('DELETE FROM password_resets WHERE user_id = ?').run(userId);
+      db.prepare('DELETE FROM issued_documents WHERE request_id IN (SELECT id FROM document_requests WHERE user_id = ?)').run(userId);
+      db.prepare('DELETE FROM document_requests WHERE user_id = ?').run(userId);
+      return db.prepare("DELETE FROM users WHERE id = ? AND role = 'citizen'").run(userId);
+    });
+    return transaction();
+  }
 }
 
 module.exports = AdminModel;
