@@ -291,7 +291,11 @@
                     <% } %>
                   </td>
                   <td>
-                    <%= r.reviewer_name ? r.reviewer_name : '<span class="text-muted italic">Unassigned</span>' %>
+                    <% if (r.reviewer_name) { %>
+                      <%= r.reviewer_name %>
+                    <% } else { %>
+                      <span class="text-muted italic">Unassigned</span>
+                    <% } %>
                   </td>
                   <td>
                     <a href="/verify/<%= r.tracking_number %>" class="btn btn-sm btn-outline-info rounded-pill" target="_blank" title="Verify status and QR">
