@@ -25,26 +25,43 @@
 
     <div class="collapse navbar-collapse" id="navMenu">
       <ul class="navbar-nav ms-auto align-items-center gap-2">
+        <li class="nav-item">
+          <a class="nav-link text-warning" href="/verify">
+            <i class="bi bi-qr-code-scan me-1"></i> Verify Document
+          </a>
+        </li>
         <% if (typeof currentUser !== 'undefined' && currentUser) { %>
           <% if (currentUser.role === 'citizen') { %>
             <li class="nav-item"><a class="nav-link" href="/citizen/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="/citizen/profile"><i class="bi bi-person-circle me-1"></i> My Profile</a></li>
+            <li class="nav-item"><a class="nav-link" href="/citizen/catalog"><i class="bi bi-folder2-open me-1"></i> Catalog</a></li>
+            <li class="nav-item"><a class="nav-link" href="/citizen/history"><i class="bi bi-clock-history me-1"></i> History & Tracking</a></li>
+            <li class="nav-item"><a class="nav-link" href="/citizen/notifications"><i class="bi bi-bell me-1"></i> Alerts</a></li>
+            <li class="nav-item"><a class="nav-link" href="/citizen/profile"><i class="bi bi-person-circle me-1"></i> Profile</a></li>
             <li class="nav-item ms-lg-2">
               <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="/citizen/logout">
                 <i class="bi bi-box-arrow-right me-1"></i> Logout (<%= currentUser.full_name %>)
               </a>
             </li>
           <% } else if (currentUser.role === 'staff') { %>
-            <li class="nav-item"><a class="nav-link" href="/staff/dashboard"><i class="bi bi-briefcase me-1"></i> Staff Desk</a></li>
+            <li class="nav-item"><a class="nav-link" href="/staff/dashboard"><i class="bi bi-speedometer2 me-1"></i> Staff Desk</a></li>
+            <li class="nav-item"><a class="nav-link" href="/staff/requests"><i class="bi bi-inboxes-fill me-1"></i> Request Queue</a></li>
+            <li class="nav-item"><a class="nav-link" href="/staff/records"><i class="bi bi-archive-fill me-1"></i> Archive</a></li>
+            <li class="nav-item"><a class="nav-link" href="/staff/verify"><i class="bi bi-qr-code me-1"></i> QR Verify</a></li>
+            <li class="nav-item"><a class="nav-link" href="/staff/reports"><i class="bi bi-bar-chart-line-fill me-1"></i> Reports</a></li>
             <li class="nav-item ms-lg-2">
               <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="/staff/logout">
                 <i class="bi bi-box-arrow-right me-1"></i> Staff Logout (<%= currentUser.full_name %>)
               </a>
             </li>
           <% } else if (currentUser.role === 'admin') { %>
-            <li class="nav-item"><a class="nav-link" href="/admin/dashboard"><i class="bi bi-speedometer2 me-1"></i> Admin Portal</a></li>
-            <li class="nav-item"><a class="nav-link" href="/admin/staff-management"><i class="bi bi-people me-1"></i> Staff & Roles</a></li>
-            <li class="nav-item"><a class="nav-link" href="/admin/settings"><i class="bi bi-gear-fill me-1"></i> App Settings</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/document-types"><i class="bi bi-file-earmark-text-fill me-1"></i> Doc Types</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/staff-management"><i class="bi bi-people-fill me-1"></i> Staff & Roles</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/reports"><i class="bi bi-graph-up-arrow me-1"></i> Reports</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/records"><i class="bi bi-search me-1"></i> Records</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/issued-documents"><i class="bi bi-patch-check-fill me-1"></i> Issued Docs</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/audit-logs"><i class="bi bi-shield-shaded me-1"></i> Audit Logs</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/settings"><i class="bi bi-gear-fill me-1"></i> Settings</a></li>
             <li class="nav-item ms-lg-2">
               <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="/admin/logout">
                 <i class="bi bi-box-arrow-right me-1"></i> Admin Logout

@@ -1,0 +1,174 @@
+<%- include('../layouts/header', { title: 'Online Document Request - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-1">
+          CIT-ODR &bull; Online Document Request
+        </span>
+        <h2 class="fw-bold mb-0">Apply for Barangay Document</h2>
+      </div>
+      <a href="/citizen/catalog" class="btn btn-outline-secondary rounded-pill btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Catalog (CIT-DCR)
+      </a>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <form action="/citizen/request" method="POST" enctype="multipart/form-data">
+      <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+        <h4 class="fw-bold mb-3 text-primary">
+          <i class="bi bi-file-earmark-check me-2"></i> 1. Document Selection (CIT-ODR-01)
+        </h4>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Select Desired Document Type <span class="text-danger">*</span></label>
+          <select name="documentTypeId" id="docTypeSelect" class="form-select form-select-lg" required>
+            <option value="">-- Choose Barangay Document Type --</option>
+            <% documentTypes.forEach(function(dt) { %>
+              <option 
+                value="<%= dt.id %>" 
+                data-fee="<%= dt.fee %>" 
+                data-reqs="<%= dt.requirements_text %>"
+                <%= selectedDocId == dt.id ? 'selected' : '' %>
+              >
+                <%= dt.name %> &bull; <%= dt.fee === 0 ? 'FREE' : '₱' + dt.fee.toFixed(2) %> (<%= dt.processing_days %> Day processing)
+              </option>
+            <% }); %>
+          </select>
+        </div>
+
+        <div id="reqsBox" class="p-3 bg-light rounded-3 mb-3 border d-none">
+          <h6 class="fw-bold text-dark mb-1">
+            <i class="bi bi-info-circle-fill text-primary me-1"></i> Requirements for Selected Document:
+          </h6>
+          <div id="reqsContent" class="small text-muted" style="white-space: pre-line;"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Purpose of Request <span class="text-danger">*</span></label>
+          <input 
+            type="text" 
+            name="purpose" 
+            class="form-control" 
+            placeholder="e.g. Local Employment, Scholarship, Bank Account, Postal ID, Passport Application" 
+            required
+          >
+          <small class="text-muted">State the exact purpose for which this official document will be presented.</small>
+        </div>
+      </div>
+
+      <!-- CIT-ODR-03: Digital Form Entry (Pre-populated from CIT-APM-03) -->
+      <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-person-lines-fill me-2"></i> 2. Digital Form Entry & Resident Data (CIT-ODR-03)
+          </h4>
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
+            <i class="bi bi-magic me-1"></i> Pre-filled from Profile (CIT-APM-03)
+          </span>
+        </div>
+        <p class="text-muted small mb-4">
+          Personal details from your resident profile are automatically loaded. You can verify and adjust details for this specific request.
+        </p>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Applicant Full Name</label>
+            <input type="text" name="fullName" class="form-control" value="<%= reusableInfo.reusableData.fullName %>" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Contact Mobile Number</label>
+            <input type="text" name="contactNumber" class="form-control" value="<%= reusableInfo.reusableData.contactNumber %>" required>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Complete Residential Address</label>
+            <input type="text" name="completeAddress" class="form-control" value="<%= reusableInfo.reusableData.completeAddress %>" required>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Civil Status</label>
+            <select name="civilStatus" class="form-select">
+              <option value="Single" <%= reusableInfo.reusableData.civilStatus === 'Single' ? 'selected' : '' %>>Single</option>
+              <option value="Married" <%= reusableInfo.reusableData.civilStatus === 'Married' ? 'selected' : '' %>>Married</option>
+              <option value="Widowed" <%= reusableInfo.reusableData.civilStatus === 'Widowed' ? 'selected' : '' %>>Widowed</option>
+              <option value="Separated" <%= reusableInfo.reusableData.civilStatus === 'Separated' ? 'selected' : '' %>>Separated</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Gender</label>
+            <select name="gender" class="form-select">
+              <option value="Male" <%= reusableInfo.reusableData.gender === 'Male' ? 'selected' : '' %>>Male</option>
+              <option value="Female" <%= reusableInfo.reusableData.gender === 'Female' ? 'selected' : '' %>>Female</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Voter Status</label>
+            <select name="voterStatus" class="form-select">
+              <option value="Registered" <%= reusableInfo.reusableData.voterStatus === 'Registered' ? 'selected' : '' %>>Registered Voter</option>
+              <option value="Non-Registered" <%= reusableInfo.reusableData.voterStatus === 'Non-Registered' ? 'selected' : '' %>>Non-Registered</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- CIT-ODR-04: File Upload -->
+      <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+        <h4 class="fw-bold mb-3 text-primary">
+          <i class="bi bi-paperclip me-2"></i> 3. Document Attachment / File Upload (CIT-ODR-04)
+        </h4>
+        <p class="text-muted small mb-3">
+          Upload a clear photograph or scanned copy of your Valid Government ID, proof of address, or endorsing letter (JPG, PNG, PDF up to 10MB).
+        </p>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Upload Required Proof / Valid ID</label>
+          <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.docx">
+          <small class="text-muted">Accepted formats: JPG, PNG, PDF, DOCX (Max 10MB).</small>
+        </div>
+      </div>
+
+      <!-- CIT-ODR-02: Submit Request -->
+      <div class="d-flex justify-content-between align-items-center mb-5">
+        <a href="/citizen/dashboard" class="btn btn-outline-secondary rounded-pill px-4">
+          Cancel
+        </a>
+        <button type="submit" class="btn btn-primary rounded-pill px-5 py-2 fw-bold fs-5">
+          <i class="bi bi-send-fill me-2"></i> Submit Document Request (CIT-ODR-02)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const select = document.getElementById('docTypeSelect');
+  const box = document.getElementById('reqsBox');
+  const content = document.getElementById('reqsContent');
+
+  function updateRequirements() {
+    const selected = select.options[select.selectedIndex];
+    const reqs = selected.getAttribute('data-reqs');
+    if (reqs && reqs.trim() !== '') {
+      content.textContent = reqs;
+      box.classList.remove('d-none');
+    } else {
+      box.classList.add('d-none');
+    }
+  }
+
+  select.addEventListener('change', updateRequirements);
+  updateRequirements();
+</script>
+
+<%- include('../layouts/footer') %>

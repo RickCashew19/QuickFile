@@ -1,0 +1,157 @@
+<%- include('../layouts/header', { title: 'Document Requests Queue - QuickFile' }) %>
+
+<div class="row align-items-center mb-4">
+  <div class="col-md-8">
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+      STF-RVP-01 &bull; Request Viewing
+    </span>
+    <h2 class="fw-bold mb-0">Citizen Document Requests Queue</h2>
+    <p class="text-muted mb-0">Inspect citizen applications, verify requirements, and manage the document preparation workflow.</p>
+  </div>
+  <div class="col-md-4 text-md-end mt-3 mt-md-0">
+    <a href="/staff/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Staff Dashboard
+    </a>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<!-- Filter Bar -->
+<div class="card card-custom p-3 mb-4 border-0 shadow-sm">
+  <form action="/staff/requests" method="GET" class="row g-2 align-items-center">
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+        <input 
+          type="text" 
+          name="search" 
+          class="form-control" 
+          placeholder="Search Citizen, Tracking No, Ref..." 
+          value="<%= searchQuery %>"
+        >
+      </div>
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select">
+        <option value="ALL" <%= selectedStatus === 'ALL' ? 'selected' : '' %>>All Statuses</option>
+        <option value="PENDING" <%= selectedStatus === 'PENDING' ? 'selected' : '' %>>Pending Review</option>
+        <option value="UNDER_REVIEW" <%= selectedStatus === 'UNDER_REVIEW' ? 'selected' : '' %>>Under Review</option>
+        <option value="APPROVED" <%= selectedStatus === 'APPROVED' ? 'selected' : '' %>>Approved</option>
+        <option value="IN_PREPARATION" <%= selectedStatus === 'IN_PREPARATION' ? 'selected' : '' %>>In Preparation</option>
+        <option value="READY_FOR_PICKUP" <%= selectedStatus === 'READY_FOR_PICKUP' ? 'selected' : '' %>>Ready for Pickup</option>
+        <option value="RELEASED" <%= selectedStatus === 'RELEASED' ? 'selected' : '' %>>Released</option>
+        <option value="REJECTED" <%= selectedStatus === 'REJECTED' ? 'selected' : '' %>>Rejected</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="documentTypeId" class="form-select">
+        <option value="">All Document Types</option>
+        <% documentTypes.forEach(function(dt) { %>
+          <option value="<%= dt.id %>" <%= selectedDocType == dt.id ? 'selected' : '' %>><%= dt.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100 rounded-pill fw-semibold">
+        Filter Queue
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Requests Table (STF-RVP-01) -->
+<div class="card card-custom p-4 border-0 shadow-sm">
+  <% if (requests && requests.length > 0) { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tracking No.</th>
+            <th>Citizen Applicant</th>
+            <th>Document Type</th>
+            <th>Date Submitted</th>
+            <th>Fee & Payment</th>
+            <th>Current Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% requests.forEach(function(r) { %>
+            <tr>
+              <td>
+                <span class="font-monospace fw-bold text-primary"><%= r.tracking_number %></span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark"><%= r.citizen_name %></div>
+                <small class="text-muted"><%= r.citizen_phone || r.citizen_email %></small>
+              </td>
+              <td>
+                <div class="fw-semibold"><%= r.document_name %></div>
+                <small class="text-muted"><%= r.purpose %></small>
+              </td>
+              <td class="text-muted small">
+                <%= new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) %>
+              </td>
+              <td>
+                <% if (r.fee === 0) { %>
+                  <span class="badge bg-secondary-subtle text-secondary">Free</span>
+                <% } else { %>
+                  <span>₱<%= r.fee.toFixed(2) %></span>
+                  <small class="badge <%= r.payment_status === 'PAID' ? 'bg-success' : 'bg-warning text-dark' %> ms-1">
+                    <%= r.payment_status %>
+                  </small>
+                <% } %>
+              </td>
+              <td>
+                <% if (r.status === 'PENDING') { %>
+                  <span class="badge bg-warning text-dark">Pending</span>
+                <% } else if (r.status === 'UNDER_REVIEW') { %>
+                  <span class="badge bg-info text-white">Under Review</span>
+                <% } else if (r.status === 'APPROVED') { %>
+                  <span class="badge bg-primary">Approved</span>
+                <% } else if (r.status === 'IN_PREPARATION') { %>
+                  <span class="badge bg-info text-dark">In Prep</span>
+                <% } else if (r.status === 'READY_FOR_PICKUP') { %>
+                  <span class="badge bg-success">Ready for Pickup</span>
+                <% } else if (r.status === 'RELEASED') { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Released</span>
+                <% } else if (r.status === 'REJECTED') { %>
+                  <span class="badge bg-danger">Rejected</span>
+                <% } else { %>
+                  <span class="badge bg-secondary"><%= r.status %></span>
+                <% } %>
+              </td>
+              <td>
+                <a href="/staff/requests/<%= r.id %>" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                  <i class="bi bi-pencil-square me-1"></i> Review & Process
+                </a>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+    <div class="text-center py-5">
+      <i class="bi bi-inbox fs-1 text-muted"></i>
+      <h5 class="fw-bold mt-2">No document requests match this filter</h5>
+      <p class="text-muted">Try clearing the search query or status filter.</p>
+      <a href="/staff/requests" class="btn btn-outline-primary rounded-pill btn-sm">Clear Filters</a>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../layouts/footer') %>

@@ -1,0 +1,110 @@
+<%- include('../layouts/header', { title: 'System Activity & Records Oversight (ADM-SAO) - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            ADM-SAO &bull; System Activity & Records Oversight
+          </span>
+          <h2 class="fw-bold mb-1">Administrative Audit Trail & Accountability</h2>
+          <p class="mb-0 text-white-50">
+            Immutable log of system events, staff reviews, certificate issuances, permission modifications, and validity revocations (ADM-SAO-01 & ADM-SAO-02).
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Console -->
+<div class="card card-custom p-4 mb-4 shadow-sm">
+  <form action="/admin/audit-logs" method="GET" class="row g-3 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label small fw-semibold">Filter by Action Event</label>
+      <select name="action" class="form-select">
+        <option value="">All Administrative & Operational Actions</option>
+        <option value="APPROVE_REQUEST" <%= selectedAction === 'APPROVE_REQUEST' ? 'selected' : '' %>>APPROVE_REQUEST</option>
+        <option value="REJECT_REQUEST" <%= selectedAction === 'REJECT_REQUEST' ? 'selected' : '' %>>REJECT_REQUEST</option>
+        <option value="REVIEW_REQUEST" <%= selectedAction === 'REVIEW_REQUEST' ? 'selected' : '' %>>REVIEW_REQUEST</option>
+        <option value="PREPARE_DOCUMENT" <%= selectedAction === 'PREPARE_DOCUMENT' ? 'selected' : '' %>>PREPARE_DOCUMENT</option>
+        <option value="RELEASE_DOCUMENT" <%= selectedAction === 'RELEASE_DOCUMENT' ? 'selected' : '' %>>RELEASE_DOCUMENT</option>
+        <option value="ARCHIVE_RECORD" <%= selectedAction === 'ARCHIVE_RECORD' ? 'selected' : '' %>>ARCHIVE_RECORD</option>
+        <option value="REVOKE_DOCUMENT" <%= selectedAction === 'REVOKE_DOCUMENT' ? 'selected' : '' %>>REVOKE_DOCUMENT</option>
+        <option value="REINSTATE_DOCUMENT" <%= selectedAction === 'REINSTATE_DOCUMENT' ? 'selected' : '' %>>REINSTATE_DOCUMENT</option>
+        <option value="CREATE_DOCUMENT_TYPE" <%= selectedAction === 'CREATE_DOCUMENT_TYPE' ? 'selected' : '' %>>CREATE_DOCUMENT_TYPE</option>
+        <option value="UPDATE_DOCUMENT_TYPE" <%= selectedAction === 'UPDATE_DOCUMENT_TYPE' ? 'selected' : '' %>>UPDATE_DOCUMENT_TYPE</option>
+        <option value="DELETE_DOCUMENT_TYPE" <%= selectedAction === 'DELETE_DOCUMENT_TYPE' ? 'selected' : '' %>>DELETE_DOCUMENT_TYPE</option>
+        <option value="CREATE_STAFF" <%= selectedAction === 'CREATE_STAFF' ? 'selected' : '' %>>CREATE_STAFF</option>
+        <option value="UPDATE_PERMISSIONS" <%= selectedAction === 'UPDATE_PERMISSIONS' ? 'selected' : '' %>>UPDATE_PERMISSIONS</option>
+        <option value="TOGGLE_STAFF_STATUS" <%= selectedAction === 'TOGGLE_STAFF_STATUS' ? 'selected' : '' %>>TOGGLE_STAFF_STATUS</option>
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary rounded-pill w-100 fw-semibold">
+        <i class="bi bi-funnel-fill me-1"></i> Filter Logs
+      </button>
+      <% if (selectedAction) { %>
+        <a href="/admin/audit-logs" class="btn btn-outline-secondary rounded-pill">Reset</a>
+      <% } %>
+    </div>
+  </form>
+</div>
+
+<!-- Audit Trail Table (ADM-SAO-01 & ADM-SAO-02) -->
+<div class="card card-custom p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h5 class="fw-bold mb-0">System Activity Logs (<%= logs ? logs.length : 0 %> Events)</h5>
+      <span class="text-muted small">Every critical modification in QuickFile is permanently recorded with actor identity and timestamp.</span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Timestamp (ADM-SAO-02)</th>
+          <th>Actor / Personnel</th>
+          <th>Action Type</th>
+          <th>Target Entity</th>
+          <th>Target ID</th>
+          <th>Audit Details & Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (logs && logs.length > 0) { %>
+          <% logs.forEach(function(l) { %>
+            <tr>
+              <td class="small text-muted"><%= new Date(l.created_at).toLocaleString() %></td>
+              <td class="fw-semibold">
+                <i class="bi bi-person-fill text-muted me-1"></i><%= l.actor_name || l.user_name || 'System' %>
+              </td>
+              <td>
+                <% if (l.action.includes('REJECT') || l.action.includes('REVOKE') || l.action.includes('DELETE')) { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace"><%= l.action %></span>
+                <% } else if (l.action.includes('APPROVE') || l.action.includes('RELEASE') || l.action.includes('REINSTATE')) { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace"><%= l.action %></span>
+                <% } else if (l.action.includes('PREPARE') || l.action.includes('CREATE')) { %>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace"><%= l.action %></span>
+                <% } else { %>
+                  <span class="badge bg-secondary-subtle text-dark border font-monospace"><%= l.action %></span>
+                <% } %>
+              </td>
+              <td><code><%= l.target_type || l.target_entity || 'N/A' %></code></td>
+              <td><code>#<%= l.target_id || '-' %></code></td>
+              <td class="small text-secondary" style="max-width: 380px;"><%= l.details %></td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No audit logs recorded for this selection.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

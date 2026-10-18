@@ -1,8 +1,8 @@
-<%- include('../layouts/header', { title: 'Barangay Administrator Dashboard - QuickFile' }) %>
+<%- include('../layouts/header', { title: 'Barangay Administrator Dashboard (ADM-DB) - QuickFile' }) %>
 
 <div class="row g-4 mb-4">
   <div class="col-12">
-    <div class="card card-custom p-4 bg-dark text-white border-0">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
           <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
@@ -10,18 +10,21 @@
           </span>
           <h2 class="fw-bold mb-1"><%= admin.full_name %></h2>
           <p class="mb-0 text-white-50">
-            System Administrator &bull; <%= admin.email %> &bull; Barangay Central
+            Punong Barangay / System Administrator &bull; <%= admin.email %> &bull; Barangay Central Executive Console
           </p>
         </div>
-        <div class="d-flex gap-2">
-          <a href="/admin/staff-management" class="btn btn-warning rounded-pill fw-semibold text-dark">
-            <i class="bi bi-people-fill me-1"></i> Staff & Role Management (ADM-URM)
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/admin/document-types" class="btn btn-warning rounded-pill fw-semibold text-dark">
+            <i class="bi bi-file-earmark-text-fill me-1"></i> Document Types (ADM-DTM)
           </a>
-          <a href="/admin/settings" class="btn btn-outline-warning rounded-pill fw-semibold">
-            <i class="bi bi-gear-fill me-1"></i> App Settings & Integrations
+          <a href="/admin/staff-management" class="btn btn-outline-warning rounded-pill fw-semibold">
+            <i class="bi bi-people-fill me-1"></i> Staff Roles (ADM-URM)
           </a>
-          <a href="/admin/logout" class="btn btn-outline-light rounded-pill">
-            <i class="bi bi-box-arrow-right me-1"></i> Admin Logout (ADM-IAM-02)
+          <a href="/admin/reports" class="btn btn-outline-light rounded-pill">
+            <i class="bi bi-graph-up-arrow me-1"></i> Reports (ADM-TR)
+          </a>
+          <a href="/admin/audit-logs" class="btn btn-outline-light rounded-pill">
+            <i class="bi bi-shield-shaded me-1"></i> Oversight (ADM-SAO)
           </a>
         </div>
       </div>
@@ -36,47 +39,96 @@
   </div>
 <% } %>
 
-<!-- Stats Row for Staff Management -->
-<div class="row g-4 mb-4">
-  <div class="col-md-4">
-    <div class="card card-custom p-4 text-center">
-      <div class="avatar-circle bg-primary-subtle text-primary mx-auto mb-2" style="width: 50px; height: 50px;">
-        <i class="bi bi-people fs-4"></i>
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<!-- Operational Overview KPIs (ADM-DB-01 & ADM-DB-02: Performance Monitoring) -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-sm-6">
+    <div class="card card-custom p-3 border-start border-primary border-4 shadow-sm">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Total Requests</span>
+          <h3 class="fw-bold mb-0 text-primary"><%= overview.total_requests || 0 %></h3>
+        </div>
+        <div class="avatar-circle bg-primary-subtle text-primary" style="width: 48px; height: 48px;">
+          <i class="bi bi-inboxes-fill fs-4"></i>
+        </div>
       </div>
-      <h3 class="fw-bold mb-0"><%= totalStaff %></h3>
-      <span class="text-muted small">Total Staff Accounts (ADM-URM)</span>
+      <div class="mt-2 text-muted small">
+        <i class="bi bi-hourglass-split text-warning me-1"></i> <%= overview.pending || 0 %> pending action
+      </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card card-custom p-4 text-center">
-      <div class="avatar-circle bg-success-subtle text-success mx-auto mb-2" style="width: 50px; height: 50px;">
-        <i class="bi bi-person-check fs-4"></i>
+
+  <div class="col-md-3 col-sm-6">
+    <div class="card card-custom p-3 border-start border-warning border-4 shadow-sm">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Under Review</span>
+          <h3 class="fw-bold mb-0 text-warning"><%= overview.under_review || 0 %></h3>
+        </div>
+        <div class="avatar-circle bg-warning-subtle text-warning" style="width: 48px; height: 48px;">
+          <i class="bi bi-search fs-4"></i>
+        </div>
       </div>
-      <h3 class="fw-bold mb-0 text-success"><%= activeStaff %></h3>
-      <span class="text-muted small">Active Staff Accounts</span>
+      <div class="mt-2 text-muted small">
+        <i class="bi bi-check2-circle text-info me-1"></i> <%= overview.approved || 0 %> approved
+      </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card card-custom p-4 text-center">
-      <div class="avatar-circle bg-danger-subtle text-danger mx-auto mb-2" style="width: 50px; height: 50px;">
-        <i class="bi bi-person-slash fs-4"></i>
+
+  <div class="col-md-3 col-sm-6">
+    <div class="card card-custom p-3 border-start border-success border-4 shadow-sm">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Released & Closed</span>
+          <h3 class="fw-bold mb-0 text-success"><%= overview.released || 0 %></h3>
+        </div>
+        <div class="avatar-circle bg-success-subtle text-success" style="width: 48px; height: 48px;">
+          <i class="bi bi-patch-check-fill fs-4"></i>
+        </div>
       </div>
-      <h3 class="fw-bold mb-0 text-danger"><%= deactivatedStaff %></h3>
-      <span class="text-muted small">Deactivated Accounts (ADM-URM-03)</span>
+      <div class="mt-2 text-muted small">
+        <i class="bi bi-bag-check text-primary me-1"></i> <%= overview.ready_for_pickup || 0 %> ready for pickup
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <div class="card card-custom p-3 border-start border-info border-4 shadow-sm">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Total Collections</span>
+          <h3 class="fw-bold mb-0 text-info">₱<%= (overview.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></h3>
+        </div>
+        <div class="avatar-circle bg-info-subtle text-info" style="width: 48px; height: 48px;">
+          <i class="bi bi-cash-stack fs-4"></i>
+        </div>
+      </div>
+      <div class="mt-2 text-muted small">
+        <i class="bi bi-x-circle text-danger me-1"></i> <%= overview.rejected || 0 %> rejected requests
+      </div>
     </div>
   </div>
 </div>
 
-<div class="row g-4">
-  <div class="col-12">
-    <div class="card card-custom p-4">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+<!-- Main Row: Document Type Analytics & Staff Performance -->
+<div class="row g-4 mb-4">
+  <!-- Document Types Demand Breakdown -->
+  <div class="col-lg-7">
+    <div class="card card-custom p-4 h-100 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h4 class="fw-bold mb-1">Staff Accounts & Access Management</h4>
-          <p class="text-muted small mb-0">Manage personnel credentials and module access permissions.</p>
+          <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Document Issuance Demand (ADM-DB-02)</h5>
+          <span class="text-muted small">Breakdown of requests, releases, and fees by document type</span>
         </div>
-        <a href="/admin/staff-management" class="btn btn-primary rounded-pill btn-sm px-3">
-          <i class="bi bi-gear-fill me-1"></i> Open Staff & Roles Console
+        <a href="/admin/document-types" class="btn btn-outline-primary btn-sm rounded-pill">
+          <i class="bi bi-plus-circle me-1"></i> Manage Types
         </a>
       </div>
 
@@ -84,35 +136,175 @@
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th>Employee ID</th>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>Position / Dept</th>
-              <th>Account Status (ADM-URM-03)</th>
+              <th>Document Name</th>
+              <th class="text-center">Fee</th>
+              <th class="text-center">Requests</th>
+              <th class="text-center">Released</th>
+              <th class="text-end">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (docBreakdown && docBreakdown.length > 0) { %>
+              <% docBreakdown.forEach(function(d) { %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold"><%= d.name %></div>
+                    <code class="small text-muted"><%= d.code %></code>
+                  </td>
+                  <td class="text-center">
+                    <% if (d.fee > 0) { %>
+                      <span class="badge bg-light text-dark border">₱<%= d.fee.toFixed(2) %></span>
+                    <% } else { %>
+                      <span class="badge bg-success-subtle text-success">FREE</span>
+                    <% } %>
+                  </td>
+                  <td class="text-center fw-bold"><%= d.request_count %></td>
+                  <td class="text-center text-success fw-bold"><%= d.released_count %></td>
+                  <td class="text-end fw-semibold text-primary">₱<%= (d.revenue_generated || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">No document type statistics recorded yet.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff Workload Monitoring -->
+  <div class="col-lg-5">
+    <div class="card card-custom p-4 h-100 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h5 class="fw-bold mb-0"><i class="bi bi-person-workspace text-warning me-2"></i>Staff Workload (ADM-DB-02)</h5>
+          <span class="text-muted small">Processing throughput per barangay personnel</span>
+        </div>
+        <a href="/admin/staff-management" class="btn btn-outline-secondary btn-sm rounded-pill">
+          <i class="bi bi-people me-1"></i> Staff Console
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Staff Personnel</th>
+              <th class="text-center">Handled</th>
+              <th class="text-center">Approved</th>
+              <th class="text-center">Released</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (workloadStats && workloadStats.length > 0) { %>
+              <% workloadStats.forEach(function(w) { %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold"><%= w.staff_name %></div>
+                    <span class="badge bg-secondary-subtle text-dark small"><%= w.role %></span>
+                  </td>
+                  <td class="text-center fw-bold"><%= w.total_handled %></td>
+                  <td class="text-center text-success"><%= w.approved_count %></td>
+                  <td class="text-center text-primary"><%= w.released_count %></td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">No staff actions recorded yet.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Transactions and Oversight Section -->
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold mb-1"><i class="bi bi-clock-history text-info me-2"></i>Recent Citizen Service Transactions</h5>
+          <p class="text-muted small mb-0">Live stream of document requests submitted across the barangay</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="/admin/records" class="btn btn-outline-secondary btn-sm rounded-pill">
+            <i class="bi bi-search me-1"></i> Centralized Search (ADM-CRS)
+          </a>
+          <a href="/admin/reports" class="btn btn-primary btn-sm rounded-pill">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Full Ledger (ADM-TR)
+          </a>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Tracking No.</th>
+              <th>Applicant</th>
+              <th>Document Requested</th>
+              <th>Date Requested</th>
+              <th>Fee</th>
+              <th>Status</th>
+              <th>Assigned Staff</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            <% staffList.forEach(function(s) { %>
+            <% if (recentRequests && recentRequests.length > 0) { %>
+              <% recentRequests.forEach(function(r) { %>
+                <tr>
+                  <td><code><%= r.tracking_number %></code></td>
+                  <td>
+                    <div class="fw-semibold"><%= r.citizen_name %></div>
+                    <small class="text-muted"><%= r.contact_number || r.citizen_email %></small>
+                  </td>
+                  <td><%= r.document_name %></td>
+                  <td><%= new Date(r.created_at).toLocaleDateString() %></td>
+                  <td>
+                    <% if (r.fee > 0) { %>
+                      <span class="badge bg-light text-dark border">₱<%= r.fee.toFixed(2) %></span>
+                    <% } else { %>
+                      <span class="badge bg-success-subtle text-success">FREE</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (r.status === 'PENDING') { %>
+                      <span class="badge bg-secondary">Pending</span>
+                    <% } else if (r.status === 'UNDER_REVIEW') { %>
+                      <span class="badge bg-warning text-dark">Under Review</span>
+                    <% } else if (r.status === 'APPROVED') { %>
+                      <span class="badge bg-info text-dark">Approved</span>
+                    <% } else if (r.status === 'READY_FOR_PICKUP') { %>
+                      <span class="badge bg-primary">Ready for Pickup</span>
+                    <% } else if (r.status === 'RELEASED') { %>
+                      <span class="badge bg-success">Released</span>
+                    <% } else if (r.status === 'REJECTED') { %>
+                      <span class="badge bg-danger">Rejected</span>
+                    <% } else { %>
+                      <span class="badge bg-dark"><%= r.status %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <%= r.reviewer_name ? r.reviewer_name : '<span class="text-muted italic">Unassigned</span>' %>
+                  </td>
+                  <td>
+                    <a href="/verify/<%= r.tracking_number %>" class="btn btn-sm btn-outline-info rounded-pill" target="_blank" title="Verify status and QR">
+                      <i class="bi bi-qr-code-scan"></i>
+                    </a>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
               <tr>
-                <td><code><%= s.employee_id || 'N/A' %></code></td>
-                <td class="fw-semibold"><%= s.full_name %></td>
-                <td><%= s.email %></td>
-                <td><%= s.position || 'Staff' %> <small class="text-muted">(<%= s.department %>)</small></td>
-                <td>
-                  <% if (s.is_active) { %>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
-                  <% } else { %>
-                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Deactivated</span>
-                  <% } %>
-                </td>
-                <td>
-                  <a href="/admin/staff-management#staff-<%= s.id %>" class="btn btn-outline-secondary btn-sm rounded-pill">
-                    <i class="bi bi-sliders me-1"></i> Manage Roles
-                  </a>
-                </td>
+                <td colspan="8" class="text-center text-muted py-4">No recent transactions recorded.</td>
               </tr>
-            <% }); %>
+            <% } %>
           </tbody>
         </table>
       </div>
@@ -121,4 +313,3 @@
 </div>
 
 <%- include('../layouts/footer') %>
-

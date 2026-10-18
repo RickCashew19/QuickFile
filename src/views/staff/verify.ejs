@@ -1,0 +1,103 @@
+<%- include('../layouts/header', { title: 'Staff Document Verification - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-1 rounded-pill mb-1">
+          STF-QDV-01 &bull; Electronic Document Verification
+        </span>
+        <h2 class="fw-bold mb-0">Staff Verification Console</h2>
+      </div>
+      <a href="/staff/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+
+    <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+      <h5 class="fw-bold mb-3">Scan or Input Document Verification Code</h5>
+      <form action="/staff/verify" method="GET" class="d-flex gap-2">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-qr-code-scan"></i></span>
+          <input 
+            type="text" 
+            name="code" 
+            class="form-control" 
+            placeholder="Scan QR or enter Verification Code (QF-VER-...), Certificate No, Tracking No..."
+            value="<%= searchedCode %>"
+            required
+            autocomplete="off"
+            autofocus
+          >
+        </div>
+        <button type="submit" class="btn btn-warning fw-semibold px-4">
+          <i class="bi bi-shield-check me-1"></i> Authenticate
+        </button>
+      </form>
+    </div>
+
+    <% if (result) { %>
+      <% if (result.found && result.isValid) { %>
+        <div class="card card-custom border-success p-4 mb-4 shadow">
+          <div class="d-flex align-items-center gap-3 mb-3 border-bottom pb-3">
+            <div class="avatar-circle bg-success text-white" style="width: 52px; height: 52px;">
+              <i class="bi bi-check-circle-fill fs-2"></i>
+            </div>
+            <div>
+              <span class="badge bg-success px-3 py-1 rounded-pill mb-1">RECORD CONFIRMED AUTHENTIC</span>
+              <h3 class="fw-bold mb-0 text-success">Valid Issued Document</h3>
+            </div>
+          </div>
+
+          <div class="row g-3 small">
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Document Title:</span>
+              <strong class="fs-6 text-dark"><%= result.document.documentName %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Certificate Number:</span>
+              <strong class="font-monospace fs-6 text-primary"><%= result.document.certificateNumber %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Citizen Name:</span>
+              <strong class="text-dark"><%= result.document.issuedToName %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Verification Security Code:</span>
+              <code class="text-success"><%= result.document.verificationCode %></code>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Date Issued:</span>
+              <span><%= new Date(result.document.issuedAt).toLocaleString('en-PH') %></span>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Tracking Reference:</span>
+              <span class="font-monospace"><%= result.document.trackingNumber %></span>
+            </div>
+          </div>
+        </div>
+      <% } else if (result.found && !result.isValid) { %>
+        <div class="card card-custom border-danger p-4 mb-4">
+          <div class="d-flex align-items-center gap-3 mb-3 border-bottom pb-3">
+            <div class="avatar-circle bg-danger text-white" style="width: 52px; height: 52px;">
+              <i class="bi bi-x-octagon-fill fs-2"></i>
+            </div>
+            <div>
+              <span class="badge bg-danger px-3 py-1 rounded-pill mb-1">STATUS: <%= result.document.validityStatus %></span>
+              <h3 class="fw-bold mb-0 text-danger">Invalid / Revoked Document</h3>
+            </div>
+          </div>
+          <p class="text-danger mb-0"><strong>Notice:</strong> This document was revoked: <%= result.document.revokedReason || 'Administrative revocation' %></p>
+        </div>
+      <% } else { %>
+        <div class="card card-custom border-warning p-4 mb-4 text-center">
+          <i class="bi bi-exclamation-triangle-fill fs-2 text-warning mb-2"></i>
+          <h5 class="fw-bold">No Record Found</h5>
+          <p class="text-muted mb-0"><%= result.message %></p>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

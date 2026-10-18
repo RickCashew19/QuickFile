@@ -106,6 +106,11 @@ const settingsRoutes = require('./src/modules/settings/settings.routes');
 app.use('/admin/settings', settingsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
 
+// 5. Verification Module (QR Code & Public Document Verification: CIT-RHV-02, STF-QDV, ADM-IDV)
+const verificationRoutes = require('./src/modules/verification/verification.routes');
+app.use('/verify', verificationRoutes);
+app.use('/api/verify', verificationRoutes);
+
 // Global Error Handler
 app.use(errorHandler);
 
@@ -115,9 +120,10 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`=======================================================`);
     console.log(`   🚀 QuickFile Server running on http://localhost:${config.port}`);
     console.log(`   Active Modules:`);
-    console.log(`   - CIT Citizen: CIT-IAM (01-04), CIT-APM (01-03)`);
-    console.log(`   - STF Staff:   STF-IAM (01-02)`);
-    console.log(`   - ADM Admin:   ADM-IAM (01-02), ADM-URM (01-04)`);
+    console.log(`   - CIT Citizen: CIT-IAM, CIT-APM, CIT-DCR, CIT-ODR, CIT-RST, CIT-RHV`);
+    console.log(`   - STF Staff:   STF-IAM, STF-RVP, STF-RSM, STF-DPP, STF-RA, STF-QDV, STF-TR`);
+    console.log(`   - ADM Admin:   ADM-IAM, ADM-DB, ADM-URM, ADM-DTM, ADM-TR, ADM-CRS, ADM-IDV, ADM-SAO`);
+    console.log(`   - QR Verify:   http://localhost:${config.port}/verify`);
     console.log(`=======================================================`);
   });
 }

@@ -4,6 +4,8 @@ src/database/quickfile.db
 src/database/quickfile.db-journal
 src/database/quickfile.db-wal
 src/database/quickfile.db-shm
+src/public/uploads/*
+!src/public/uploads/.gitkeep
 .DS_Store
 *.log
 

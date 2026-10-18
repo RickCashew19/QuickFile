@@ -1,0 +1,134 @@
+<%- include('../layouts/header', { title: 'QR Document Verification - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="text-center mb-4">
+      <div class="avatar-circle bg-warning-subtle text-dark mx-auto mb-2" style="width: 60px; height: 60px;">
+        <i class="bi bi-qr-code-scan fs-3"></i>
+      </div>
+      <h2 class="fw-bold">Barangay Central Document Verification</h2>
+      <p class="text-muted">
+        Verify the authenticity and validity of clearances, certificates, and official documents issued by Barangay Central.
+      </p>
+    </div>
+
+    <!-- Verification Search Form -->
+    <div class="card card-custom p-4 mb-4">
+      <form action="/verify" method="GET" class="d-flex gap-2">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-shield-check text-warning"></i></span>
+          <input 
+            type="text" 
+            name="code" 
+            class="form-control" 
+            placeholder="Enter Verification Code, Certificate No. (CERT-2026-...), or Tracking No." 
+            value="<%= searchedCode %>"
+            required
+            autocomplete="off"
+          >
+        </div>
+        <button type="submit" class="btn btn-warning px-4 fw-semibold">
+          <i class="bi bi-search me-1"></i> Verify
+        </button>
+      </form>
+    </div>
+
+    <!-- Verification Result -->
+    <% if (result) { %>
+      <% if (result.found && result.isValid) { %>
+        <div class="card card-custom border-success p-4 mb-4 shadow">
+          <div class="d-flex align-items-center gap-3 mb-3 border-bottom pb-3">
+            <div class="avatar-circle bg-success text-white" style="width: 52px; height: 52px;">
+              <i class="bi bi-patch-check-fill fs-2"></i>
+            </div>
+            <div>
+              <span class="badge bg-success px-3 py-1 rounded-pill mb-1">OFFICIALLY VERIFIED & VALID</span>
+              <h3 class="fw-bold mb-0 text-success">Authentic Barangay Document</h3>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Document Title:</span>
+              <strong class="fs-5 text-dark"><%= result.document.documentName %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Certificate Number:</span>
+              <strong class="fs-5 font-monospace text-primary"><%= result.document.certificateNumber %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Issued To (Resident):</span>
+              <strong class="text-dark"><%= result.document.issuedToName %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Tracking Reference:</span>
+              <span class="font-monospace"><%= result.document.trackingNumber %></span>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Purpose:</span>
+              <span><%= result.document.purpose %></span>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted small d-block">Date Issued:</span>
+              <span><%= new Date(result.document.issuedAt).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' }) %></span>
+            </div>
+            <div class="col-12 mt-3 pt-3 border-top">
+              <div class="p-3 bg-light rounded-3 small text-muted d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi bi-shield-lock-fill text-success me-1"></i>
+                  Cryptographic Verification Code: <strong class="text-dark"><%= result.document.verificationCode %></strong>
+                </div>
+                <span class="badge bg-success-subtle text-success">Republic of the Philippines &bull; Barangay Central</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% } else if (result.found && !result.isValid) { %>
+        <div class="card card-custom border-danger p-4 mb-4">
+          <div class="d-flex align-items-center gap-3 mb-3 border-bottom pb-3">
+            <div class="avatar-circle bg-danger text-white" style="width: 52px; height: 52px;">
+              <i class="bi bi-x-octagon-fill fs-2"></i>
+            </div>
+            <div>
+              <span class="badge bg-danger px-3 py-1 rounded-pill mb-1">STATUS: <%= result.document.validityStatus %></span>
+              <h3 class="fw-bold mb-0 text-danger">Document Is No Longer Valid</h3>
+            </div>
+          </div>
+
+          <div class="alert alert-danger mb-3">
+            <strong>Notice:</strong> This document was officially marked as <strong><%= result.document.validityStatus %></strong> by Barangay Central Administration.
+            <% if (result.document.revokedReason) { %>
+              <div class="mt-2"><strong>Revocation Reason:</strong> <%= result.document.revokedReason %></div>
+            <% } %>
+          </div>
+
+          <div class="row g-3 small">
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Certificate Number:</span>
+              <strong><%= result.document.certificateNumber %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Originally Issued To:</span>
+              <strong><%= result.document.issuedToName %></strong>
+            </div>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="card card-custom border-warning p-4 mb-4 text-center">
+          <div class="avatar-circle bg-warning-subtle text-warning mx-auto mb-2" style="width: 52px; height: 52px;">
+            <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+          </div>
+          <h4 class="fw-bold text-dark">No Record Found</h4>
+          <p class="text-muted mb-0"><%= result.message %></p>
+        </div>
+      <% } %>
+    <% } %>
+
+    <div class="text-center text-muted small mt-4">
+      <p class="mb-1">QuickFile Centralized Document Verification Engine (CIT-RHV-02 & STF-QDV)</p>
+      <p class="mb-0">&copy; <%= new Date().getFullYear() %> Barangay Central. Official Document Record Authority.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

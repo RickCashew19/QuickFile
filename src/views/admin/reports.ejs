@@ -1,0 +1,241 @@
+<%- include('../layouts/header', { title: 'Transaction Monitoring & Reporting (ADM-TR) - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            ADM-TR &bull; Barangay Transaction Monitoring & Analytics
+          </span>
+          <h2 class="fw-bold mb-1">Transaction Reporting & Ledger</h2>
+          <p class="mb-0 text-white-50">
+            Audit document requests, monitor official revenue collection, and evaluate staff throughput (ADM-TR-01 & ADM-TR-02).
+          </p>
+        </div>
+        <div>
+          <button type="button" class="btn btn-outline-light rounded-pill px-3" onclick="window.print()">
+            <i class="bi bi-printer-fill me-1"></i> Print / Export Report
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Bar (ADM-TR-01) -->
+<div class="card card-custom p-4 mb-4 shadow-sm">
+  <form action="/admin/reports" method="GET" class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Start Date</label>
+      <input type="date" name="startDate" class="form-control" value="<%= filter.startDate || '' %>">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">End Date</label>
+      <input type="date" name="endDate" class="form-control" value="<%= filter.endDate || '' %>">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Request Status</label>
+      <select name="status" class="form-select">
+        <option value="">All Statuses</option>
+        <option value="PENDING" <%= filter.status === 'PENDING' ? 'selected' : '' %>>Pending</option>
+        <option value="UNDER_REVIEW" <%= filter.status === 'UNDER_REVIEW' ? 'selected' : '' %>>Under Review</option>
+        <option value="APPROVED" <%= filter.status === 'APPROVED' ? 'selected' : '' %>>Approved</option>
+        <option value="READY_FOR_PICKUP" <%= filter.status === 'READY_FOR_PICKUP' ? 'selected' : '' %>>Ready for Pickup</option>
+        <option value="RELEASED" <%= filter.status === 'RELEASED' ? 'selected' : '' %>>Released</option>
+        <option value="REJECTED" <%= filter.status === 'REJECTED' ? 'selected' : '' %>>Rejected</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Document Type</label>
+      <select name="documentTypeId" class="form-select">
+        <option value="">All Types</option>
+        <% if (documentTypes) { %>
+          <% documentTypes.forEach(function(dt) { %>
+            <option value="<%= dt.id %>" <%= filter.documentTypeId == dt.id ? 'selected' : '' %>><%= dt.name %></option>
+          <% }); %>
+        <% } %>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary rounded-pill w-100">
+        <i class="bi bi-funnel-fill me-1"></i> Filter
+      </button>
+      <a href="/admin/reports" class="btn btn-outline-secondary rounded-pill">
+        <i class="bi bi-arrow-counterclockwise"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Report Summary Cards (ADM-TR-02: Request Analytics) -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card card-custom p-3 border-start border-primary border-4 shadow-sm text-center">
+      <span class="text-muted small fw-semibold text-uppercase">Transactions in Period</span>
+      <h3 class="fw-bold mb-0 text-primary"><%= reportData.summary.totalCount %></h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-custom p-3 border-start border-success border-4 shadow-sm text-center">
+      <span class="text-muted small fw-semibold text-uppercase">Successfully Released</span>
+      <h3 class="fw-bold mb-0 text-success"><%= reportData.summary.releasedCount %></h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-custom p-3 border-start border-info border-4 shadow-sm text-center">
+      <span class="text-muted small fw-semibold text-uppercase">Official Fees Collected</span>
+      <h3 class="fw-bold mb-0 text-info">₱<%= reportData.summary.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></h3>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Ledger Table (ADM-TR-01) -->
+<div class="card card-custom p-4 mb-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h5 class="fw-bold mb-0"><i class="bi bi-journal-text text-primary me-2"></i>Official Transaction Ledger</h5>
+      <span class="text-muted small">Chronological ledger of citizen document transactions</span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Tracking No.</th>
+          <th>Citizen Applicant</th>
+          <th>Document</th>
+          <th>Purpose</th>
+          <th>Date Requested</th>
+          <th class="text-center">Fee</th>
+          <th class="text-center">Payment</th>
+          <th class="text-center">Status</th>
+          <th>Certificate / Released By</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (reportData.transactions && reportData.transactions.length > 0) { %>
+          <% reportData.transactions.forEach(function(t) { %>
+            <tr>
+              <td><code><%= t.tracking_number %></code></td>
+              <td>
+                <div class="fw-semibold"><%= t.citizen_name %></div>
+                <small class="text-muted"><%= t.citizen_email %></small>
+              </td>
+              <td class="fw-semibold"><%= t.document_name %></td>
+              <td class="small text-muted" style="max-width: 180px;"><%= t.purpose %></td>
+              <td><%= new Date(t.created_at).toLocaleDateString() %></td>
+              <td class="text-center">
+                <% if (t.fee > 0) { %>
+                  <span class="badge bg-light text-dark border">₱<%= t.fee.toFixed(2) %></span>
+                <% } else { %>
+                  <span class="badge bg-success-subtle text-success">FREE</span>
+                <% } %>
+              </td>
+              <td class="text-center">
+                <% if (t.payment_status === 'PAID') { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">PAID</span>
+                <% } else { %>
+                  <span class="badge bg-secondary-subtle text-secondary">WAIVED / FREE</span>
+                <% } %>
+              </td>
+              <td class="text-center">
+                <% if (t.status === 'RELEASED') { %>
+                  <span class="badge bg-success">RELEASED</span>
+                <% } else if (t.status === 'APPROVED') { %>
+                  <span class="badge bg-info text-dark">APPROVED</span>
+                <% } else if (t.status === 'READY_FOR_PICKUP') { %>
+                  <span class="badge bg-primary">READY</span>
+                <% } else if (t.status === 'UNDER_REVIEW') { %>
+                  <span class="badge bg-warning text-dark">REVIEW</span>
+                <% } else if (t.status === 'REJECTED') { %>
+                  <span class="badge bg-danger">REJECTED</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">PENDING</span>
+                <% } %>
+              </td>
+              <td class="small">
+                <% if (t.certificate_number) { %>
+                  <div><code><%= t.certificate_number %></code></div>
+                <% } %>
+                <% if (t.released_by_name) { %>
+                  <span class="text-muted">By <%= t.released_by_name %></span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">No transactions found matching the filter criteria.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Analytics Row (ADM-TR-02) -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card card-custom p-4 shadow-sm h-100">
+      <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-primary me-2"></i>Document Category Demand</h5>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Document</th>
+              <th class="text-center">Requests</th>
+              <th class="text-center">Released</th>
+              <th class="text-end">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (docBreakdown) { %>
+              <% docBreakdown.forEach(function(d) { %>
+                <tr>
+                  <td><%= d.name %></td>
+                  <td class="text-center"><%= d.request_count %></td>
+                  <td class="text-center text-success"><%= d.released_count %></td>
+                  <td class="text-end fw-semibold">₱<%= (d.revenue_generated || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card card-custom p-4 shadow-sm h-100">
+      <h5 class="fw-bold mb-3"><i class="bi bi-person-check-fill text-success me-2"></i>Staff Operations Throughput</h5>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Staff Member</th>
+              <th class="text-center">Total Handled</th>
+              <th class="text-center">Approved</th>
+              <th class="text-center">Released</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (workloadStats) { %>
+              <% workloadStats.forEach(function(w) { %>
+                <tr>
+                  <td><%= w.staff_name %></td>
+                  <td class="text-center fw-bold"><%= w.total_handled %></td>
+                  <td class="text-center text-success"><%= w.approved_count %></td>
+                  <td class="text-center text-primary"><%= w.released_count %></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

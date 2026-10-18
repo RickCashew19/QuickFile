@@ -1,0 +1,95 @@
+<%- include('../layouts/header', { title: 'My Request History - QuickFile' }) %>
+
+<div class="row align-items-center mb-4">
+  <div class="col-md-8">
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+      CIT-RHV-01 &bull; Request History Viewing
+    </span>
+    <h2 class="fw-bold mb-0">My Barangay Document History</h2>
+    <p class="text-muted mb-0">Complete historical log of all your document requests, tracking numbers, and issuance statuses.</p>
+  </div>
+  <div class="col-md-4 text-md-end mt-3 mt-md-0">
+    <a href="/citizen/request" class="btn btn-primary rounded-pill px-4 fw-semibold">
+      <i class="bi bi-file-earmark-plus-fill me-1"></i> New Request (CIT-ODR)
+    </a>
+  </div>
+</div>
+
+<div class="card card-custom p-4 border-0 shadow-sm">
+  <% if (requests && requests.length > 0) { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tracking No.</th>
+            <th>Document Type</th>
+            <th>Date Requested</th>
+            <th>Status</th>
+            <th>Certificate No.</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% requests.forEach(function(r) { %>
+            <tr>
+              <td>
+                <span class="font-monospace fw-bold text-primary"><%= r.tracking_number %></span>
+              </td>
+              <td class="fw-semibold"><%= r.document_name %></td>
+              <td class="text-muted small"><%= new Date(r.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) %></td>
+              <td>
+                <% if (r.status === 'PENDING') { %>
+                  <span class="badge bg-warning text-dark">Pending</span>
+                <% } else if (r.status === 'UNDER_REVIEW') { %>
+                  <span class="badge bg-info text-white">Under Review</span>
+                <% } else if (r.status === 'APPROVED') { %>
+                  <span class="badge bg-primary">Approved</span>
+                <% } else if (r.status === 'IN_PREPARATION') { %>
+                  <span class="badge bg-info text-dark">In Preparation</span>
+                <% } else if (r.status === 'READY_FOR_PICKUP') { %>
+                  <span class="badge bg-success">Ready for Pickup</span>
+                <% } else if (r.status === 'RELEASED') { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Released</span>
+                <% } else if (r.status === 'REJECTED') { %>
+                  <span class="badge bg-danger">Rejected</span>
+                <% } else { %>
+                  <span class="badge bg-secondary"><%= r.status %></span>
+                <% } %>
+              </td>
+              <td>
+                <% if (r.certificate_number) { %>
+                  <code class="text-success"><%= r.certificate_number %></code>
+                <% } else { %>
+                  <span class="text-muted small">Not yet issued</span>
+                <% } %>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="/citizen/requests/<%= r.tracking_number %>" class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="bi bi-eye me-1"></i> View Details
+                  </a>
+                  <% if (r.verification_code) { %>
+                    <a href="/verify/<%= r.verification_code %>" target="_blank" class="btn btn-outline-success rounded-pill px-3 ms-1">
+                      <i class="bi bi-qr-code me-1"></i> Verify QR
+                    </a>
+                  <% } %>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+    <div class="text-center py-5">
+      <i class="bi bi-inbox fs-1 text-muted"></i>
+      <h5 class="fw-bold mt-2">No request history found</h5>
+      <p class="text-muted">You haven't requested any documents yet.</p>
+      <a href="/citizen/request" class="btn btn-primary rounded-pill px-4">
+        Apply for Document Now
+      </a>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../layouts/footer') %>

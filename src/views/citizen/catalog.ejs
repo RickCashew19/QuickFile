@@ -1,0 +1,72 @@
+<%- include('../layouts/header', { title: 'Document Catalog & Requirements - QuickFile' }) %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-md-8">
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+      CIT-DCR-01 & CIT-DCR-02 &bull; Document Catalog
+    </span>
+    <h2 class="fw-bold mb-1">Barangay Central Document Services</h2>
+    <p class="text-muted mb-0">Browse all available barangay clearances, certifications, processing fees, and required documentary proofs.</p>
+  </div>
+  <div class="col-md-4 text-md-end mt-3 mt-md-0">
+    <a href="/citizen/request" class="btn btn-warning text-dark fw-bold rounded-pill px-4">
+      <i class="bi bi-file-earmark-plus-fill me-1"></i> Apply Online Now (CIT-ODR)
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <% if (documents && documents.length > 0) { %>
+    <% documents.forEach(function(doc) { %>
+      <div class="col-lg-6">
+        <div class="card card-custom p-4 h-100 border-0 shadow-sm">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1 mb-2">
+                <%= doc.code %>
+              </span>
+              <h4 class="fw-bold mb-1 text-dark"><%= doc.name %></h4>
+            </div>
+            <div class="text-end">
+              <span class="badge <%= doc.fee === 0 ? 'bg-success' : 'bg-primary' %> fs-6 px-3 py-2 rounded-pill">
+                <%= doc.fee === 0 ? 'FREE / WAIVED' : '₱' + doc.fee.toFixed(2) %>
+              </span>
+              <div class="text-muted small mt-1">
+                <i class="bi bi-clock me-1"></i> <%= doc.processing_days %> Business Day<%= doc.processing_days > 1 ? 's' : '' %>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-muted small mb-3"><%= doc.description %></p>
+
+          <!-- CIT-DCR-02: Document Requirements Section -->
+          <div class="p-3 bg-light rounded-3 mb-4">
+            <h6 class="fw-bold text-dark mb-2">
+              <i class="bi bi-card-checklist text-primary me-1"></i> Required Attachments & Proofs:
+            </h6>
+            <div class="small text-muted" style="white-space: pre-line;">
+              <%= doc.requirements_text || 'Standard Valid Government ID required.' %>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+            <span class="small text-muted">
+              <i class="bi bi-check-circle-fill text-success me-1"></i> Available Online (CIT-ODR-01)
+            </span>
+            <a href="/citizen/request?doc=<%= doc.id %>" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+              <i class="bi bi-pencil-square me-1"></i> Request This Document
+            </a>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  <% } else { %>
+    <div class="col-12">
+      <div class="alert alert-info text-center py-4">
+        No document types are currently available in the catalog.
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../layouts/footer') %>

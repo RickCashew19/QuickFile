@@ -1,0 +1,50 @@
+<%- include('../layouts/header', { title: 'Notifications - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-1">
+          CIT-RST-02 &bull; Notifications
+        </span>
+        <h2 class="fw-bold mb-0">My Notifications</h2>
+      </div>
+      <a href="/citizen/dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+
+    <div class="card card-custom p-4 border-0 shadow-sm">
+      <% if (notifications && notifications.length > 0) { %>
+        <div class="list-group list-group-flush">
+          <% notifications.forEach(function(n) { %>
+            <div class="list-group-item px-0 py-3 border-bottom">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <h6 class="fw-bold mb-1 text-dark">
+                    <i class="bi bi-bell-fill text-warning me-2"></i><%= n.title %>
+                  </h6>
+                  <p class="text-muted small mb-1"><%= n.message %></p>
+                  <small class="text-secondary"><%= new Date(n.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) %></small>
+                </div>
+                <% if (n.link) { %>
+                  <a href="<%= n.link %>" class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0">
+                    View &rarr;
+                  </a>
+                <% } %>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="text-center py-5">
+          <i class="bi bi-bell-slash fs-1 text-muted"></i>
+          <h5 class="fw-bold mt-2">No notifications yet</h5>
+          <p class="text-muted">You will receive real-time updates as barangay personnel process your requests.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

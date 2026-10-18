@@ -1,0 +1,208 @@
+<%- include('../layouts/header', { title: 'Centralized Records Search & Retrieval (ADM-CRS) - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-dark text-white border-0 shadow">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-semibold mb-2">
+            ADM-CRS &bull; Centralized Archive & Records Retrieval
+          </span>
+          <h2 class="fw-bold mb-1">Centralized Records Search</h2>
+          <p class="mb-0 text-white-50">
+            Search historical document applications, verify validity status, and inspect citizen certificates (ADM-CRS-01 & ADM-CRS-02).
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search Console (ADM-CRS-01) -->
+<div class="card card-custom p-4 mb-4 shadow-sm">
+  <form action="/admin/records" method="GET" class="row g-3">
+    <div class="col-md-9">
+      <div class="input-group">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" name="search" class="form-control form-control-lg" placeholder="Search by Citizen Name, Email, Tracking Number, Certificate Number, or Purpose..." value="<%= searchQuery || '' %>">
+      </div>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary rounded-pill w-100 fw-semibold">
+        <i class="bi bi-search me-1"></i> Search Records
+      </button>
+      <% if (searchQuery) { %>
+        <a href="/admin/records" class="btn btn-outline-secondary rounded-pill">
+          Clear
+        </a>
+      <% } %>
+    </div>
+  </form>
+</div>
+
+<!-- Records Table -->
+<div class="card card-custom p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h5 class="fw-bold mb-0">Historical Transaction Records (<%= records ? records.length : 0 %> Found)</h5>
+      <span class="text-muted small">Complete barangay database of citizen requests, processing actions, and issued certifications.</span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Tracking Number</th>
+          <th>Citizen</th>
+          <th>Document</th>
+          <th>Date Filed</th>
+          <th>Status</th>
+          <th>Certificate No.</th>
+          <th>Validity (ADM-CRS-02)</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (records && records.length > 0) { %>
+          <% records.forEach(function(r) { %>
+            <tr>
+              <td><code><%= r.tracking_number %></code></td>
+              <td>
+                <div class="fw-semibold"><%= r.citizen_name %></div>
+                <small class="text-muted"><%= r.citizen_email %></small>
+              </td>
+              <td><%= r.document_name %></td>
+              <td><%= new Date(r.created_at).toLocaleDateString() %></td>
+              <td>
+                <% if (r.status === 'RELEASED') { %>
+                  <span class="badge bg-success">RELEASED</span>
+                <% } else if (r.status === 'ARCHIVED') { %>
+                  <span class="badge bg-secondary">ARCHIVED</span>
+                <% } else if (r.status === 'APPROVED') { %>
+                  <span class="badge bg-info text-dark">APPROVED</span>
+                <% } else if (r.status === 'READY_FOR_PICKUP') { %>
+                  <span class="badge bg-primary">READY</span>
+                <% } else if (r.status === 'UNDER_REVIEW') { %>
+                  <span class="badge bg-warning text-dark">REVIEW</span>
+                <% } else if (r.status === 'REJECTED') { %>
+                  <span class="badge bg-danger">REJECTED</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">PENDING</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (r.certificate_number) { %>
+                  <code><%= r.certificate_number %></code>
+                <% } else { %>
+                  <span class="text-muted italic small">None</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (r.validity_status === 'VALID') { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="bi bi-shield-check me-1"></i> VALID
+                  </span>
+                <% } else if (r.validity_status === 'REVOKED') { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="bi bi-shield-x me-1"></i> REVOKED
+                  </span>
+                <% } else { %>
+                  <span class="text-muted small">N/A</span>
+                <% } %>
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-1">
+                  <!-- View Details Modal Trigger (ADM-CRS-02) -->
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#recordModal-<%= r.id %>">
+                    <i class="bi bi-eye-fill me-1"></i> Inspect
+                  </button>
+
+                  <% if (r.verification_code || r.tracking_number) { %>
+                    <a href="/verify/<%= r.verification_code || r.tracking_number %>" target="_blank" class="btn btn-sm btn-outline-info rounded-pill" title="Public QR Verification">
+                      <i class="bi bi-qr-code-scan"></i>
+                    </a>
+                  <% } %>
+                </div>
+
+                <!-- Record Details Modal (ADM-CRS-02) -->
+                <div class="modal fade" id="recordModal-<%= r.id %>" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-lg text-start">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Historical Record Details (ADM-CRS-02)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <span class="text-muted small">Tracking Number:</span>
+                            <div class="fw-bold font-monospace fs-5 text-primary"><%= r.tracking_number %></div>
+                          </div>
+                          <div class="col-md-6">
+                            <span class="text-muted small">Status:</span>
+                            <div>
+                              <span class="badge bg-dark"><%= r.status %></span>
+                              <% if (r.validity_status) { %>
+                                <span class="badge <%= r.validity_status === 'VALID' ? 'bg-success' : 'bg-danger' %>"><%= r.validity_status %></span>
+                              <% } %>
+                            </div>
+                          </div>
+
+                          <div class="col-12"><hr class="my-2"></div>
+
+                          <div class="col-md-6">
+                            <h6 class="fw-bold">Applicant Information</h6>
+                            <p class="mb-1"><strong>Name:</strong> <%= r.citizen_name %></p>
+                            <p class="mb-1"><strong>Email:</strong> <%= r.citizen_email %></p>
+                            <p class="mb-0"><strong>Contact:</strong> <%= r.contact_number || 'N/A' %></p>
+                          </div>
+
+                          <div class="col-md-6">
+                            <h6 class="fw-bold">Document & Purpose</h6>
+                            <p class="mb-1"><strong>Document:</strong> <%= r.document_name %></p>
+                            <p class="mb-1"><strong>Stated Purpose:</strong> <%= r.purpose %></p>
+                            <p class="mb-0"><strong>Official Fee:</strong> ₱<%= Number(r.fee || 0).toFixed(2) %> (<%= r.payment_status %>)</p>
+                          </div>
+
+                          <div class="col-12"><hr class="my-2"></div>
+
+                          <div class="col-md-6">
+                            <h6 class="fw-bold">Audit & Personnel Trail</h6>
+                            <p class="mb-1"><strong>Filed Date:</strong> <%= new Date(r.created_at).toLocaleString() %></p>
+                            <p class="mb-1"><strong>Reviewed By:</strong> <%= r.reviewer_name || 'N/A' %></p>
+                            <p class="mb-0"><strong>Released By:</strong> <%= r.released_by_name || 'N/A' %></p>
+                          </div>
+
+                          <div class="col-md-6 text-center">
+                            <% if (r.qr_code_image) { %>
+                              <h6 class="fw-bold mb-2">QR Verification Key</h6>
+                              <img src="<%= r.qr_code_image %>" alt="QR Code" class="border rounded p-2" style="width: 130px; height: 130px;">
+                              <div class="font-monospace small text-muted mt-1"><%= r.certificate_number %></div>
+                            <% } else { %>
+                              <div class="p-3 bg-light rounded text-muted small">No certificate generated yet.</div>
+                            <% } %>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No records found matching your search.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

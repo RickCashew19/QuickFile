@@ -1,0 +1,280 @@
+<%- include('../layouts/header', { title: 'Process Request ' + reqData.tracking_number + ' - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-11">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-1">
+          STF-RVP &bull; Request Processing Desk
+        </span>
+        <h2 class="fw-bold mb-0">Application: <span class="font-monospace text-primary"><%= reqData.tracking_number %></span></h2>
+        <small class="text-muted">Submitted on <%= new Date(reqData.created_at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' }) %></small>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/staff/requests" class="btn btn-outline-secondary rounded-pill btn-sm">
+          <i class="bi bi-arrow-left me-1"></i> Back to Queue
+        </a>
+      </div>
+    </div>
+
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <!-- Current Status Header -->
+    <div class="card card-custom p-4 mb-4 border-0 shadow-sm bg-light">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="text-muted small d-block">Current Lifecycle Status (STF-RSM-01):</span>
+          <% if (reqData.status === 'PENDING') { %>
+            <h3 class="fw-bold text-warning mb-0"><i class="bi bi-hourglass-split me-2"></i>PENDING REVIEW</h3>
+          <% } else if (reqData.status === 'UNDER_REVIEW') { %>
+            <h3 class="fw-bold text-info mb-0"><i class="bi bi-search me-2"></i>UNDER REVIEW</h3>
+          <% } else if (reqData.status === 'APPROVED') { %>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-check-circle me-2"></i>APPROVED</h3>
+          <% } else if (reqData.status === 'IN_PREPARATION') { %>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-gear-wide-connected me-2"></i>IN PREPARATION</h3>
+          <% } else if (reqData.status === 'READY_FOR_PICKUP') { %>
+            <h3 class="fw-bold text-success mb-0"><i class="bi bi-envelope-paper-fill me-2"></i>READY FOR PICKUP</h3>
+          <% } else if (reqData.status === 'RELEASED') { %>
+            <h3 class="fw-bold text-success mb-0"><i class="bi bi-award-fill me-2"></i>RELEASED TO CITIZEN</h3>
+          <% } else if (reqData.status === 'REJECTED') { %>
+            <h3 class="fw-bold text-danger mb-0"><i class="bi bi-x-circle me-2"></i>REJECTED</h3>
+          <% } else if (reqData.status === 'ARCHIVED') { %>
+            <h3 class="fw-bold text-secondary mb-0"><i class="bi bi-archive-fill me-2"></i>ARCHIVED</h3>
+          <% } %>
+        </div>
+
+        <!-- Operational Action Buttons -->
+        <div class="d-flex flex-wrap gap-2">
+          <% if (reqData.status === 'PENDING' && permissions.can_review_requests) { %>
+            <form action="/staff/requests/<%= reqData.id %>/review" method="POST">
+              <button type="submit" class="btn btn-info text-white rounded-pill fw-semibold">
+                <i class="bi bi-search me-1"></i> Start Review (STF-RVP)
+              </button>
+            </form>
+          <% } %>
+
+          <% if ((reqData.status === 'PENDING' || reqData.status === 'UNDER_REVIEW') && permissions.can_review_requests) { %>
+            <form action="/staff/requests/<%= reqData.id %>/approve" method="POST">
+              <button type="submit" class="btn btn-success rounded-pill fw-semibold">
+                <i class="bi bi-check-lg me-1"></i> Approve Request (STF-RVP-03)
+              </button>
+            </form>
+
+            <button type="button" class="btn btn-outline-danger rounded-pill fw-semibold" data-bs-toggle="modal" data-bs-target="#rejectModal">
+              <i class="bi bi-x-lg me-1"></i> Reject (STF-RVP-04)
+            </button>
+          <% } %>
+
+          <% if ((reqData.status === 'APPROVED' || reqData.status === 'IN_PREPARATION') && permissions.can_prepare_documents) { %>
+            <form action="/staff/requests/<%= reqData.id %>/prepare" method="POST">
+              <button type="submit" class="btn btn-warning text-dark rounded-pill fw-bold">
+                <i class="bi bi-qr-code-scan me-1"></i> Generate Certificate & QR (STF-DPP-01)
+              </button>
+            </form>
+          <% } %>
+
+          <% if (reqData.certificate_number && permissions.can_print_documents) { %>
+            <a href="/staff/requests/<%= reqData.id %>/print" target="_blank" class="btn btn-outline-dark rounded-pill fw-semibold">
+              <i class="bi bi-printer me-1"></i> Print Certificate (STF-DPP-02)
+            </a>
+          <% } %>
+
+          <% if (reqData.status === 'READY_FOR_PICKUP' && permissions.can_release_documents) { %>
+            <form action="/staff/requests/<%= reqData.id %>/release" method="POST">
+              <button type="submit" class="btn btn-success rounded-pill fw-bold">
+                <i class="bi bi-award-fill me-1"></i> Mark as Released (STF-DPP-03)
+              </button>
+            </form>
+          <% } %>
+
+          <% if (reqData.status === 'RELEASED' && permissions.can_archive_records) { %>
+            <form action="/staff/requests/<%= reqData.id %>/archive" method="POST">
+              <button type="submit" class="btn btn-outline-secondary rounded-pill fw-semibold">
+                <i class="bi bi-archive me-1"></i> Archive Record (STF-RA-01)
+              </button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejection Note Alert if Rejected -->
+    <% if (reqData.status === 'REJECTED') { %>
+      <div class="alert alert-danger p-3 mb-4 rounded-3">
+        <strong>Rejection Remarks Sent to Citizen:</strong> <%= reqData.rejection_reason || 'Incomplete documentary requirements.' %>
+      </div>
+    <% } %>
+
+    <div class="row g-4">
+      <!-- Resident Profile & Application Data (STF-RVP-02) -->
+      <div class="col-lg-7">
+        <div class="card card-custom p-4 mb-4 border-0 shadow-sm h-100">
+          <h5 class="fw-bold mb-3 text-primary">
+            <i class="bi bi-person-badge-fill me-2"></i> Applicant Resident Details
+          </h5>
+
+          <div class="row g-3 small">
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Full Legal Name:</span>
+              <strong class="fs-6 text-dark"><%= reqData.citizen_name %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Contact Phone:</span>
+              <strong class="text-dark"><%= reqData.citizen_phone || 'N/A' %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Account Email:</span>
+              <span><%= reqData.citizen_email %></span>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Civil Status / Gender:</span>
+              <span><%= formData.civilStatus || 'Single' %> / <%= formData.gender || 'N/A' %></span>
+            </div>
+            <div class="col-12 border-top pt-2">
+              <span class="text-muted d-block">Registered Barangay Address:</span>
+              <strong class="text-dark"><%= formData.completeAddress || 'Barangay Central' %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Occupation:</span>
+              <span><%= formData.occupation || 'N/A' %></span>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Voter Registration:</span>
+              <span><%= formData.voterStatus || 'Registered' %></span>
+            </div>
+          </div>
+
+          <h5 class="fw-bold mt-4 mb-3 text-primary border-top pt-3">
+            <i class="bi bi-file-earmark-text me-2"></i> Document Request Details
+          </h5>
+
+          <div class="row g-3 small">
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Requested Document:</span>
+              <strong class="fs-6 text-dark"><%= reqData.document_name %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Document Code:</span>
+              <span class="badge bg-secondary-subtle text-secondary font-monospace"><%= reqData.document_code %></span>
+            </div>
+            <div class="col-12">
+              <span class="text-muted d-block">Applicant's Stated Purpose:</span>
+              <div class="p-2 bg-light rounded text-dark fw-semibold"><%= reqData.purpose %></div>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Assessed Fee:</span>
+              <strong class="text-dark"><%= reqData.fee === 0 ? 'FREE / WAIVED' : '₱' + reqData.fee.toFixed(2) %></strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Payment Status:</span>
+              <span class="badge <%= reqData.payment_status === 'PAID' ? 'bg-success' : 'bg-warning text-dark' %>">
+                <%= reqData.payment_status %>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Uploaded Requirement & QR Certificate Panel (STF-RVP-02 & STF-DPP-01) -->
+      <div class="col-lg-5">
+        <!-- Attached Files (STF-RVP-02) -->
+        <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+          <h5 class="fw-bold mb-3 text-dark">
+            <i class="bi bi-paperclip text-primary me-2"></i> Uploaded Requirement Proof
+          </h5>
+
+          <% if (reqData.attachment_path) { %>
+            <div class="p-3 bg-light rounded-3 text-center">
+              <% if (reqData.attachment_path.match(/\.(jpg|jpeg|png|webp)$/i)) { %>
+                <img src="<%= reqData.attachment_path %>" alt="Uploaded Proof" class="img-fluid rounded border mb-2" style="max-height: 220px;">
+              <% } else { %>
+                <i class="bi bi-file-earmark-pdf fs-1 text-danger d-block mb-2"></i>
+              <% } %>
+              <div class="fw-semibold text-truncate small"><%= reqData.attachment_name || 'Attached Proof Document' %></div>
+              <a href="<%= reqData.attachment_path %>" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill mt-2">
+                <i class="bi bi-box-arrow-up-right me-1"></i> Open Attachment in Full Window
+              </a>
+            </div>
+          <% } else { %>
+            <div class="alert alert-secondary text-center small mb-0">
+              No digital attachment was uploaded with this application.
+            </div>
+          <% } %>
+
+          <div class="mt-3 small text-muted">
+            <strong>Standard Requirement Checklist:</strong>
+            <div class="small mt-1 text-secondary" style="white-space: pre-line;"><%= reqData.document_requirements %></div>
+          </div>
+        </div>
+
+        <!-- Issued QR Certificate Section (STF-QDV-02) -->
+        <% if (reqData.certificate_number) { %>
+          <div class="card card-custom p-4 border-success shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h5 class="fw-bold text-success mb-0">
+                <i class="bi bi-patch-check-fill me-1"></i> Issued Certificate
+              </h5>
+              <span class="badge bg-success">ACTIVE & VALID</span>
+            </div>
+            <div class="text-center my-3">
+              <% if (reqData.qr_code_image) { %>
+                <img src="<%= reqData.qr_code_image %>" alt="QR Code" class="img-fluid border p-2 bg-white rounded" style="max-width: 150px;">
+              <% } %>
+              <div class="font-monospace small fw-bold mt-2"><%= reqData.certificate_number %></div>
+              <small class="text-muted font-monospace"><%= reqData.verification_code %></small>
+            </div>
+            <div class="d-grid gap-2">
+              <a href="/staff/requests/<%= reqData.id %>/print" target="_blank" class="btn btn-outline-dark btn-sm rounded-pill">
+                <i class="bi bi-printer me-1"></i> Print / Preview Certificate
+              </a>
+              <a href="/verify/<%= reqData.verification_code %>" target="_blank" class="btn btn-outline-success btn-sm rounded-pill">
+                <i class="bi bi-qr-code me-1"></i> Test Public QR Verification
+              </a>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Rejection Dialog (STF-RVP-04) -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/staff/requests/<%= reqData.id %>/reject" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger fw-bold"><i class="bi bi-x-circle me-1"></i> Reject Document Request</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">Please specify the exact reason why this request could not be processed. This reason will be immediately sent to the resident's portal.</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Reason for Rejection <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Incomplete ID document; applicant not registered in Purok records; please upload back of ID." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-pill btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger rounded-pill btn-sm px-3 fw-semibold">
+            Confirm Rejection (STF-RVP-04)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

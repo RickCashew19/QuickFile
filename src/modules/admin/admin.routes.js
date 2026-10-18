@@ -34,5 +34,36 @@ router.post('/staff/:staffId/status', AdminController.handleToggleStaffStatus);
 // ADM-URM-04: Access Control Management (Permissions)
 router.post('/staff/:staffId/permissions', AdminController.handleUpdateAccessControl);
 
+// ADM-DTM: Document Type & Requirement Management
+// ADM-DTM-01: Document Type Addition
+// ADM-DTM-02: Document Type Modification
+// ADM-DTM-03: Document Type Removal
+router.get('/document-types', AdminController.renderDocumentTypes);
+router.post('/document-types', AdminController.handleCreateDocumentType);
+router.post('/document-types/:id/update', AdminController.handleUpdateDocumentType);
+router.post('/document-types/:id/delete', AdminController.handleDeleteDocumentType);
+
+// ADM-TR: Transaction Monitoring & Reporting
+// ADM-TR-01: Transaction Report Viewing
+// ADM-TR-02: Request Analytics
+router.get('/reports', AdminController.renderReports);
+
+// ADM-CRS: Centralized Records Search & Retrieval
+// ADM-CRS-01: Historical Record Retrieval
+// ADM-CRS-02: Issued Document Record Verification
+router.get('/records', AdminController.renderRecords);
+
+// ADM-IDV: Issued Document Verification & Monitoring
+// ADM-IDV-01: Document Validity Confirmation
+// ADM-IDV-02: Issued Document Monitoring
+router.get('/issued-documents', AdminController.renderIssuedDocuments);
+router.post('/issued-documents/:id/revoke', AdminController.handleRevokeDocument);
+router.post('/issued-documents/:id/reinstate', AdminController.handleReinstateDocument);
+
+// ADM-SAO: System Activity & Records Oversight
+// ADM-SAO-01: Records Oversight
+// ADM-SAO-02: Transaction Accountability
+router.get('/audit-logs', AdminController.renderAuditLogs);
+
 module.exports = router;
 

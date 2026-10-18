@@ -3,6 +3,7 @@ const router = express.Router();
 const CitizenController = require('./citizen.controller');
 const { authenticateUser } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.middleware');
+const upload = require('../../middleware/upload.middleware');
 
 // Public Citizen IAM Routes
 // CIT-IAM-01: Account Registration
@@ -40,5 +41,20 @@ router.post('/profile', CitizenController.handleUpdateProfile);
 // CIT-APM-03: Profile Reuse (Used by document request forms to pre-populate citizen information)
 router.get('/profile/reuse', CitizenController.getProfileReuse);
 
-module.exports = router;
+// CIT-DCR-01 & CIT-DCR-02: Document Catalog & Requirements
+router.get('/catalog', CitizenController.renderCatalog);
 
+// CIT-ODR-01, 02, 03, 04: Online Document Request Form & Submission
+router.get('/request', CitizenController.renderNewRequest);
+router.post('/request', upload.single('attachment'), CitizenController.handleSubmitRequest);
+
+// CIT-RST-01: Request Status Tracking & Document Viewing
+router.get('/requests/:trackingNumber', CitizenController.renderRequestDetails);
+
+// CIT-RHV-01: Request History Viewing
+router.get('/history', CitizenController.renderHistory);
+
+// CIT-RST-02: In-App System Notifications
+router.get('/notifications', CitizenController.renderNotifications);
+
+module.exports = router;

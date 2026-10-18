@@ -1,4 +1,7 @@
 const CitizenService = require('./citizen.service');
+const DocumentService = require('../document/document.service');
+const RequestService = require('../request/request.service');
+const NotificationService = require('../notification/notification.service');
 
 class CitizenController {
   // GET: Show registration page (CIT-IAM-01)
@@ -16,7 +19,6 @@ class CitizenController {
       const { email, password, fullName, phone } = req.body;
       const result = await CitizenService.register({ email, password, fullName, phone });
 
-      // Save cookie and session
       res.cookie('quickfile_token', result.token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
       req.session.user = result.user;
 
@@ -152,18 +154,14 @@ class CitizenController {
     }
   }
 
-  // POST: Complete password reset (CIT-IAM-04)
+  // POST: Process password reset (CIT-IAM-04)
   static async handleResetPassword(req, res) {
     try {
-      const { token, password, confirmPassword } = req.body;
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match.');
-      }
-
-      const result = await CitizenService.resetPassword(token, password);
+      const { token, newPassword } = req.body;
+      const result = await CitizenService.resetPassword(token, newPassword);
 
       if (req.xhr || req.headers.accept?.includes('application/json')) {
-        return res.json(result);
+        return res.json({ success: true, ...result });
       }
 
       res.redirect('/citizen/login?success=' + encodeURIComponent(result.message));
@@ -185,13 +183,22 @@ class CitizenController {
     try {
       const { user, profile } = await CitizenService.getProfile(req.user.id);
       const reusableInfo = await CitizenService.getReusableProfile(req.user.id);
+      const requests = RequestService.getCitizenRequests(req.user.id);
+      const documentTypes = DocumentService.getActiveCatalog();
+      const notifications = NotificationService.getForUser(req.user.id, 5);
+      const unreadCount = NotificationService.getUnreadCount(req.user.id);
 
       res.render('citizen/dashboard', {
         title: 'Citizen Dashboard - QuickFile',
         user,
         profile,
         reusableInfo,
-        success: req.query.success || null
+        requests,
+        documentTypes,
+        notifications,
+        unreadCount,
+        success: req.query.success || null,
+        error: req.query.error || null
       });
     } catch (err) {
       res.redirect('/?error=' + encodeURIComponent(err.message));
@@ -255,6 +262,145 @@ class CitizenController {
     }
   }
 
+  // GET: Document Catalog & Requirements (CIT-DCR-01 & CIT-DCR-02)
+  static renderCatalog(req, res) {
+    try {
+      const documents = DocumentService.getActiveCatalog();
+      res.render('citizen/catalog', {
+        title: 'Document Catalog & Requirements - QuickFile',
+        documents,
+        success: req.query.success || null,
+        error: req.query.error || null
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Online Document Request Form (CIT-ODR-01 & CIT-ODR-03)
+  static async renderNewRequest(req, res) {
+    try {
+      const selectedDocId = req.query.doc || null;
+      const documentTypes = DocumentService.getActiveCatalog();
+      const reusableInfo = await CitizenService.getReusableProfile(req.user.id);
+
+      res.render('citizen/request-form', {
+        title: 'Online Document Request - QuickFile',
+        documentTypes,
+        selectedDocId,
+        reusableInfo,
+        error: req.query.error || null
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Submit Online Document Request (CIT-ODR-02 & CIT-ODR-04)
+  static async handleSubmitRequest(req, res) {
+    try {
+      const { documentTypeId, purpose, fullName, contactNumber, completeAddress, civilStatus, gender, occupation, voterStatus } = req.body;
+      const attachmentFile = req.file || null;
+
+      const formData = {
+        fullName: fullName || req.user.full_name,
+        contactNumber: contactNumber || req.user.phone,
+        completeAddress,
+        civilStatus,
+        gender,
+        occupation,
+        voterStatus
+      };
+
+      const created = await RequestService.submitRequest({
+        userId: req.user.id,
+        citizenName: req.user.full_name,
+        documentTypeId: Number(documentTypeId),
+        purpose,
+        formData,
+        attachmentFile
+      });
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(201).json({
+          success: true,
+          message: 'Document request submitted successfully!',
+          request: created
+        });
+      }
+
+      res.redirect(`/citizen/requests/${created.tracking_number}?success=` + encodeURIComponent('Your document request has been submitted successfully!'));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/citizen/request?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Request Status Tracking (CIT-RST-01 & CIT-RHV-02)
+  static renderRequestDetails(req, res) {
+    try {
+      const trackingNumber = req.params.trackingNumber;
+      const requestData = RequestService.getRequestByTracking(trackingNumber);
+
+      // Security check: citizens can only view their own requests
+      if (requestData.user_id !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'staff') {
+        return res.status(403).render('layouts/error', {
+          title: 'Unauthorized Access',
+          message: 'You are not authorized to view this document request.'
+        });
+      }
+
+      let parsedFormData = {};
+      try {
+        parsedFormData = JSON.parse(requestData.form_data || '{}');
+      } catch (e) {
+        parsedFormData = {};
+      }
+
+      res.render('citizen/request-details', {
+        title: `Request ${requestData.tracking_number} - QuickFile`,
+        reqData: requestData,
+        formData: parsedFormData,
+        success: req.query.success || null,
+        error: req.query.error || null
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Request History Viewing (CIT-RHV-01)
+  static renderHistory(req, res) {
+    try {
+      const requests = RequestService.getCitizenRequests(req.user.id);
+      res.render('citizen/history', {
+        title: 'My Request History - QuickFile',
+        requests,
+        success: req.query.success || null,
+        error: req.query.error || null
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET: Notifications List & Mark Read (CIT-RST-02)
+  static renderNotifications(req, res) {
+    try {
+      NotificationService.markAllAsRead(req.user.id);
+      const notifications = NotificationService.getForUser(req.user.id, 50);
+
+      res.render('citizen/notifications', {
+        title: 'System Notifications - QuickFile',
+        notifications
+      });
+    } catch (err) {
+      res.redirect('/citizen/dashboard?error=' + encodeURIComponent(err.message));
+    }
+  }
+
   // Pluggable Integration: Google OAuth (CIT-IAM)
   static async handleGoogleAuth(req, res) {
     const SettingsService = require('../settings/settings.service');
@@ -273,7 +419,6 @@ class CitizenController {
       const googleEmail = req.body?.googleEmail || req.query?.email || 'citizen.google@gmail.com';
       const googleName = req.body?.googleName || req.query?.name || 'Google Verified Citizen';
 
-      // Find or auto-register citizen via Google OAuth
       let user = CitizenModel.findUserByEmail(googleEmail);
       if (!user) {
         const dummyPass = 'GoogleAuth_' + Math.random().toString(36).substring(2) + '!123';

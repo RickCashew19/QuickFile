@@ -1,0 +1,223 @@
+<%- include('../layouts/header', { title: 'Request ' + reqData.tracking_number + ' - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <!-- Header Banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-1">
+          CIT-RST-01 &bull; Request Status Tracking
+        </span>
+        <h2 class="fw-bold mb-0">Tracking: <span class="font-monospace text-primary"><%= reqData.tracking_number %></span></h2>
+        <small class="text-muted">Submitted on <%= new Date(reqData.created_at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' }) %></small>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/citizen/history" class="btn btn-outline-secondary rounded-pill btn-sm">
+          <i class="bi bi-clock-history me-1"></i> My History
+        </a>
+        <a href="/citizen/dashboard" class="btn btn-outline-primary rounded-pill btn-sm">
+          <i class="bi bi-house me-1"></i> Dashboard
+        </a>
+      </div>
+    </div>
+
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <!-- Status Tracking Timeline Card (CIT-RST-01) -->
+    <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+      <h5 class="fw-bold mb-4 text-dark">
+        <i class="bi bi-diagram-3-fill text-primary me-2"></i> Real-Time Processing Status
+      </h5>
+
+      <% 
+        const statusOrder = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'IN_PREPARATION', 'READY_FOR_PICKUP', 'RELEASED'];
+        let currentIndex = statusOrder.indexOf(reqData.status);
+        const isRejected = reqData.status === 'REJECTED';
+      %>
+
+      <% if (isRejected) { %>
+        <div class="alert alert-danger p-4 rounded-3 mb-0">
+          <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-x-octagon-fill fs-1 text-danger"></i>
+            <div>
+              <h4 class="fw-bold mb-1">Application Returned / Rejected</h4>
+              <p class="mb-2">Your request could not be processed due to the following reason:</p>
+              <div class="p-3 bg-white text-danger border border-danger-subtle rounded-3 fw-semibold">
+                <%= reqData.rejection_reason || 'Incomplete documentary requirements.' %>
+              </div>
+              <p class="small text-muted mt-2 mb-0">You may update your details and submit a new request, or visit the Barangay Hall for assistance.</p>
+            </div>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="row text-center g-2 position-relative">
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 0 ? 'bg-primary text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-send fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Submitted</strong>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 1 ? 'bg-primary text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-search fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Reviewing</strong>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 2 ? 'bg-primary text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-check2-circle fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Approved</strong>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 3 ? 'bg-primary text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-gear-wide-connected fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Preparing</strong>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 4 ? 'bg-primary text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-envelope-paper-fill fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Ready</strong>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="p-2 rounded-3 <%= currentIndex >= 5 ? 'bg-success text-white' : 'bg-light text-muted' %>">
+              <i class="bi bi-award-fill fs-4 d-block mb-1"></i>
+              <strong class="small d-block">Released</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-light rounded-3 text-center">
+          <span class="text-muted">Current Processing Step:</span>
+          <% if (reqData.status === 'PENDING') { %>
+            <h5 class="fw-bold text-warning mb-0 mt-1">Pending Staff Assignment & Document Inspection</h5>
+          <% } else if (reqData.status === 'UNDER_REVIEW') { %>
+            <h5 class="fw-bold text-info mb-0 mt-1">Under Staff Verification (<%= reqData.reviewed_by_name || 'Assigned Officer' %>)</h5>
+          <% } else if (reqData.status === 'APPROVED') { %>
+            <h5 class="fw-bold text-primary mb-0 mt-1">Approved & Queued for Official Printing</h5>
+          <% } else if (reqData.status === 'IN_PREPARATION') { %>
+            <h5 class="fw-bold text-primary mb-0 mt-1">Official Certificate & Digital Seals Being Prepared</h5>
+          <% } else if (reqData.status === 'READY_FOR_PICKUP') { %>
+            <h5 class="fw-bold text-success mb-0 mt-1">Document Ready for Pickup at Barangay Central Records Desk</h5>
+          <% } else if (reqData.status === 'RELEASED') { %>
+            <h5 class="fw-bold text-success mb-0 mt-1">Document Officially Released & Activated</h5>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Official Certificate & QR Verification Card (STF-DPP / CIT-RHV-02) -->
+    <% if (reqData.certificate_number) { %>
+      <div class="card card-custom p-4 mb-4 border-success shadow-sm">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+          <div>
+            <span class="badge bg-success px-3 py-1 rounded-pill mb-1">
+              CIT-RHV-02 &bull; QR Verified Certificate
+            </span>
+            <h4 class="fw-bold mb-0 text-dark">Official Barangay Certificate Issued</h4>
+          </div>
+          <div>
+            <a href="/verify/<%= reqData.verification_code %>" target="_blank" class="btn btn-outline-success btn-sm rounded-pill fw-semibold">
+              <i class="bi bi-shield-check me-1"></i> Public Verification Page &rarr;
+            </a>
+          </div>
+        </div>
+
+        <div class="row align-items-center g-3">
+          <div class="col-md-3 text-center">
+            <% if (reqData.qr_code_image) { %>
+              <img src="<%= reqData.qr_code_image %>" alt="QR Code" class="img-fluid rounded border p-2 bg-white" style="max-width: 170px;">
+            <% } else { %>
+              <div class="p-3 bg-light rounded text-muted font-monospace small">QR Generated</div>
+            <% } %>
+            <small class="d-block text-muted mt-1 font-monospace"><%= reqData.verification_code %></small>
+          </div>
+
+          <div class="col-md-9">
+            <div class="p-3 bg-light rounded-3">
+              <div class="row g-2 small">
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Certificate Number:</span>
+                  <strong class="font-monospace fs-6 text-primary"><%= reqData.certificate_number %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Document Title:</span>
+                  <strong class="text-dark"><%= reqData.document_name %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Certified Resident:</span>
+                  <strong class="text-dark"><%= reqData.citizen_name %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Date of Issuance:</span>
+                  <strong><%= new Date(reqData.issued_at || reqData.updated_at).toLocaleDateString('en-PH') %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Authenticity Status:</span>
+                  <span class="badge bg-success">AUTHENTIC & VALID</span>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted d-block">Barangay Authority:</span>
+                  <span>Hon. Barangay Captain, Barangay Central</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Application Details Summary -->
+    <div class="card card-custom p-4 mb-4 border-0 shadow-sm">
+      <h5 class="fw-bold mb-3 text-primary">
+        <i class="bi bi-file-text me-2"></i> Application Summary & Submitted Data
+      </h5>
+
+      <div class="row g-3 small">
+        <div class="col-md-6">
+          <span class="text-muted d-block">Requested Document:</span>
+          <strong class="fs-6 text-dark"><%= reqData.document_name %></strong>
+        </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Stated Purpose:</span>
+          <span class="fs-6"><%= reqData.purpose %></span>
+        </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Registered Address:</span>
+          <span><%= formData.completeAddress || 'Barangay Central' %></span>
+        </div>
+        <div class="col-md-3">
+          <span class="text-muted d-block">Civil Status:</span>
+          <span><%= formData.civilStatus || 'Single' %></span>
+        </div>
+        <div class="col-md-3">
+          <span class="text-muted d-block">Voter Registration:</span>
+          <span><%= formData.voterStatus || 'Registered' %></span>
+        </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Processing Fee:</span>
+          <strong><%= reqData.fee === 0 ? 'FREE / WAIVED' : '₱' + reqData.fee.toFixed(2) %> (<%= reqData.payment_status %>)</strong>
+        </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Uploaded Proof / ID:</span>
+          <% if (reqData.attachment_path) { %>
+            <a href="<%= reqData.attachment_path %>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill mt-1">
+              <i class="bi bi-file-earmark-arrow-down me-1"></i> View Uploaded File (<%= reqData.attachment_name || 'Proof Attachment' %>)
+            </a>
+          <% } else { %>
+            <span class="text-muted">No attachment provided</span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
