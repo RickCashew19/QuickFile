@@ -1,18 +1,42 @@
 const path = require('path');
+const fs = require('fs');
 
-// Resolve the project root dynamically based on the current file location
-// Ensures QuickFile runs on any machine, OS, drive, or folder structure
+// Ensure .env is always loaded from the project root regardless of where command is run
 const projectRoot = path.resolve(__dirname, '../../');
-
-// Always load .env relative to the project root, regardless of where the command was executed
-require('dotenv').config({ path: path.join(projectRoot, '.env') });
-
-function resolveDbPath(envPath) {
-  if (!envPath || envPath.trim() === '') {
-    return path.join(projectRoot, 'src', 'database', 'quickfile.db');
-  }
-  return path.isAbsolute(envPath) ? envPath : path.resolve(projectRoot, envPath);
+const envPath = path.join(projectRoot, '.env');
+if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath });
+} else {
+  require('dotenv').config();
 }
+
+function resolveDbPath(rawDbPath) {
+  const defaultDbPath = path.join(__dirname, '../database/quickfile.db');
+
+  if (!rawDbPath || typeof rawDbPath !== 'string' || rawDbPath.trim() === '') {
+    return defaultDbPath;
+  }
+
+  const trimmed = rawDbPath.trim();
+
+  // If path is relative, resolve relative to project root directory
+  if (!path.isAbsolute(trimmed)) {
+    return path.resolve(projectRoot, trimmed);
+  }
+
+  // If path is absolute, check if its directory exists on this computer
+  const dir = path.dirname(trimmed);
+  if (fs.existsSync(dir)) {
+    return trimmed;
+  }
+
+  // Fallback for paths copied from another machine (e.g. F:\... or different user)
+  console.warn(`[QuickFile Config] Configured DB_PATH directory "${dir}" does not exist on this machine.`);
+  console.warn(`[QuickFile Config] Automatically falling back to local portable database: "${defaultDbPath}"`);
+  return defaultDbPath;
+}
+
+const dbPath = resolveDbPath(process.env.DB_PATH);
 
 module.exports = {
   projectRoot,
@@ -20,5 +44,5 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'quickfile_default_secret_key',
   sessionSecret: process.env.SESSION_SECRET || 'quickfile_default_session_secret',
-  dbPath: resolveDbPath(process.env.DB_PATH)
+  dbPath
 };
