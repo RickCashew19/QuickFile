@@ -63,23 +63,23 @@ QuickFile/
 
 ### 1. CIT CITIZEN
 - **CIT-IAM-01: Account Registration**
-  - Path: [`citizen.service.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.service.js) &rarr; `CitizenService.register()`
-  - View: [`register.ejs`](file:///f:/School%20Works/QuickFile/src/views/citizen/register.ejs) (`/citizen/register`)
+  - Path: [`citizen.service.js`](src/modules/citizen/citizen.service.js) &rarr; `CitizenService.register()`
+  - View: [`register.ejs`](src/views/citizen/register.ejs) (`/citizen/register`)
 - **CIT-IAM-02: User Login**
-  - Path: [`citizen.service.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.service.js) &rarr; `CitizenService.login()`
-  - View: [`login.ejs`](file:///f:/School%20Works/QuickFile/src/views/citizen/login.ejs) (`/citizen/login`)
+  - Path: [`citizen.service.js`](src/modules/citizen/citizen.service.js) &rarr; `CitizenService.login()`
+  - View: [`login.ejs`](src/views/citizen/login.ejs) (`/citizen/login`)
 - **CIT-IAM-03: User Logout**
-  - Path: [`citizen.controller.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.controller.js) &rarr; `CitizenController.logout()`
+  - Path: [`citizen.controller.js`](src/modules/citizen/citizen.controller.js) &rarr; `CitizenController.logout()`
 - **CIT-IAM-04: Password Recovery**
-  - Path: [`citizen.service.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.service.js) &rarr; `initiatePasswordRecovery()`, `resetPassword()`
-  - Views: [`forgot-password.ejs`](file:///f:/School%20Works/QuickFile/src/views/citizen/forgot-password.ejs) & [`reset-password.ejs`](file:///f:/School%20Works/QuickFile/src/views/citizen/reset-password.ejs)
+  - Path: [`citizen.service.js`](src/modules/citizen/citizen.service.js) &rarr; `initiatePasswordRecovery()`, `resetPassword()`
+  - Views: [`forgot-password.ejs`](src/views/citizen/forgot-password.ejs) & [`reset-password.ejs`](src/views/citizen/reset-password.ejs)
 - **CIT-APM-01: Profile Creation**
   - Initial creation occurs automatically on registration with resident data capture.
 - **CIT-APM-02: Profile Update**
-  - Path: [`citizen.service.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.service.js) &rarr; `CitizenService.updateProfile()`
-  - View: [`profile.ejs`](file:///f:/School%20Works/QuickFile/src/views/citizen/profile.ejs) (`/citizen/profile`)
+  - Path: [`citizen.service.js`](src/modules/citizen/citizen.service.js) &rarr; `CitizenService.updateProfile()`
+  - View: [`profile.ejs`](src/views/citizen/profile.ejs) (`/citizen/profile`)
 - **CIT-APM-03: Profile Reuse**
-  - Path: [`citizen.service.js`](file:///f:/School%20Works/QuickFile/src/modules/citizen/citizen.service.js) &rarr; `CitizenService.getReusableProfile()`
+  - Path: [`citizen.service.js`](src/modules/citizen/citizen.service.js) &rarr; `CitizenService.getReusableProfile()`
   - Formats personal data and address ready to auto-populate document request flows.
   - Endpoint: `GET /citizen/profile/reuse` (returns reusable JSON identity).
 
@@ -87,39 +87,41 @@ QuickFile/
 
 ### 2. STF BARANGAY STAFF
 - **STF-IAM-01: Staff Login**
-  - Path: [`staff.service.js`](file:///f:/School%20Works/QuickFile/src/modules/staff/staff.service.js) &rarr; `StaffService.login()`
+  - Path: [`staff.service.js`](src/modules/staff/staff.service.js) &rarr; `StaffService.login()`
   - Checks if account is active (blocks deactivated staff) and loads assigned permissions.
-  - View: [`login.ejs`](file:///f:/School%20Works/QuickFile/src/views/staff/login.ejs) (`/staff/login`)
+  - View: [`login.ejs`](src/views/staff/login.ejs) (`/staff/login`)
 - **STF-IAM-02: Staff Logout**
-  - Path: [`staff.controller.js`](file:///f:/School%20Works/QuickFile/src/modules/staff/staff.controller.js) &rarr; `StaffController.logout()`
+  - Path: [`staff.controller.js`](src/modules/staff/staff.controller.js) &rarr; `StaffController.logout()`
 
 ---
 
 ### 3. ADM BARANGAY OFFICIAL / ADMIN
 - **ADM-IAM-01: Administrator Login**
-  - Path: [`admin.service.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.service.js) &rarr; `AdminService.login()`
-  - View: [`login.ejs`](file:///f:/School%20Works/QuickFile/src/views/admin/login.ejs) (`/admin/login`)
+  - Path: [`admin.service.js`](src/modules/admin/admin.service.js) &rarr; `AdminService.login()`
+  - View: [`login.ejs`](src/views/admin/login.ejs) (`/admin/login`)
 - **ADM-IAM-02: Administrator Logout**
-  - Path: [`admin.controller.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.controller.js) &rarr; `AdminController.logout()`
+  - Path: [`admin.controller.js`](src/modules/admin/admin.controller.js) &rarr; `AdminController.logout()`
 - **ADM-URM-01: Staff Account Creation**
-  - Path: [`admin.service.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.service.js) &rarr; `AdminService.createStaffAccount()`
-  - Modal form on [`staff-management.ejs`](file:///f:/School%20Works/QuickFile/src/views/admin/staff-management.ejs) (`POST /admin/staff`)
+  - Path: [`admin.service.js`](src/modules/admin/admin.service.js) &rarr; `AdminService.createStaffAccount()`
+  - Modal form on [`staff-management.ejs`](src/views/admin/staff-management.ejs) (`POST /admin/staff`)
 - **ADM-URM-02: Staff Account Management**
-  - Path: [`admin.service.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.service.js) &rarr; `AdminService.updateStaffAccount()`
+  - Path: [`admin.service.js`](src/modules/admin/admin.service.js) &rarr; `AdminService.updateStaffAccount()`
   - Edit name, phone, position, department, and reset passwords (`POST /admin/staff/:staffId/update`)
 - **ADM-URM-03: Staff Account Deactivation**
-  - Path: [`admin.service.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.service.js) &rarr; `AdminService.toggleStaffStatus()`
+  - Path: [`admin.service.js`](src/modules/admin/admin.service.js) &rarr; `AdminService.toggleStaffStatus()`
   - One-click toggle between active and deactivated status (`POST /admin/staff/:staffId/status`)
 - **ADM-URM-04: Access Control Management**
-  - Path: [`admin.service.js`](file:///f:/School%20Works/QuickFile/src/modules/admin/admin.service.js) &rarr; `AdminService.updateStaffAccessControl()`
-  - Middleware: [`permission.middleware.js`](file:///f:/School%20Works/QuickFile/src/middleware/permission.middleware.js)
+  - Path: [`admin.service.js`](src/modules/admin/admin.service.js) &rarr; `AdminService.updateStaffAccessControl()`
+  - Middleware: [`permission.middleware.js`](src/middleware/permission.middleware.js)
   - Granular control over permissions (`can_review_requests`, `can_prepare_documents`, `can_print_documents`, `can_release_documents`, `can_verify_qr`, `can_view_reports`, `can_archive_records`).
 
 ---
 
 ### 4. ⚙️ APP SETTINGS & PLUGGABLE INTEGRATIONS
 - **Pluggable Integration Architecture:**
-  - Located in: [`src/modules/settings/`](file:///f:/School%20Works/QuickFile/src/modules/settings)
+  - Located in: [`src/modules/settings/`](src/modules/settings)
+  - Persisted in the `app_settings` database table.
+  - Accessible via Admin Portal: `/admin/settings`.
   - Persisted in the `app_settings` database table.
   - Accessible via Admin Portal: `/admin/settings`.
 - **Google Authentication (OAuth) Toggle:**
