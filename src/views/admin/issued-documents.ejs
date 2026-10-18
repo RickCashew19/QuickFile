@@ -139,33 +139,6 @@
                     </button>
                   </form>
                 </div>
-
-                <!-- Revoke Modal (ADM-IDV-01) -->
-                <div class="modal fade" id="revokeModal-<%= doc.id %>" tabindex="-1" aria-hidden="true">
-                  <div class="modal-dialog text-start">
-                    <div class="modal-content">
-                      <form action="/admin/issued-documents/<%= doc.id %>/revoke" method="POST">
-                        <div class="modal-header bg-danger text-white">
-                          <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Revoke Document Validity (ADM-IDV-01)</h5>
-                          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                          <p>You are officially revoking Certificate <strong><%= doc.certificate_number %></strong> issued to <strong><%= doc.citizen_name %></strong>.</p>
-                          <p class="text-muted small">Anyone scanning this certificate's QR code or querying the verification portal will immediately see that this certificate has been REVOKED and is no longer valid.</p>
-                          <div class="mb-3">
-                            <label class="form-label fw-semibold">Official Reason for Revocation *</label>
-                            <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Fraudulent residency declaration, document superseded by revised clearance, or resident relocation." required></textarea>
-                          </div>
-                        </div>
-                        <div class="modal-footer">
-                          <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
-                          <button type="submit" class="btn btn-danger rounded-pill px-4">Confirm Revocation</button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-
               </td>
             </tr>
           <% }); %>
@@ -178,6 +151,36 @@
     </table>
   </div>
 </div>
+
+<!-- Revoke Modals (ADM-IDV-01) -->
+<% if (typeof issuedDocs !== 'undefined' && issuedDocs && issuedDocs.length > 0) { %>
+  <% issuedDocs.forEach(function(doc) { %>
+    <div class="modal fade" id="revokeModal-<%= doc.id %>" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0">
+          <form action="/admin/issued-documents/<%= doc.id %>/revoke" method="POST">
+            <div class="modal-header bg-danger text-white">
+              <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Revoke Document Validity (ADM-IDV-01)</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+              <p>You are officially revoking Certificate <strong><%= doc.certificate_number %></strong> issued to <strong><%= doc.citizen_name %></strong>.</p>
+              <p class="text-muted small">Anyone scanning this certificate's QR code or querying the verification portal will immediately see that this certificate has been REVOKED and is no longer valid.</p>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Official Reason for Revocation *</label>
+                <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Fraudulent residency declaration, document superseded by revised clearance, or resident relocation." required></textarea>
+              </div>
+            </div>
+            <div class="modal-footer bg-light">
+              <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">Confirm Revocation</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+<% } %>
 
 <%- include('../layouts/footer') %>
 
