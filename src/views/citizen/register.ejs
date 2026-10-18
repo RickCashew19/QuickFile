@@ -16,6 +16,8 @@
           <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+      <% } %>
+
       <% if (typeof appSettings !== 'undefined' && appSettings && appSettings.googleAuthEnabled) { %>
         <div class="mb-3">
           <a href="/citizen/auth/google" class="btn btn-outline-danger w-100 py-2 rounded-pill fw-semibold d-flex align-items-center justify-content-center gap-2">
