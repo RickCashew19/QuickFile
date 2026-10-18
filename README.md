@@ -14,7 +14,7 @@ QuickFile is designed to be **100% portable and computer-independent**, running 
 - **Assisted Walk-In Counter Service**: Dedicated desk module (`/staff/requests/walk-in`) allowing staff to file applications for senior citizens, offline residents, and counter visitors.
 - **Cryptographic QR Verification Portal**: Public verification gateway (`/verify/:code`) enabling employers, banks, and government agencies to instantly authenticate issued barangay certificates.
 - **Granular Staff Permissions & Security Audit Logs**: Fine-grained access control switches (ADM-URM-04) combined with an immutable audit ledger (ADM-SAO) logging actor identity, event type, and timestamps.
-- **Pluggable Integration Architecture**: Dynamic feature toggles in Admin Settings for Google OAuth single sign-on, Twilio/PhilSMS gateways, and SMTP mail delivery.
+- **Pluggable Integration Architecture**: Dynamic feature toggles in Admin Settings for Google OAuth single sign-on, REST API external developer gateway, Twilio/PhilSMS gateways, and SMTP mail delivery.
 
 ---
 
@@ -166,7 +166,7 @@ QuickFile/
 | **ADM-IDV-02** | Issued Document Monitoring | **DONE** | Complete register of all issued certificates with permanent record deletion capability. |
 | **ADM-SAO-01** | System Records Oversight | **DONE** | Immutable, queryable audit trail (`/admin/audit-logs`) capturing all critical system actions. |
 | **ADM-SAO-02** | Transaction Accountability | **DONE** | Strict attribution recording actor ID, actor name, target entity, timestamp, and details. |
-| **ADM-SET** | System Settings & Integrations | **DONE** | Pluggable toggles for Google OAuth, SMS gateways, and SMTP mail delivery (`/admin/settings`). |
+| **ADM-SET** | System Settings & Integrations | **DONE** | Pluggable toggles for Google OAuth, REST API developer gateway, SMS gateways, and SMTP mail delivery (`/admin/settings`). |
 
 ---
 

@@ -83,65 +83,132 @@
       </div>
     </div>
 
-    <!-- 2. Communication & Other Pluggable Integrations -->
+    <!-- 2. REST API Pluggable Gateway Card -->
     <div class="col-lg-6">
-      <div class="card card-custom p-4 h-100">
+      <div class="card card-custom p-4 h-100 border-<%= settings.apiEnabled ? 'primary' : 'light' %>">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar-circle <%= settings.apiEnabled ? 'bg-primary' : 'bg-secondary' %> text-white">
+              <i class="bi bi-hdd-network fs-4"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0">REST API & External Gateway</h5>
+              <small class="text-muted">Pluggable API Service & Access Control</small>
+            </div>
+          </div>
+          <div>
+            <% if (settings.apiEnabled) { %>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                <i class="bi bi-check-circle-fill me-1"></i> Enabled (Active)
+              </span>
+            <% } else { %>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                <i class="bi bi-slash-circle-fill me-1"></i> Disabled (Blocked)
+              </span>
+            <% } %>
+          </div>
+        </div>
+
+        <p class="text-muted small mb-3">
+          When this integration is <strong>Enabled</strong>, authorized external systems, mobile clients, and developer integrations can access all <code>/api/*</code> endpoints.
+          When <strong>Disabled</strong>, all public and external API requests are intercepted and blocked with a <code>503 Service Unavailable</code> status.
+        </p>
+
+        <div class="bg-light p-3 rounded-3 mb-3">
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="apiSwitch" name="api_enabled" value="1" <%= settings.apiEnabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="apiSwitch">
+              Enable REST API Gateway Endpoints (<code>/api/*</code>)
+            </label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">API Secret / Bearer Key (Optional for External Callers)</label>
+            <input type="password" name="api_secret_key" class="form-control form-control-sm font-monospace" placeholder="e.g. qf_live_sec_••••••••••••••••" value="<%= settings.apiSecretKey %>">
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between pt-1">
+            <small class="text-muted">Instant Action:</small>
+            <button type="submit" formaction="/admin/settings/toggle-api" class="btn btn-sm <%= settings.apiEnabled ? 'btn-outline-danger' : 'btn-outline-success' %> rounded-pill px-3">
+              <i class="bi <%= settings.apiEnabled ? 'bi-toggle-on' : 'bi-toggle-off' %> me-1"></i>
+              <%= settings.apiEnabled ? 'Disable API Now' : 'Enable API Now' %>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-auto small text-muted">
+          <i class="bi bi-shield-check me-1"></i> Base API Endpoint: <code>/api</code> &bull; Status: <strong><%= settings.apiEnabled ? 'Active' : 'Disabled' %></strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Communication & Other Pluggable Integrations -->
+    <div class="col-12">
+      <div class="card card-custom p-4">
         <h5 class="fw-bold mb-3 d-flex align-items-center">
-          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services
+          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services & Utilities
         </h5>
 
-        <!-- SMS Notifications -->
-        <div class="p-3 border rounded-3 mb-3 bg-light">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" id="smsSwitch" name="sms_notifications_enabled" value="1" <%= settings.smsNotificationsEnabled ? 'checked' : '' %>>
-              <label class="form-check-label fw-bold" for="smsSwitch">SMS Gateway Integration</label>
+        <div class="row g-3">
+          <!-- SMS Notifications -->
+          <div class="col-md-4">
+            <div class="p-3 border rounded-3 bg-light h-100">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="smsSwitch" name="sms_notifications_enabled" value="1" <%= settings.smsNotificationsEnabled ? 'checked' : '' %>>
+                  <label class="form-check-label fw-bold" for="smsSwitch">SMS Gateway</label>
+                </div>
+                <% if (settings.smsNotificationsEnabled) { %>
+                  <span class="badge bg-success">Active</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Inactive</span>
+                <% } %>
+              </div>
+              <small class="text-muted d-block mt-2">
+                Sends real-time SMS notifications via Twilio/PhilSMS when a document request changes status.
+              </small>
             </div>
-            <% if (settings.smsNotificationsEnabled) { %>
-              <span class="badge bg-success">Active</span>
-            <% } else { %>
-              <span class="badge bg-secondary">Inactive</span>
-            <% } %>
           </div>
-          <small class="text-muted d-block">
-            Sends real-time SMS notifications via Twilio/PhilSMS when a document request changes status.
-          </small>
-        </div>
 
-        <!-- SMTP Email -->
-        <div class="p-3 border rounded-3 mb-3 bg-light">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" id="emailSwitch" name="email_smtp_enabled" value="1" <%= settings.emailSmtpEnabled ? 'checked' : '' %>>
-              <label class="form-check-label fw-bold" for="emailSwitch">SMTP / Email Service</label>
+          <!-- SMTP Email -->
+          <div class="col-md-4">
+            <div class="p-3 border rounded-3 bg-light h-100">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="emailSwitch" name="email_smtp_enabled" value="1" <%= settings.emailSmtpEnabled ? 'checked' : '' %>>
+                  <label class="form-check-label fw-bold" for="emailSwitch">SMTP / Email</label>
+                </div>
+                <% if (settings.emailSmtpEnabled) { %>
+                  <span class="badge bg-success">Active</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Inactive</span>
+                <% } %>
+              </div>
+              <small class="text-muted d-block mt-2">
+                Enables automated dispatch of password recovery links and clearance notification emails.
+              </small>
             </div>
-            <% if (settings.emailSmtpEnabled) { %>
-              <span class="badge bg-success">Active</span>
-            <% } else { %>
-              <span class="badge bg-secondary">Inactive</span>
-            <% } %>
           </div>
-          <small class="text-muted d-block">
-            Enables automated dispatch of password recovery links and clearance notification emails.
-          </small>
-        </div>
 
-        <!-- QR Engine -->
-        <div class="p-3 border rounded-3 bg-light">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" id="qrSwitch" name="qr_engine_enabled" value="1" <%= settings.qrEngineEnabled ? 'checked' : '' %>>
-              <label class="form-check-label fw-bold" for="qrSwitch">Internal QR Code Engine</label>
+          <!-- QR Engine -->
+          <div class="col-md-4">
+            <div class="p-3 border rounded-3 bg-light h-100">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="qrSwitch" name="qr_engine_enabled" value="1" <%= settings.qrEngineEnabled ? 'checked' : '' %>>
+                  <label class="form-check-label fw-bold" for="qrSwitch">QR Engine</label>
+                </div>
+                <% if (settings.qrEngineEnabled) { %>
+                  <span class="badge bg-success">Active</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Inactive</span>
+                <% } %>
+              </div>
+              <small class="text-muted d-block mt-2">
+                Generates verifiable QR hashes printed on barangay clearances and certifications.
+              </small>
             </div>
-            <% if (settings.qrEngineEnabled) { %>
-              <span class="badge bg-success">Active</span>
-            <% } else { %>
-              <span class="badge bg-secondary">Inactive</span>
-            <% } %>
           </div>
-          <small class="text-muted d-block">
-            Generates verifiable QR hashes printed on barangay clearances and certifications.
-          </small>
         </div>
       </div>
     </div>

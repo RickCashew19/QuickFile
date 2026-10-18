@@ -112,6 +112,24 @@ app.get('/', (req, res) => {
   });
 });
 
+// REST API Gateway Enable/Disable Guard Middleware
+app.use('/api', (req, res, next) => {
+  // Always allow admin settings configuration endpoints so administrators can inspect and toggle settings
+  if (req.path.startsWith('/admin/settings')) {
+    return next();
+  }
+
+  const SettingsService = require('./src/modules/settings/settings.service');
+  if (!SettingsService.isFeatureEnabled('api_enabled')) {
+    return res.status(503).json({
+      success: false,
+      error: 'API_DISABLED',
+      message: 'REST API services are currently disabled by the system administrator. Re-enable API access in Admin Settings.'
+    });
+  }
+  next();
+});
+
 // Modular Routes Registration
 // 1. Citizen Module (CIT-IAM & CIT-APM)
 const citizenRoutes = require('./src/modules/citizen/citizen.routes');

@@ -121,7 +121,9 @@ function initDatabase() {
     { key: 'google_client_secret', value: '', category: 'auth_integration', description: 'Google OAuth Client Secret' },
     { key: 'sms_notifications_enabled', value: '1', category: 'communication', description: 'Enable/Disable SMS Gateway Notifications (Twilio / PhilSMS)' },
     { key: 'email_smtp_enabled', value: '1', category: 'communication', description: 'Enable/Disable Automated Email Delivery via SMTP' },
-    { key: 'qr_engine_enabled', value: '1', category: 'verification', description: 'Enable/Disable Internal QR Verification Engine' }
+    { key: 'qr_engine_enabled', value: '1', category: 'verification', description: 'Enable/Disable Internal QR Verification Engine' },
+    { key: 'api_enabled', value: '1', category: 'api_integration', description: 'Enable/Disable REST API Endpoints and External Developer Gateway' },
+    { key: 'api_secret_key', value: '', category: 'api_integration', description: 'API Secret Key for External Integrations' }
   ];
 
   const insertSetting = db.prepare(`

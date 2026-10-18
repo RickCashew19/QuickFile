@@ -101,6 +101,93 @@ async function testAppSettings() {
   await CitizenController.handleGoogleAuth(mockReqDisabled, mockResDisabled);
   console.log(`✓ Blocked again with status ${mockStatus}: "${mockResponse?.message}"`);
 
+  // 4. Test REST API Gateway Enable / Disable via App Settings
+  console.log('\n[6] Testing REST API Gateway Enable & Disable Setting...');
+  const app = require('./app');
+  const server = app.listen(0);
+  const port = server.address().port;
+  const baseUrl = `http://localhost:${port}`;
+
+  try {
+    // Disable API
+    console.log('-> Admin DISABLES REST API in App Settings...');
+    const apiDisabledSettings = SettingsService.updateIntegrationSettings(adminLogin.admin, {
+      ...SettingsService.getIntegrationSettings().raw,
+      api_enabled: '0'
+    });
+    console.log('✓ API Enabled state:', apiDisabledSettings.apiEnabled);
+    console.log('✓ SettingsService.isApiEnabled():', SettingsService.isApiEnabled());
+
+    // Send request to /api/verify while DISABLED
+    const disabledApiResponse = await fetch(`${baseUrl}/api/verify`);
+    console.log(`✓ GET /api/verify response status: ${disabledApiResponse.status}`);
+    const disabledJson = await disabledApiResponse.json();
+    console.log(`✓ Response error payload:`, disabledJson);
+    if (disabledApiResponse.status === 503 && disabledJson.error === 'API_DISABLED') {
+      console.log('✓ SUCCESS: REST API endpoint properly returned 503 Service Unavailable when API was disabled!');
+    } else {
+      throw new Error(`Expected 503 API_DISABLED, received: ${disabledApiResponse.status}`);
+    }
+
+    // Normal web UI should still be accessible
+    const webUiResponse = await fetch(`${baseUrl}/verify`);
+    console.log(`✓ Internal Web UI (GET /verify) status: ${webUiResponse.status} (Unimpaired by API disabled state)`);
+    if (webUiResponse.status !== 200) {
+      throw new Error('Web UI should remain accessible even when /api is disabled!');
+    }
+
+    // Enable API
+    console.log('\n-> Admin ENABLES REST API in App Settings...');
+    const apiEnabledSettings = SettingsService.updateIntegrationSettings(adminLogin.admin, {
+      ...SettingsService.getIntegrationSettings().raw,
+      api_enabled: '1',
+      api_secret_key: 'test_key_12345'
+    });
+    console.log('✓ API Enabled state:', apiEnabledSettings.apiEnabled);
+    console.log('✓ Configured API Secret:', apiEnabledSettings.apiSecretKey);
+
+    // Send request to /api/verify while ENABLED
+    const enabledApiResponse = await fetch(`${baseUrl}/api/verify`);
+    console.log(`✓ GET /api/verify response status: ${enabledApiResponse.status}`);
+    if (enabledApiResponse.status === 200) {
+      console.log('✓ SUCCESS: REST API endpoint returned 200 OK when API was enabled!');
+    } else {
+      throw new Error(`Expected 200 OK, received: ${enabledApiResponse.status}`);
+    }
+
+    // Test Quick Toggle Action
+    console.log('\n-> Testing Quick Toggle API Controller Action (/admin/settings/toggle-api)...');
+    const SettingsController = require('./src/modules/settings/settings.controller');
+    let toggleResData = null;
+    const mockReqToggle = {
+      user: adminLogin.admin,
+      xhr: true,
+      headers: { accept: 'application/json' }
+    };
+    const mockResToggle = {
+      json: (data) => { toggleResData = data; },
+      redirect: () => {}
+    };
+
+    // Toggle 1: Enabled -> Disabled
+    SettingsController.toggleApi(mockReqToggle, mockResToggle);
+    console.log('✓ Toggle #1 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
+    if (toggleResData?.apiEnabled !== false) {
+      throw new Error('Failed to toggle API from enabled to disabled!');
+    }
+
+    // Toggle 2: Disabled -> Enabled
+    SettingsController.toggleApi(mockReqToggle, mockResToggle);
+    console.log('✓ Toggle #2 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
+    if (toggleResData?.apiEnabled !== true) {
+      throw new Error('Failed to toggle API from disabled back to enabled!');
+    }
+
+    console.log('✓ SUCCESS: Quick API toggle action fully verified!');
+  } finally {
+    server.close();
+  }
+
   console.log('\n=======================================================');
   console.log('🎉 APP SETTINGS & PLUGGABLE INTEGRATIONS VERIFIED!');
   console.log('=======================================================');

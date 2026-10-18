@@ -8,8 +8,17 @@ class SettingsService {
    * @returns {boolean}
    */
   static isFeatureEnabled(key) {
-    const val = SettingsModel.getValue(key, '0');
+    const defaultVal = key === 'api_enabled' ? '1' : '0';
+    const val = SettingsModel.getValue(key, defaultVal);
     return val === '1' || val === 'true';
+  }
+
+  /**
+   * Helper to specifically check if API access is enabled
+   * @returns {boolean}
+   */
+  static isApiEnabled() {
+    return this.isFeatureEnabled('api_enabled');
   }
 
   /**
@@ -24,6 +33,8 @@ class SettingsService {
       smsNotificationsEnabled: map['sms_notifications_enabled'] === '1' || map['sms_notifications_enabled'] === 'true',
       emailSmtpEnabled: map['email_smtp_enabled'] === '1' || map['email_smtp_enabled'] === 'true',
       qrEngineEnabled: map['qr_engine_enabled'] === '1' || map['qr_engine_enabled'] === 'true',
+      apiEnabled: map['api_enabled'] === undefined ? true : (map['api_enabled'] === '1' || map['api_enabled'] === 'true'),
+      apiSecretKey: map['api_secret_key'] || '',
       raw: map
     };
   }
@@ -38,6 +49,7 @@ class SettingsService {
     const smsEnabled = updates.sms_notifications_enabled === '1' || updates.sms_notifications_enabled === 'on' || updates.sms_notifications_enabled === true ? '1' : '0';
     const emailEnabled = updates.email_smtp_enabled === '1' || updates.email_smtp_enabled === 'on' || updates.email_smtp_enabled === true ? '1' : '0';
     const qrEnabled = updates.qr_engine_enabled === '1' || updates.qr_engine_enabled === 'on' || updates.qr_engine_enabled === true ? '1' : '0';
+    const apiEnabled = updates.api_enabled === '1' || updates.api_enabled === 'on' || updates.api_enabled === true ? '1' : '0';
 
     const settingsMap = {
       google_auth_enabled: googleAuthEnabled,
@@ -45,7 +57,9 @@ class SettingsService {
       google_client_secret: updates.google_client_secret ? updates.google_client_secret.trim() : '',
       sms_notifications_enabled: smsEnabled,
       email_smtp_enabled: emailEnabled,
-      qr_engine_enabled: qrEnabled
+      qr_engine_enabled: qrEnabled,
+      api_enabled: apiEnabled,
+      api_secret_key: updates.api_secret_key ? updates.api_secret_key.trim() : (updates.api_secret_key === '' ? '' : (SettingsModel.getValue('api_secret_key') || ''))
     };
 
     SettingsModel.setMultiple(settingsMap);
@@ -58,7 +72,7 @@ class SettingsService {
         'APP_SETTINGS_UPDATED',
         'app_settings',
         0,
-        `Updated integrations: Google Auth=${googleAuthEnabled === '1' ? 'ENABLED' : 'DISABLED'}, SMS=${smsEnabled === '1' ? 'ENABLED' : 'DISABLED'}`
+        `Updated integrations: Google Auth=${googleAuthEnabled === '1' ? 'ENABLED' : 'DISABLED'}, REST API=${apiEnabled === '1' ? 'ENABLED' : 'DISABLED'}, SMS=${smsEnabled === '1' ? 'ENABLED' : 'DISABLED'}`
       );
     }
 

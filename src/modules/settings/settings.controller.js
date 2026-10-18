@@ -35,6 +35,36 @@ class SettingsController {
     }
   }
 
+  // POST: Quick Toggle API Enable/Disable
+  static toggleApi(req, res) {
+    try {
+      const isCurrentlyEnabled = SettingsService.isApiEnabled();
+      const newStatus = isCurrentlyEnabled ? '0' : '1';
+
+      const updated = SettingsService.updateIntegrationSettings(req.user, {
+        ...SettingsService.getIntegrationSettings().raw,
+        api_enabled: newStatus
+      });
+
+      const message = `REST API service has been successfully ${updated.apiEnabled ? 'ENABLED' : 'DISABLED'}.`;
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({
+          success: true,
+          message,
+          apiEnabled: updated.apiEnabled
+        });
+      }
+
+      res.redirect('/admin/settings?success=' + encodeURIComponent(message));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
+    }
+  }
+
   // GET: JSON API endpoint
   static apiGetSettings(req, res) {
     const settings = SettingsService.getIntegrationSettings();
