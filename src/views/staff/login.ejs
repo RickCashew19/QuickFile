@@ -1,0 +1,52 @@
+<%- include('../layouts/header', { title: 'Barangay Staff Login (STF-IAM-01) - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card card-custom p-4 p-md-5">
+      <div class="text-center mb-4">
+        <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 rounded-pill mb-2">
+          STF-IAM-01 &bull; Staff Authentication
+        </span>
+        <h2 class="fw-bold">Barangay Staff Login</h2>
+        <p class="text-muted small">Sign in using authorized staff credentials provided by the Barangay Administrator.</p>
+      </div>
+
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <form action="/staff/login" method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Staff Work Email</label>
+          <input type="email" name="email" class="form-control" placeholder="staff@quickfile.gov.ph" required value="<%= typeof email !== 'undefined' ? email || '' : '' %>">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Staff Password</label>
+          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-info text-white w-100 py-2 rounded-pill fw-semibold">
+          <i class="bi bi-shield-lock-fill me-1"></i> Sign In to Staff Desk
+        </button>
+      </form>
+
+      <div class="mt-4 p-3 bg-light rounded-3 text-center small text-muted">
+        <i class="bi bi-info-circle me-1"></i> Staff accounts are created and configured by the Barangay Administrator under <strong>ADM-URM-01</strong>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+

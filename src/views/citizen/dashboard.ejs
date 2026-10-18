@@ -1,0 +1,135 @@
+<%- include('../layouts/header', { title: 'Citizen Dashboard - QuickFile' }) %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card card-custom p-4 bg-primary text-white border-0">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <span class="badge bg-white text-primary px-3 py-1 rounded-pill fw-semibold mb-2">
+            Citizen Dashboard &bull; Logged In (CIT-IAM-02)
+          </span>
+          <h2 class="fw-bold mb-1">Mabuhay, <%= reusableInfo.reusableData.fullName || user.full_name %>!</h2>
+          <p class="mb-0 text-white-50">Welcome to your Barangay Central resident portal.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="/citizen/profile" class="btn btn-light text-primary rounded-pill fw-semibold">
+            <i class="bi bi-person-fill-gear me-1"></i> Manage Profile (CIT-APM-02)
+          </a>
+          <a href="/citizen/logout" class="btn btn-outline-light rounded-pill">
+            <i class="bi bi-box-arrow-right me-1"></i> Logout (CIT-IAM-03)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<div class="row g-4">
+  <!-- Profile Reuse Showcase Card (CIT-APM-03) -->
+  <div class="col-lg-6">
+    <div class="card card-custom p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill mb-2">
+            CIT-APM-03 &bull; Profile Reuse
+          </span>
+          <h4 class="fw-bold mb-1">Reusable Resident Identity</h4>
+          <p class="text-muted small mb-0">Pre-saved resident data ready to autofill subsequent barangay requests.</p>
+        </div>
+        <div class="avatar-circle bg-success text-white" style="width: 44px; height: 44px;">
+          <i class="bi bi-arrow-repeat"></i>
+        </div>
+      </div>
+
+      <div class="p-3 bg-light rounded-3 mb-3">
+        <div class="row g-2 small">
+          <div class="col-sm-6">
+            <span class="text-muted d-block">Formal Name:</span>
+            <strong class="text-dark"><%= reusableInfo.reusableData.fullName %></strong>
+          </div>
+          <div class="col-sm-6">
+            <span class="text-muted d-block">Contact Phone:</span>
+            <strong class="text-dark"><%= reusableInfo.reusableData.contactNumber || 'Not specified' %></strong>
+          </div>
+          <div class="col-sm-6">
+            <span class="text-muted d-block">Civil Status / Gender:</span>
+            <strong class="text-dark"><%= reusableInfo.reusableData.civilStatus || 'Single' %> / <%= reusableInfo.reusableData.gender || 'Not specified' %></strong>
+          </div>
+          <div class="col-sm-6">
+            <span class="text-muted d-block">Voter Status:</span>
+            <strong class="text-dark"><%= reusableInfo.reusableData.voterStatus %></strong>
+          </div>
+          <div class="col-12 mt-2 pt-2 border-top">
+            <span class="text-muted d-block">Registered Address:</span>
+            <strong class="text-dark"><%= reusableInfo.reusableData.completeAddress || 'Profile incomplete' %></strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between mt-auto">
+        <span class="small text-muted">API Endpoint: <code>/citizen/profile/reuse</code></span>
+        <a href="/citizen/profile/reuse" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill">
+          <i class="bi bi-code-slash me-1"></i> View Reusable JSON Data
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account & Security Information (CIT-IAM) -->
+  <div class="col-lg-6">
+    <div class="card card-custom p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+            CIT-IAM &bull; Security & Account
+          </span>
+          <h4 class="fw-bold mb-1">Account Credentials</h4>
+          <p class="text-muted small mb-0">Active session and authentication status.</p>
+        </div>
+        <div class="avatar-circle bg-primary text-white" style="width: 44px; height: 44px;">
+          <i class="bi bi-shield-check"></i>
+        </div>
+      </div>
+
+      <ul class="list-group list-group-flush mb-4 small">
+        <li class="list-group-item d-flex justify-content-between px-0">
+          <span class="text-muted">Account Email:</span>
+          <strong><%= user.email %></strong>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0">
+          <span class="text-muted">Role Assignment:</span>
+          <span class="badge bg-primary-subtle text-primary"><%= user.role.toUpperCase() %></span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0">
+          <span class="text-muted">Password Recovery:</span>
+          <span class="badge bg-info-subtle text-info">Configured (CIT-IAM-04)</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0">
+          <span class="text-muted">Profile Creation Status (CIT-APM-01):</span>
+          <span class="badge <%= profile.first_name ? 'bg-success' : 'bg-warning' %>">
+            <%= profile.first_name ? 'Profile Created' : 'Pending Detail Fill' %>
+          </span>
+        </li>
+      </ul>
+
+      <div class="mt-auto d-flex gap-2">
+        <a href="/citizen/profile" class="btn btn-primary rounded-pill btn-sm px-3">
+          <i class="bi bi-pencil-square me-1"></i> Edit Profile (CIT-APM-02)
+        </a>
+        <a href="/citizen/forgot-password" class="btn btn-outline-secondary rounded-pill btn-sm px-3">
+          <i class="bi bi-key me-1"></i> Test Password Recovery (CIT-IAM-04)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+

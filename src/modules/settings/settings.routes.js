@@ -1,0 +1,15 @@
+const express = require('express');
+const router = express.Router();
+const SettingsController = require('./settings.controller');
+const { authenticateUser } = require('../../middleware/auth.middleware');
+const { requireRole } = require('../../middleware/role.middleware');
+
+// Protected: Only Barangay Administrator can manage App Settings
+router.use(authenticateUser, requireRole(['admin']));
+
+router.get('/', SettingsController.renderSettings);
+router.post('/', SettingsController.handleUpdateSettings);
+router.get('/api', SettingsController.apiGetSettings);
+
+module.exports = router;
+

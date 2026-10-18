@@ -1,0 +1,238 @@
+<%- include('../layouts/header', { title: 'Staff & User Role Management (ADM-URM) - QuickFile' }) %>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+      ADM-URM &bull; Staff & User Role Management
+    </span>
+    <h2 class="fw-bold mb-1">Barangay Personnel & Access Control</h2>
+    <p class="text-muted small mb-0">Create staff accounts, edit assignments, toggle deactivation, and grant role permissions.</p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#createStaffModal">
+      <i class="bi bi-person-plus-fill me-1"></i> Create Staff Account (ADM-URM-01)
+    </button>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<!-- Staff Listing & Management Cards -->
+<div class="row g-4 mb-5">
+  <% staffList.forEach(function(s) { %>
+    <div class="col-lg-6" id="staff-<%= s.id %>">
+      <div class="card card-custom p-4 h-100 border-<%= s.is_active ? 'light' : 'danger' %>">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar-circle <%= s.is_active ? 'bg-primary' : 'bg-danger' %> text-white">
+              <%= s.full_name.charAt(0).toUpperCase() %>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0"><%= s.full_name %></h5>
+              <small class="text-muted"><%= s.email %> &bull; ID: <code><%= s.employee_id || 'N/A' %></code></small>
+            </div>
+          </div>
+          <div>
+            <% if (s.is_active) { %>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+            <% } else { %>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Deactivated</span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="bg-light p-3 rounded-3 small mb-3">
+          <div class="row g-2">
+            <div class="col-6"><strong>Position:</strong> <%= s.position || 'Barangay Staff' %></div>
+            <div class="col-6"><strong>Department:</strong> <%= s.department || 'Document Services' %></div>
+            <div class="col-6"><strong>Phone:</strong> <%= s.phone || 'None' %></div>
+            <div class="col-6"><strong>Registered:</strong> <%= new Date(s.created_at).toLocaleDateString() %></div>
+          </div>
+        </div>
+
+        <!-- ADM-URM-04: Access Control Form -->
+        <h6 class="fw-bold mb-2 small text-uppercase text-muted">
+          <i class="bi bi-shield-lock-fill me-1 text-primary"></i> Access Control Permissions (ADM-URM-04)
+        </h6>
+        <form action="/admin/staff/<%= s.id %>/permissions" method="POST" class="mb-3">
+          <div class="row g-2 small">
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_review_requests" value="1" <%= s.can_review_requests ? 'checked' : '' %>>
+                <label class="form-check-label">Review Requests</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_prepare_documents" value="1" <%= s.can_prepare_documents ? 'checked' : '' %>>
+                <label class="form-check-label">Prepare Documents</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_print_documents" value="1" <%= s.can_print_documents ? 'checked' : '' %>>
+                <label class="form-check-label">Print Documents</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_release_documents" value="1" <%= s.can_release_documents ? 'checked' : '' %>>
+                <label class="form-check-label">Release Documents</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_verify_qr" value="1" <%= s.can_verify_qr ? 'checked' : '' %>>
+                <label class="form-check-label">QR Verification</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_view_reports" value="1" <%= s.can_view_reports ? 'checked' : '' %>>
+                <label class="form-check-label">Reports / Analytics</label>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill mt-3 w-100">
+            <i class="bi bi-check-lg me-1"></i> Update Access Permissions (ADM-URM-04)
+          </button>
+        </form>
+
+        <!-- Actions: Edit & Deactivation (ADM-URM-02 & ADM-URM-03) -->
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-auto gap-2">
+          <!-- Edit Trigger -->
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editStaffModal-<%= s.id %>">
+            <i class="bi bi-pencil-square me-1"></i> Edit Account (ADM-URM-02)
+          </button>
+
+          <!-- Toggle Deactivation (ADM-URM-03) -->
+          <form action="/admin/staff/<%= s.id %>/status" method="POST" class="d-inline">
+            <input type="hidden" name="isActive" value="<%= s.is_active ? 'false' : 'true' %>">
+            <% if (s.is_active) { %>
+              <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('Deactivate staff member <%= s.full_name %>? They will no longer be able to log in.');">
+                <i class="bi bi-person-x-fill me-1"></i> Deactivate (ADM-URM-03)
+              </button>
+            <% } else { %>
+              <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
+                <i class="bi bi-person-check-fill me-1"></i> Reactivate Staff
+              </button>
+            <% } %>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Staff Modal (ADM-URM-02) -->
+    <div class="modal fade" id="editStaffModal-<%= s.id %>" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form action="/admin/staff/<%= s.id %>/update" method="POST">
+            <div class="modal-header">
+              <h5 class="modal-title fw-bold">Edit Staff Account (ADM-URM-02)</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Staff Full Name</label>
+                <input type="text" name="fullName" class="form-control" value="<%= s.full_name %>" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Email Address (Login)</label>
+                <input type="email" class="form-control" value="<%= s.email %>" disabled>
+                <small class="text-muted">Email is locked as the primary identifier.</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Contact Number</label>
+                <input type="tel" name="phone" class="form-control" value="<%= s.phone || '' %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Official Position</label>
+                <input type="text" name="position" class="form-control" value="<%= s.position || '' %>" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Assigned Department</label>
+                <input type="text" name="department" class="form-control" value="<%= s.department || '' %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Reset Password (Optional)</label>
+                <input type="password" name="newPassword" class="form-control" placeholder="Leave blank to keep current password" minlength="6">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary rounded-pill">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+</div>
+
+<!-- Modal: Create Staff Account (ADM-URM-01) -->
+<div class="modal fade" id="createStaffModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/admin/staff" method="POST">
+        <div class="modal-header">
+          <div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-1">ADM-URM-01</span>
+            <h5 class="modal-title fw-bold">Create Authorized Staff Account</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Staff Full Name <span class="text-danger">*</span></label>
+            <input type="text" name="fullName" class="form-control" placeholder="e.g. Maria Santos" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Work Email <span class="text-danger">*</span></label>
+            <input type="email" name="email" class="form-control" placeholder="msantos@quickfile.gov.ph" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contact Number</label>
+            <input type="tel" name="phone" class="form-control" placeholder="09XXXXXXXXX">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Employee ID</label>
+            <input type="text" name="employeeId" class="form-control" placeholder="e.g. BRGY-STF-002">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Position / Role Title</label>
+            <input type="text" name="position" class="form-control" placeholder="e.g. Barangay Clearance Clerk" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Department</label>
+            <input type="text" name="department" class="form-control" value="Barangay Document Services">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Initial Password <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" placeholder="At least 6 characters" minlength="6" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill fw-semibold">
+            <i class="bi bi-person-check-fill me-1"></i> Provision Staff Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+

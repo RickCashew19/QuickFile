@@ -1,0 +1,52 @@
+<%- include('../layouts/header', { title: 'Barangay Administrator Login (ADM-IAM-01) - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card card-custom p-4 p-md-5">
+      <div class="text-center mb-4">
+        <span class="badge bg-dark text-white border px-3 py-1 rounded-pill mb-2">
+          ADM-IAM-01 &bull; Administrator Login
+        </span>
+        <h2 class="fw-bold">Barangay Admin Portal</h2>
+        <p class="text-muted small">Sign in using administrative credentials to manage staff, roles, and security.</p>
+      </div>
+
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <form action="/admin/login" method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Administrator Email</label>
+          <input type="email" name="email" class="form-control" placeholder="admin@quickfile.gov.ph" required value="<%= typeof email !== 'undefined' ? email || '' : '' %>">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Master Password</label>
+          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-dark w-100 py-2 rounded-pill fw-semibold">
+          <i class="bi bi-shield-lock-fill me-1"></i> Sign In to Admin Panel
+        </button>
+      </form>
+
+      <div class="mt-4 p-3 bg-light rounded-3 text-center small text-muted">
+        <i class="bi bi-shield-shaded me-1"></i> Default credentials seeded: <code>admin@quickfile.gov.ph</code> / <code>Admin@123456</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+

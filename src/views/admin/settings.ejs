@@ -1,0 +1,164 @@
+<%- include('../layouts/header', { title: 'App Settings & Pluggable Integrations - QuickFile' }) %>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+      ADM-CFG &bull; System Configuration
+    </span>
+    <h2 class="fw-bold mb-1">App Settings & Pluggable Integrations</h2>
+    <p class="text-muted small mb-0">Enable, disable, or reconfigure external service integrations and authentication providers.</p>
+  </div>
+  <div>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary rounded-pill px-3">
+      <i class="bi bi-arrow-left me-1"></i> Return to Admin Dashboard
+    </a>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
+
+<form action="/admin/settings" method="POST">
+  <div class="row g-4 mb-4">
+    <!-- 1. Google OAuth Pluggable Integration Card -->
+    <div class="col-lg-6">
+      <div class="card card-custom p-4 h-100 border-<%= settings.googleAuthEnabled ? 'primary' : 'light' %>">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar-circle <%= settings.googleAuthEnabled ? 'bg-primary' : 'bg-secondary' %> text-white">
+              <i class="bi bi-google fs-4"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0">Google Authentication (OAuth)</h5>
+              <small class="text-muted">Pluggable Social Sign-In Provider</small>
+            </div>
+          </div>
+          <div>
+            <% if (settings.googleAuthEnabled) { %>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Enabled</span>
+            <% } else { %>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled (Manual Sign-In Only)</span>
+            <% } %>
+          </div>
+        </div>
+
+        <p class="text-muted small mb-3">
+          When this integration is <strong>Enabled</strong>, citizens can sign in or register with one click using their Google Account.
+          When <strong>Disabled</strong>, the Google sign-in option is hidden and blocked; <strong>all logins must be performed manually</strong> using email and password.
+        </p>
+
+        <div class="bg-light p-3 rounded-3 mb-3">
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="googleAuthSwitch" name="google_auth_enabled" value="1" <%= settings.googleAuthEnabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="googleAuthSwitch">
+              Enable Google OAuth Sign-In for Citizens
+            </label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Google Client ID (Optional for Demo / Production)</label>
+            <input type="text" name="google_client_id" class="form-control form-control-sm font-monospace" placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com" value="<%= settings.googleClientId %>">
+          </div>
+
+          <div>
+            <label class="form-label small fw-semibold">Google Client Secret</label>
+            <input type="password" name="google_client_secret" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.googleClientSecret %>">
+          </div>
+        </div>
+
+        <div class="mt-auto small text-muted">
+          <i class="bi bi-shield-lock me-1"></i> Authentication Route: <code>/citizen/auth/google</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Communication & Other Pluggable Integrations -->
+    <div class="col-lg-6">
+      <div class="card card-custom p-4 h-100">
+        <h5 class="fw-bold mb-3 d-flex align-items-center">
+          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services
+        </h5>
+
+        <!-- SMS Notifications -->
+        <div class="p-3 border rounded-3 mb-3 bg-light">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="smsSwitch" name="sms_notifications_enabled" value="1" <%= settings.smsNotificationsEnabled ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="smsSwitch">SMS Gateway Integration</label>
+            </div>
+            <% if (settings.smsNotificationsEnabled) { %>
+              <span class="badge bg-success">Active</span>
+            <% } else { %>
+              <span class="badge bg-secondary">Inactive</span>
+            <% } %>
+          </div>
+          <small class="text-muted d-block">
+            Sends real-time SMS notifications via Twilio/PhilSMS when a document request changes status.
+          </small>
+        </div>
+
+        <!-- SMTP Email -->
+        <div class="p-3 border rounded-3 mb-3 bg-light">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="emailSwitch" name="email_smtp_enabled" value="1" <%= settings.emailSmtpEnabled ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="emailSwitch">SMTP / Email Service</label>
+            </div>
+            <% if (settings.emailSmtpEnabled) { %>
+              <span class="badge bg-success">Active</span>
+            <% } else { %>
+              <span class="badge bg-secondary">Inactive</span>
+            <% } %>
+          </div>
+          <small class="text-muted d-block">
+            Enables automated dispatch of password recovery links and clearance notification emails.
+          </small>
+        </div>
+
+        <!-- QR Engine -->
+        <div class="p-3 border rounded-3 bg-light">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="qrSwitch" name="qr_engine_enabled" value="1" <%= settings.qrEngineEnabled ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="qrSwitch">Internal QR Code Engine</label>
+            </div>
+            <% if (settings.qrEngineEnabled) { %>
+              <span class="badge bg-success">Active</span>
+            <% } else { %>
+              <span class="badge bg-secondary">Inactive</span>
+            <% } %>
+          </div>
+          <small class="text-muted d-block">
+            Generates verifiable QR hashes printed on barangay clearances and certifications.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-custom p-4 bg-light border-0">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="fw-bold mb-0">Save Integration Changes</h6>
+        <small class="text-muted">Changes take effect immediately across all citizen and staff portals.</small>
+      </div>
+      <button type="submit" class="btn btn-primary px-4 py-2 rounded-pill fw-semibold">
+        <i class="bi bi-save-fill me-1"></i> Save App Settings
+      </button>
+    </div>
+  </div>
+</form>
+
+<%- include('../layouts/footer') %>
+

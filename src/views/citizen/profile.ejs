@@ -1,0 +1,188 @@
+<%- include('../layouts/header', { title: 'Resident Profile (CIT-APM) - QuickFile' }) %>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <!-- Resident Profile Card -->
+    <div class="card card-custom p-4 mb-4 text-center">
+      <div class="avatar-circle bg-primary text-white mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+        <%= (profile.first_name || user.full_name || 'C').charAt(0).toUpperCase() %>
+      </div>
+      <h4 class="fw-bold mb-1"><%= reusableInfo.reusableData.fullName || user.full_name %></h4>
+      <p class="text-muted small mb-2"><%= user.email %></p>
+      <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill mb-3">
+        Registered Resident
+      </span>
+
+      <!-- CIT-APM-03 Profile Completeness -->
+      <div class="p-3 bg-light rounded-3 text-start mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small fw-semibold text-muted">Profile Completeness (CIT-APM-03):</span>
+          <span class="small fw-bold text-primary"><%= reusableInfo.completenessPercentage %>%</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar <%= reusableInfo.completenessPercentage >= 75 ? 'bg-success' : 'bg-warning' %>" role="progressbar" style="width: <%= reusableInfo.completenessPercentage %>%;"></div>
+        </div>
+        <small class="text-muted d-block mt-2">
+          <% if (reusableInfo.isReadyForDocumentRequest) { %>
+            <i class="bi bi-check-circle-fill text-success me-1"></i> Profile is complete & ready for document reuse!
+          <% } else { %>
+            <i class="bi bi-info-circle text-warning me-1"></i> Complete profile to enable 1-click document requests.
+          <% } %>
+        </small>
+      </div>
+
+      <div class="d-grid gap-2">
+        <a href="/citizen/dashboard" class="btn btn-outline-primary btn-sm rounded-pill">
+          <i class="bi bi-speedometer2 me-1"></i> Return to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Profile Reuse Preview Info (CIT-APM-03) -->
+    <div class="card card-custom p-4">
+      <div class="d-flex align-items-center mb-3">
+        <i class="bi bi-arrow-repeat text-primary fs-4 me-2"></i>
+        <h5 class="fw-bold mb-0">Profile Reuse (CIT-APM-03)</h5>
+      </div>
+      <p class="text-muted small">
+        QuickFile automatically saves your verified resident details so you never have to retype them when applying for barangay clearances or certificates.
+      </p>
+      <div class="bg-light p-3 rounded-3 small">
+        <div><strong>Purok/Zone:</strong> <%= profile.purok_zone || 'Not set' %></div>
+        <div><strong>Voter Status:</strong> <%= profile.voter_status || 'Unregistered' %></div>
+        <div><strong>Contact:</strong> <%= profile.contact_number || user.phone || 'Not set' %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card card-custom p-4 p-md-5">
+      <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+            CIT-APM-01 &bull; Profile Creation & Update (CIT-APM-02)
+          </span>
+          <h3 class="fw-bold mb-1">Barangay Resident Profile</h3>
+          <p class="text-muted small mb-0">Ensure all resident information matches official government identification.</p>
+        </div>
+      </div>
+
+      <% if (typeof welcome !== 'undefined' && welcome) { %>
+        <div class="alert alert-primary alert-dismissible fade show" role="alert">
+          <i class="bi bi-stars me-2"></i> Welcome to QuickFile! Please complete your resident profile below to facilitate fast document processing.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <form action="/citizen/profile" method="POST">
+        <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">1. Personal Information</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">First Name</label>
+            <input type="text" name="first_name" class="form-control" value="<%= profile.first_name || '' %>" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Middle Name</label>
+            <input type="text" name="middle_name" class="form-control" value="<%= profile.middle_name || '' %>">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Last Name</label>
+            <input type="text" name="last_name" class="form-control" value="<%= profile.last_name || '' %>" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Suffix</label>
+            <input type="text" name="suffix" class="form-control" placeholder="Jr., III" value="<%= profile.suffix || '' %>">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Date of Birth</label>
+            <input type="date" name="birthdate" class="form-control" value="<%= profile.birthdate || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Gender</label>
+            <select name="gender" class="form-select">
+              <option value="">Select Gender</option>
+              <option value="Male" <%= profile.gender === 'Male' ? 'selected' : '' %>>Male</option>
+              <option value="Female" <%= profile.gender === 'Female' ? 'selected' : '' %>>Female</option>
+              <option value="Other" <%= profile.gender === 'Other' ? 'selected' : '' %>>Other</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Civil Status</label>
+            <select name="civil_status" class="form-select">
+              <option value="">Select Status</option>
+              <option value="Single" <%= profile.civil_status === 'Single' ? 'selected' : '' %>>Single</option>
+              <option value="Married" <%= profile.civil_status === 'Married' ? 'selected' : '' %>>Married</option>
+              <option value="Widowed" <%= profile.civil_status === 'Widowed' ? 'selected' : '' %>>Widowed</option>
+              <option value="Separated" <%= profile.civil_status === 'Separated' ? 'selected' : '' %>>Separated</option>
+            </select>
+          </div>
+        </div>
+
+        <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">2. Barangay Residency & Contact Details</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Purok / Zone</label>
+            <input type="text" name="purok_zone" class="form-control" placeholder="e.g. Purok 4 / Zone 2" value="<%= profile.purok_zone || '' %>">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Street / House No.</label>
+            <input type="text" name="street_address" class="form-control" placeholder="House #, Street name" value="<%= profile.street_address || '' %>">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Mobile Number</label>
+            <input type="tel" name="contact_number" class="form-control" value="<%= profile.contact_number || user.phone || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Occupation</label>
+            <input type="text" name="occupation" class="form-control" placeholder="e.g. Employee, Self-employed" value="<%= profile.occupation || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Voter Status</label>
+            <select name="voter_status" class="form-select">
+              <option value="Registered" <%= profile.voter_status === 'Registered' ? 'selected' : '' %>>Registered Resident Voter</option>
+              <option value="Unregistered" <%= profile.voter_status === 'Unregistered' ? 'selected' : '' %>>Unregistered</option>
+            </select>
+          </div>
+        </div>
+
+        <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">3. Emergency Contact Details</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Emergency Contact Person</label>
+            <input type="text" name="emergency_contact_name" class="form-control" placeholder="Full name of contact" value="<%= profile.emergency_contact_name || '' %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Emergency Contact Number</label>
+            <input type="tel" name="emergency_contact_number" class="form-control" placeholder="09XXXXXXXXX" value="<%= profile.emergency_contact_number || '' %>">
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="/citizen/dashboard" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+          <button type="submit" class="btn btn-primary px-4 rounded-pill fw-semibold">
+            <i class="bi bi-save-fill me-1"></i> Save Profile Details (CIT-APM-02)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+

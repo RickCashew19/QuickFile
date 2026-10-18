@@ -1,0 +1,74 @@
+<%- include('../layouts/header', { title: 'Citizen Registration (CIT-IAM-01) - QuickFile' }) %>
+
+<div class="row justify-content-center">
+  <div class="col-md-7 col-lg-6">
+    <div class="card card-custom p-4 p-md-5">
+      <div class="text-center mb-4">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
+          CIT-IAM-01 &bull; Account Registration
+        </span>
+        <h2 class="fw-bold">Create Resident Account</h2>
+        <p class="text-muted small">Register to request barangay clearances, certifications, and manage your resident profile.</p>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% if (typeof appSettings !== 'undefined' && appSettings && appSettings.googleAuthEnabled) { %>
+        <div class="mb-3">
+          <a href="/citizen/auth/google" class="btn btn-outline-danger w-100 py-2 rounded-pill fw-semibold d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-google"></i>
+            <span>Register with Google</span>
+          </a>
+        </div>
+        <div class="position-relative text-center my-3">
+          <hr class="text-muted opacity-25">
+          <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.5px;">
+            or register manually
+          </span>
+        </div>
+      <% } else { %>
+        <div class="alert alert-light border py-2 px-3 small text-muted mb-3 d-flex align-items-center gap-2 rounded-3">
+          <i class="bi bi-info-circle text-primary"></i>
+          <span>Manual Registration: Complete the resident form below.</span>
+        </div>
+      <% } %>
+
+      <form action="/citizen/register" method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+          <input type="text" name="fullName" class="form-control" placeholder="e.g. Juan Dela Cruz" required value="<%= typeof formData !== 'undefined' ? formData.fullName || '' : '' %>">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+          <input type="email" name="email" class="form-control" placeholder="juan@example.com" required value="<%= typeof formData !== 'undefined' ? formData.email || '' : '' %>">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Contact / Mobile Number</label>
+          <input type="tel" name="phone" class="form-control" placeholder="0917XXXXXXX" value="<%= typeof formData !== 'undefined' ? formData.phone || '' : '' %>">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+          <input type="password" name="password" class="form-control" placeholder="At least 6 characters" minlength="6" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold">
+          <i class="bi bi-person-check-fill me-1"></i> Register Account
+        </button>
+      </form>
+
+      <div class="text-center mt-4 pt-3 border-top">
+        <span class="text-muted small">Already have an account?</span>
+        <a href="/citizen/login" class="text-decoration-none fw-semibold ms-1">Log in here</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>
+
