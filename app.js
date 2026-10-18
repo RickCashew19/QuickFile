@@ -70,6 +70,33 @@ app.use((req, res, next) => {
   req.user = user;
   res.locals.currentUser = user;
 
+  // Standardized Date & Time Formatting Helpers (Created At & Updated At)
+  res.locals.formatDateTime = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  res.locals.formatDate = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit'
+    });
+  };
+
   // Pluggable Integration Settings (available in all views & handlers)
   const SettingsService = require('./src/modules/settings/settings.service');
   res.locals.appSettings = SettingsService.getIntegrationSettings();

@@ -9,7 +9,10 @@
           CIT-RST-01 &bull; Request Status Tracking
         </span>
         <h2 class="fw-bold mb-0">Tracking: <span class="font-monospace text-primary"><%= reqData.tracking_number %></span></h2>
-        <small class="text-muted">Submitted on <%= new Date(reqData.created_at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' }) %></small>
+        <div class="small text-muted mt-1">
+          <span class="me-3"><i class="bi bi-calendar-plus me-1 text-primary"></i><strong>Created At:</strong> <%= formatDateTime(reqData.created_at) %></span>
+          <span><i class="bi bi-clock-history me-1 text-info"></i><strong>Last Updated At:</strong> <%= formatDateTime(reqData.updated_at) %></span>
+        </div>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <% if (reqData.status === 'PENDING') { %>
@@ -223,6 +226,26 @@
             <span class="text-muted">No attachment provided</span>
           <% } %>
         </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Filed / Created At:</span>
+          <strong class="text-dark"><%= formatDateTime(reqData.created_at) %></strong>
+        </div>
+        <div class="col-md-6">
+          <span class="text-muted d-block">Last Updated At:</span>
+          <strong class="text-primary"><%= formatDateTime(reqData.updated_at) %></strong>
+        </div>
+        <% if (reqData.released_at) { %>
+          <div class="col-md-6">
+            <span class="text-muted d-block">Document Released At:</span>
+            <strong class="text-success"><%= formatDateTime(reqData.released_at) %></strong>
+          </div>
+        <% } %>
+        <% if (reqData.archived_at) { %>
+          <div class="col-md-6">
+            <span class="text-muted d-block">Archived Record At:</span>
+            <strong class="text-secondary"><%= formatDateTime(reqData.archived_at) %></strong>
+          </div>
+        <% } %>
       </div>
     </div>
   </div>

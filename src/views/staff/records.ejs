@@ -52,7 +52,7 @@
             <th>Certificate No.</th>
             <th>Citizen Name</th>
             <th>Document Type</th>
-            <th>Archived On</th>
+            <th>Timestamps (Created & Archived)</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -69,8 +69,9 @@
               </td>
               <td class="fw-semibold"><%= r.citizen_name %></td>
               <td><%= r.document_name %></td>
-              <td class="text-muted small">
-                <%= new Date(r.updated_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) %>
+              <td>
+                <div class="small fw-semibold text-dark"><i class="bi bi-calendar-plus text-primary me-1"></i><%= formatDateTime(r.created_at) %></div>
+                <small class="text-muted d-block"><i class="bi bi-archive-fill text-secondary me-1"></i>Archived: <%= formatDateTime(r.archived_at || r.updated_at) %></small>
               </td>
               <td>
                 <div class="btn-group btn-group-sm">

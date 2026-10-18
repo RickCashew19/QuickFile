@@ -77,7 +77,7 @@
         <% if (logs && logs.length > 0) { %>
           <% logs.forEach(function(l) { %>
             <tr>
-              <td class="small text-muted"><%= new Date(l.created_at).toLocaleString() %></td>
+              <td class="small text-muted"><i class="bi bi-clock-history me-1 text-primary"></i><%= formatDateTime(l.created_at) %></td>
               <td class="fw-semibold">
                 <i class="bi bi-person-fill text-muted me-1"></i><%= l.actor_name || l.user_name || 'System' %>
               </td>

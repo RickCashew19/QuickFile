@@ -56,7 +56,7 @@
           <th>Tracking Number</th>
           <th>Citizen</th>
           <th>Document</th>
-          <th>Date Filed</th>
+          <th>Activity Timestamps</th>
           <th>Status</th>
           <th>Certificate No.</th>
           <th>Validity (ADM-CRS-02)</th>
@@ -73,7 +73,10 @@
                 <small class="text-muted"><%= r.citizen_email %></small>
               </td>
               <td><%= r.document_name %></td>
-              <td><%= new Date(r.created_at).toLocaleDateString() %></td>
+              <td>
+                <div class="small fw-semibold text-dark"><i class="bi bi-calendar-plus text-primary me-1"></i><%= formatDateTime(r.created_at) %></div>
+                <small class="text-muted d-block"><i class="bi bi-clock-history text-info me-1"></i>Updated: <%= formatDateTime(r.updated_at) %></small>
+              </td>
               <td>
                 <% if (r.status === 'RELEASED') { %>
                   <span class="badge bg-success">RELEASED</span>
@@ -176,8 +179,15 @@
 
                           <div class="col-md-6">
                             <h6 class="fw-bold">Audit & Personnel Trail</h6>
-                            <p class="mb-1"><strong>Filed Date:</strong> <%= new Date(r.created_at).toLocaleString() %></p>
-                            <p class="mb-1"><strong>Reviewed By:</strong> <%= r.reviewer_name || 'N/A' %></p>
+                            <p class="mb-1"><strong>Created At:</strong> <%= formatDateTime(r.created_at) %></p>
+                            <p class="mb-1"><strong>Last Updated At:</strong> <%= formatDateTime(r.updated_at) %></p>
+                            <% if (r.issued_at) { %>
+                              <p class="mb-1"><strong>Certificate Issued At:</strong> <%= formatDateTime(r.issued_at) %></p>
+                            <% } %>
+                            <% if (r.released_at) { %>
+                              <p class="mb-1"><strong>Released At:</strong> <%= formatDateTime(r.released_at) %></p>
+                            <% } %>
+                            <p class="mb-1"><strong>Reviewed By:</strong> <%= r.reviewed_by_name || r.reviewer_name || 'N/A' %></p>
                             <p class="mb-0"><strong>Released By:</strong> <%= r.released_by_name || 'N/A' %></p>
                           </div>
 

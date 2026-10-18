@@ -69,7 +69,7 @@
           <th>Verification Code</th>
           <th>Document</th>
           <th>Citizen Recipient</th>
-          <th>Issued Date</th>
+          <th>Issuance & Activity Timestamps</th>
           <th>Validity Status (ADM-IDV-01)</th>
           <th>QR Signature</th>
           <th class="text-end">Administrative Control</th>
@@ -86,7 +86,12 @@
                 <div class="fw-bold"><%= doc.citizen_name %></div>
                 <small class="text-muted"><%= doc.citizen_email %></small>
               </td>
-              <td><%= new Date(doc.issued_at).toLocaleDateString() %></td>
+              <td>
+                <div class="small fw-semibold text-dark"><i class="bi bi-patch-check text-success me-1"></i><%= formatDateTime(doc.issued_at) %></div>
+                <% if (doc.revoked_at) { %>
+                  <small class="text-danger d-block"><i class="bi bi-x-circle text-danger me-1"></i>Revoked: <%= formatDateTime(doc.revoked_at) %></small>
+                <% } %>
+              </td>
               <td>
                 <% if (doc.validity_status === 'VALID') { %>
                   <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">

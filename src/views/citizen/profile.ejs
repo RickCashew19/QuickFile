@@ -51,6 +51,9 @@
         <div><strong>Purok/Zone:</strong> <%= profile.purok_zone || 'Not set' %></div>
         <div><strong>Voter Status:</strong> <%= profile.voter_status || 'Unregistered' %></div>
         <div><strong>Contact:</strong> <%= profile.contact_number || user.phone || 'Not set' %></div>
+        <hr class="my-2">
+        <div><i class="bi bi-calendar-plus text-primary me-1"></i><strong>Created At:</strong> <%= formatDateTime(profile.created_at || user.created_at) %></div>
+        <div><i class="bi bi-clock-history text-info me-1"></i><strong>Updated At:</strong> <%= formatDateTime(profile.updated_at || user.updated_at) %></div>
       </div>
     </div>
   </div>

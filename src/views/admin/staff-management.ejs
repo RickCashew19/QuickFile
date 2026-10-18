@@ -58,7 +58,8 @@
             <div class="col-6"><strong>Position:</strong> <%= s.position || 'Barangay Staff' %></div>
             <div class="col-6"><strong>Department:</strong> <%= s.department || 'Document Services' %></div>
             <div class="col-6"><strong>Phone:</strong> <%= s.phone || 'None' %></div>
-            <div class="col-6"><strong>Registered:</strong> <%= new Date(s.created_at).toLocaleDateString() %></div>
+            <div class="col-6"><strong>Created At:</strong> <%= formatDateTime(s.created_at) %></div>
+            <div class="col-6"><strong>Updated At:</strong> <%= formatDateTime(s.updated_at || s.created_at) %></div>
           </div>
         </div>
 

@@ -67,7 +67,10 @@
               <% docTypes.forEach(function(doc) { %>
                 <tr>
                   <td><code><%= doc.code %></code></td>
-                  <td class="fw-bold"><%= doc.name %></td>
+                  <td class="fw-bold">
+                    <%= doc.name %>
+                    <small class="text-muted d-block fw-normal"><i class="bi bi-clock-history me-1"></i>Updated: <%= formatDateTime(doc.updated_at || doc.created_at) %></small>
+                  </td>
                   <td class="small text-muted" style="max-width: 240px;"><%= doc.description %></td>
                   <td class="text-center">
                     <% if (doc.fee > 0) { %>

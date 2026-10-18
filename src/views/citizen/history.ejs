@@ -23,7 +23,7 @@
           <tr>
             <th>Tracking No.</th>
             <th>Document Type</th>
-            <th>Date Requested</th>
+            <th>Timeline (Created & Updated)</th>
             <th>Status</th>
             <th>Certificate No.</th>
             <th>Actions</th>
@@ -36,7 +36,10 @@
                 <span class="font-monospace fw-bold text-primary"><%= r.tracking_number %></span>
               </td>
               <td class="fw-semibold"><%= r.document_name %></td>
-              <td class="text-muted small"><%= new Date(r.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) %></td>
+              <td>
+                <div class="small fw-semibold text-dark"><i class="bi bi-calendar-plus text-primary me-1"></i><%= formatDateTime(r.created_at) %></div>
+                <small class="text-muted d-block"><i class="bi bi-clock-history text-info me-1"></i>Updated: <%= formatDateTime(r.updated_at) %></small>
+              </td>
               <td>
                 <% if (r.status === 'PENDING') { %>
                   <span class="badge bg-warning text-dark">Pending</span>
