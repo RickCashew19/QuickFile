@@ -6,3 +6,4 @@ router.get('/', VerificationController.renderVerificationPage);
 router.get('/:code', VerificationController.renderVerificationPage);
 
 module.exports = router;
+

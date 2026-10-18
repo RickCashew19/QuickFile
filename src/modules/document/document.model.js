@@ -61,3 +61,4 @@ class DocumentModel {
 }
 
 module.exports = DocumentModel;
+
