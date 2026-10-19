@@ -168,6 +168,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`   - CIT Citizen: CIT-IAM, CIT-APM, CIT-DCR, CIT-ODR, CIT-RST, CIT-RHV`);
     console.log(`   - STF Staff:   STF-IAM, STF-RVP, STF-RSM, STF-DPP, STF-RA, STF-QDV, STF-TR`);
     console.log(`   - ADM Admin:   ADM-IAM, ADM-DB, ADM-URM, ADM-DTM, ADM-TR, ADM-CRS, ADM-IDV, ADM-SAO`);
+    console.log(`   - OTH Other:   OTH-ASI (App Settings & Integration Management)`);
     console.log(`   - QR Verify:   http://localhost:${config.port}/verify`);
     console.log(`=======================================================`);
   });

@@ -69,10 +69,10 @@ QuickFile/
     │   │   └── notification.service.js # User notifications dispatch, delete & clear-all service
     │   ├── reports/                    # 📊 TRANSACTION REPORTING & AUDIT TRAIL
     │   │   └── report.service.js       # Financial reports, workload analytics, and audit logs
-    │   └── settings/                   # ⚙️ PLUGGABLE INTEGRATIONS & SYSTEM SETTINGS
+    │   └── settings/                   # ⚙️ APP SETTINGS & PLUGGABLE INTEGRATIONS (OTH-ASI)
     │       ├── settings.model.js       # System settings key-value database queries
-    │       ├── settings.service.js     # Feature flags (Google OAuth, SMS, SMTP, QR engine)
-    │       ├── settings.controller.js  # Settings UI controller
+    │       ├── settings.service.js     # Feature flags & access controls (REST API, Google OAuth, SMS, SMTP, QR)
+    │       ├── settings.controller.js  # Settings UI controller & toggle actions
     │       └── settings.routes.js      # System settings routes
     ├── public/
     │   ├── css/styles.css              # Custom responsive stylesheet & badge styles
@@ -166,7 +166,13 @@ QuickFile/
 | **ADM-IDV-02** | Issued Document Monitoring | **DONE** | Complete register of all issued certificates with permanent record deletion capability. |
 | **ADM-SAO-01** | System Records Oversight | **DONE** | Immutable, queryable audit trail (`/admin/audit-logs`) capturing all critical system actions. |
 | **ADM-SAO-02** | Transaction Accountability | **DONE** | Strict attribution recording actor ID, actor name, target entity, timestamp, and details. |
-| **ADM-SET** | System Settings & Integrations | **DONE** | Pluggable toggles for Google OAuth, REST API developer gateway, SMS gateways, and SMTP mail delivery (`/admin/settings`). |
+
+---
+
+### 4. OTH OTHER SYSTEM FEATURES
+| Requirement ID | Module / Feature Name | Status | Technical Implementation |
+| :--- | :--- | :---: | :--- |
+| **OTH-ASI** | App Settings & Integration Management | **DONE** | Centralized configuration console (`/admin/settings`) featuring dynamic **Enable / Disable controls for the REST API Developer Gateway** (`/api/*`), API secret key management, Google OAuth social login toggle, Twilio/PhilSMS gateway notifications, SMTP automated email dispatch, and internal QR verification engine. When API is disabled, external endpoints are intercepted with `503 Service Unavailable`. |
 
 ---
 
@@ -255,6 +261,16 @@ Every entity in QuickFile maintains dual tracking timestamps:
 All timestamps are rendered through standardized formatting helpers:
 - **`formatDateTime(date)`**: Outputs readable full format (e.g. `Oct 18, 2026, 10:45:12 PM`).
 - **`formatDate(date)`**: Outputs short date format (e.g. `Oct 18, 2026`).
+
+---
+
+### 6. App Settings & Integration Management (OTH-ASI)
+
+QuickFile provides a unified administrative settings cockpit at `/admin/settings` where administrators manage developer gateways and pluggable external services:
+- **REST API Gateway Control (Enable / Disable)**: Administrators can toggle public and external REST API endpoints (`/api/*`) in real-time. When disabled, incoming API requests are intercepted and rejected with an automated `503 Service Unavailable` (`API_DISABLED`) payload, safeguarding backend resources while keeping internal web portals completely unaffected.
+- **API Secret Key Management**: Optional bearer / API secret token for authorized third-party or mobile integrations.
+- **Social Sign-In (Google OAuth)**: Dynamic switch allowing citizens to register and log in via one-click Google OAuth or restricting the portal strictly to manual email/password authentication.
+- **Communication & Verification Infrastructure**: Instant feature toggles for real-time SMS notifications (Twilio / PhilSMS), automated email dispatch via SMTP, and the internal QR verification engine.
 
 ---
 

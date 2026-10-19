@@ -101,8 +101,8 @@ async function testAppSettings() {
   await CitizenController.handleGoogleAuth(mockReqDisabled, mockResDisabled);
   console.log(`✓ Blocked again with status ${mockStatus}: "${mockResponse?.message}"`);
 
-  // 4. Test REST API Gateway Enable / Disable via App Settings
-  console.log('\n[6] Testing REST API Gateway Enable & Disable Setting...');
+  // 4. Test REST API Gateway Enable / Disable via App Settings (OTH-ASI)
+  console.log('\n[OTH-ASI] Testing REST API Gateway Enable & Disable (App Settings & Integration Management)...');
   const app = require('./app');
   const server = app.listen(0);
   const port = server.address().port;
