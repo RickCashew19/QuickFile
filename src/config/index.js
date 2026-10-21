@@ -44,5 +44,13 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'quickfile_default_secret_key',
   sessionSecret: process.env.SESSION_SECRET || 'quickfile_default_session_secret',
-  dbPath
+  dbPath,
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '465', 10),
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+    user: process.env.SMTP_USER || '',
+    pass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
+    from: process.env.SMTP_FROM || `"QuickFile Barangay Central" <${process.env.SMTP_USER || 'quickfile.notification@gmail.com'}>`
+  }
 };

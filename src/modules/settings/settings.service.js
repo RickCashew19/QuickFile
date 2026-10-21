@@ -26,6 +26,7 @@ class SettingsService {
    */
   static getIntegrationSettings() {
     const map = SettingsModel.getAllAsMap();
+    const config = require('../../config');
     return {
       googleAuthEnabled: map['google_auth_enabled'] === '1' || map['google_auth_enabled'] === 'true',
       googleClientId: map['google_client_id'] || '',
@@ -35,6 +36,9 @@ class SettingsService {
       qrEngineEnabled: map['qr_engine_enabled'] === '1' || map['qr_engine_enabled'] === 'true',
       apiEnabled: map['api_enabled'] === undefined ? true : (map['api_enabled'] === '1' || map['api_enabled'] === 'true'),
       apiSecretKey: map['api_secret_key'] || '',
+      smtpUser: map['smtp_user'] || config.smtp.user,
+      smtpHost: map['smtp_host'] || config.smtp.host,
+      smtpPort: map['smtp_port'] || String(config.smtp.port),
       raw: map
     };
   }
@@ -62,6 +66,10 @@ class SettingsService {
       api_secret_key: updates.api_secret_key ? updates.api_secret_key.trim() : (updates.api_secret_key === '' ? '' : (SettingsModel.getValue('api_secret_key') || ''))
     };
 
+    if (updates.smtp_user !== undefined) settingsMap.smtp_user = updates.smtp_user.trim();
+    if (updates.smtp_host !== undefined) settingsMap.smtp_host = updates.smtp_host.trim();
+    if (updates.smtp_port !== undefined) settingsMap.smtp_port = updates.smtp_port.trim();
+
     SettingsModel.setMultiple(settingsMap);
 
     // Audit log
@@ -72,7 +80,7 @@ class SettingsService {
         'APP_SETTINGS_UPDATED',
         'app_settings',
         0,
-        `Updated integrations: Google Auth=${googleAuthEnabled === '1' ? 'ENABLED' : 'DISABLED'}, REST API=${apiEnabled === '1' ? 'ENABLED' : 'DISABLED'}, SMS=${smsEnabled === '1' ? 'ENABLED' : 'DISABLED'}`
+        `Updated integrations: Google Auth=${googleAuthEnabled === '1' ? 'ENABLED' : 'DISABLED'}, REST API=${apiEnabled === '1' ? 'ENABLED' : 'DISABLED'}, SMTP Email=${emailEnabled === '1' ? 'ENABLED' : 'DISABLED'}, SMS=${smsEnabled === '1' ? 'ENABLED' : 'DISABLED'}`
       );
     }
 
@@ -81,4 +89,3 @@ class SettingsService {
 }
 
 module.exports = SettingsService;
-

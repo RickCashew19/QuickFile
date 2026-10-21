@@ -103,12 +103,19 @@ class CitizenService {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiration
 
     CitizenModel.createPasswordReset(user.id, resetToken, expiresAt);
+    const resetUrl = `/citizen/reset-password?token=${resetToken}`;
+
+    // Dispatch real email via SMTP Mailer
+    const Mailer = require('../../utils/mailer');
+    Mailer.sendPasswordResetEmail(user.email, resetUrl, user.full_name).catch(err => {
+      console.error('[Password Recovery Mail Error]', err.message);
+    });
 
     return {
       success: true,
       token: resetToken,
-      resetUrl: `/citizen/reset-password?token=${resetToken}`,
-      message: 'Password reset token generated successfully. In production, this is dispatched via email/SMS.'
+      resetUrl,
+      message: 'Password reset instructions have been dispatched to your email address.'
     };
   }
 

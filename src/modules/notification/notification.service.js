@@ -20,6 +20,17 @@ class NotificationService {
     }
     if (settings.emailSmtpEnabled) {
       console.log(`[SMTP Email Pluggable Dispatch] To User #${userId}: "${title}"`);
+      try {
+        const user = this.db.prepare('SELECT email, full_name FROM users WHERE id = ?').get(userId);
+        if (user && user.email) {
+          const Mailer = require('../../utils/mailer');
+          Mailer.sendNotificationEmail(user.email, title, message, link, user.full_name).catch(err => {
+            console.error('[Notification Mail Error]', err.message);
+          });
+        }
+      } catch (err) {
+        console.error('[Notification Mail Lookup Error]', err.message);
+      }
     }
 
     return res.lastInsertRowid;
