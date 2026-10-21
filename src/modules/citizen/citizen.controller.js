@@ -95,8 +95,7 @@ class CitizenController {
     res.render('citizen/forgot-password', {
       title: 'Password Recovery - QuickFile',
       error: req.query.error || null,
-      success: req.query.success || null,
-      resetUrl: null
+      success: req.query.success || null
     });
   }
 
@@ -113,9 +112,8 @@ class CitizenController {
       res.render('citizen/forgot-password', {
         title: 'Password Recovery - QuickFile',
         error: null,
-        success: result.message,
-        resetUrl: result.resetUrl || null
-      });
+        success: result.message
+    });
     } catch (err) {
       if (req.xhr || req.headers.accept?.includes('application/json')) {
         return res.status(400).json({ success: false, message: err.message });
@@ -123,9 +121,8 @@ class CitizenController {
       res.render('citizen/forgot-password', {
         title: 'Password Recovery - QuickFile',
         error: err.message,
-        success: null,
-        resetUrl: null
-      });
+        success: null
+    });
     }
   }
 

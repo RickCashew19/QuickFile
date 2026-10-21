@@ -90,12 +90,14 @@ class CitizenService {
       throw new Error('Email is required.');
     }
 
-    const user = CitizenModel.findUserByEmail(email);
+    const trimmedEmail = email ? email.trim().toLowerCase() : '';
+    const user = CitizenModel.findUserByEmail(trimmedEmail);
     if (!user) {
+      console.log(`[Password Recovery] Requested for <${trimmedEmail}> - not found in database.`);
       // Return safe message without exposing whether user exists
       return {
         success: true,
-        message: 'If that email address is in our system, a password reset link has been prepared.'
+        message: 'If that email address is registered in our system, a password reset link has been dispatched to your inbox.'
       };
     }
 
@@ -107,15 +109,14 @@ class CitizenService {
 
     // Dispatch real email via SMTP Mailer
     const Mailer = require('../../utils/mailer');
-    Mailer.sendPasswordResetEmail(user.email, resetUrl, user.full_name).catch(err => {
-      console.error('[Password Recovery Mail Error]', err.message);
-    });
+    const mailResult = await Mailer.sendPasswordResetEmail(user.email, resetUrl, user.full_name);
+    console.log(`[Password Recovery Mail Result] To: ${user.email} ->`, mailResult);
 
     return {
       success: true,
       token: resetToken,
       resetUrl,
-      message: 'Password reset instructions have been dispatched to your email address.'
+      message: `A password reset link has been dispatched to ${user.email}. Please check your inbox and spam folder.`
     };
   }
 

@@ -102,6 +102,21 @@ function initDatabase() {
     console.log(`[QuickFile DB] Seeded sample citizen (citizen@quickfile.gov.ph / Citizen@123456)`);
   }
 
+  // Seed notification testing citizen account if not exists
+  const existingNotificationUser = db.prepare('SELECT id FROM users WHERE email = ?').get('quickfile.notification@gmail.com');
+  if (!existingNotificationUser) {
+    const notifCitizenHash = bcrypt.hashSync('Password123!', salt);
+    const notifUserResult = db.prepare(`
+      INSERT INTO users (email, password_hash, role, full_name, phone)
+      VALUES (?, ?, 'citizen', ?, ?)
+    `).run('quickfile.notification@gmail.com', notifCitizenHash, 'QuickFile Demo Citizen', '09170009999');
+    
+    db.prepare(`
+      INSERT INTO citizen_profiles (user_id, first_name, last_name, purok_zone, street_address, contact_number)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(notifUserResult.lastInsertRowid, 'QuickFile', 'Citizen', 'Purok Central', 'Barangay Hall Complex', '09170009999');
+  }
+
   // Ensure default staff (staff@quickfile.gov.ph) has all operational permissions enabled
   try {
     db.prepare(`
