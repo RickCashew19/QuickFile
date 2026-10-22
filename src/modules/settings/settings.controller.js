@@ -1,13 +1,18 @@
 const SettingsService = require('./settings.service');
+const { testConnection } = require('../../config/supabase');
+const SupabaseSyncService = require('../../services/supabaseSync.service');
 
 class SettingsController {
   // GET: Admin App Settings Page
-  static renderSettings(req, res) {
+  static async renderSettings(req, res) {
     const settings = SettingsService.getIntegrationSettings();
+    const supabaseStatus = await testConnection();
+
     res.render('admin/settings', {
       title: 'App Settings & Pluggable Integrations - QuickFile',
       admin: req.user,
       settings,
+      supabaseStatus,
       success: req.query.success || null,
       error: req.query.error || null
     });
@@ -96,6 +101,45 @@ class SettingsController {
     } catch (err) {
       if (req.xhr || req.headers.accept?.includes('application/json')) {
         return res.status(400).json({ success: false, message: err.message });
+      }
+      res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // GET / POST: Test Supabase Cloud Connection
+  static async handleTestSupabase(req, res) {
+    try {
+      const result = await testConnection();
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json(result);
+      }
+
+      const msg = result.connected 
+        ? result.message 
+        : `Supabase Connection Failed: ${result.message}`;
+      res.redirect(`/admin/settings?${result.connected ? 'success' : 'error'}=` + encodeURIComponent(msg));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(500).json({ connected: false, message: err.message });
+      }
+      res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
+    }
+  }
+
+  // POST: Sync Local Database Records to Supabase Cloud
+  static async handleSyncSupabase(req, res) {
+    try {
+      const result = await SupabaseSyncService.syncAllToSupabase();
+
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json(result);
+      }
+
+      res.redirect(`/admin/settings?${result.success ? 'success' : 'error'}=` + encodeURIComponent(result.message));
+    } catch (err) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(500).json({ success: false, message: err.message });
       }
       res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
     }

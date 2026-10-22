@@ -20,6 +20,7 @@
     "test": "node test_modules.js && node test_routes.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -31,6 +32,7 @@
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
     "nodemailer": "^10.1.7",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4"
   },
   "optionalDependencies": {

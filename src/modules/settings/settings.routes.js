@@ -11,6 +11,9 @@ router.get('/', SettingsController.renderSettings);
 router.post('/', SettingsController.handleUpdateSettings);
 router.post('/toggle-api', SettingsController.toggleApi);
 router.post('/test-email', SettingsController.handleTestEmail);
+router.get('/supabase/test', SettingsController.handleTestSupabase);
+router.post('/supabase/test', SettingsController.handleTestSupabase);
+router.post('/supabase/sync', SettingsController.handleSyncSupabase);
 router.get('/api', SettingsController.apiGetSettings);
 
 module.exports = router;

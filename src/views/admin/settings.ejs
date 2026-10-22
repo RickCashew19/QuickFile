@@ -6,7 +6,7 @@
       OTH-ASI &bull; App Settings & Integration Management
     </span>
     <h2 class="fw-bold mb-1">App Settings & Integration Management</h2>
-    <p class="text-muted small mb-0">Enable, disable, or reconfigure external service integrations and authentication providers.</p>
+    <p class="text-muted small mb-0">Enable, disable, or reconfigure external service integrations, cloud database, and authentication providers.</p>
   </div>
   <div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary rounded-pill px-3">
@@ -28,6 +28,74 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <% } %>
+
+<!-- Supabase Cloud Database Integration Banner -->
+<div class="card card-custom p-4 mb-4 border-primary">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="avatar-circle bg-success text-white" style="width: 50px; height: 50px; font-size: 1.5rem;">
+        <i class="bi bi-database-check"></i>
+      </div>
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <h4 class="fw-bold mb-0">Supabase Cloud Database</h4>
+          <% if (typeof supabaseStatus !== 'undefined' && supabaseStatus.connected) { %>
+            <% if (supabaseStatus.hasSchemaReady) { %>
+              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                <i class="bi bi-check-circle-fill me-1"></i> Connected & Schema Active
+              </span>
+            <% } else { %>
+              <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Connected &bull; SQL Setup Needed
+              </span>
+            <% } %>
+          <% } else { %>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
+              <i class="bi bi-x-circle-fill me-1"></i> Offline
+            </span>
+          <% } %>
+        </div>
+        <p class="text-muted small mb-0 mt-1">
+          PostgreSQL Cloud Backend URL: <code>https://bnuwahmsxxqqfuwwhzqk.supabase.co</code>
+        </p>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <form action="/admin/settings/supabase/test" method="POST" class="d-inline">
+        <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+          <i class="bi bi-arrow-repeat me-1"></i> Test Connection
+        </button>
+      </form>
+      <form action="/admin/settings/supabase/sync" method="POST" class="d-inline">
+        <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
+          <i class="bi bi-cloud-arrow-up-fill me-1"></i> Sync Local Data to Supabase
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="bg-light p-3 rounded-3 small">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-7">
+        <strong>Status Summary:</strong>
+        <span class="text-muted ms-1"><%= typeof supabaseStatus !== 'undefined' ? supabaseStatus.message : 'Configured via @supabase/supabase-js' %></span>
+      </div>
+      <div class="col-md-5 text-md-end">
+        <span class="badge bg-white text-dark border me-1">
+          Tables in Supabase: <strong><%= (typeof supabaseStatus !== 'undefined' && supabaseStatus.tables) ? supabaseStatus.tables.length : 0 %></strong>
+        </span>
+        <a href="https://supabase.com/dashboard/project/bnuwahmsxxqqfuwwhzqk/sql" target="_blank" rel="noopener noreferrer" class="btn btn-link btn-sm text-decoration-none p-0 fw-semibold">
+          <i class="bi bi-box-arrow-up-right me-1"></i> Open Supabase SQL Editor
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3 pt-3 border-top small text-muted">
+    <i class="bi bi-info-circle-fill text-primary me-1"></i>
+    <strong>Setup Tip:</strong> To initialize all tables in Supabase in 1 step, open the Supabase SQL Editor link above, paste the contents of <code>src/database/supabase_schema.sql</code>, and click <strong>Run</strong>. Then click <strong>"Sync Local Data to Supabase"</strong>.
+  </div>
+</div>
 
 <form action="/admin/settings" method="POST">
   <div class="row g-4 mb-4">
@@ -83,70 +151,64 @@
       </div>
     </div>
 
-    <!-- 2. REST API Pluggable Gateway Card -->
+    <!-- 2. REST API & External Developer Gateway Integration Card -->
     <div class="col-lg-6">
       <div class="card card-custom p-4 h-100 border-<%= settings.apiEnabled ? 'primary' : 'light' %>">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div class="d-flex align-items-center gap-3">
             <div class="avatar-circle <%= settings.apiEnabled ? 'bg-primary' : 'bg-secondary' %> text-white">
-              <i class="bi bi-hdd-network fs-4"></i>
+              <i class="bi bi-code-slash fs-4"></i>
             </div>
             <div>
-              <h5 class="fw-bold mb-0">REST API & External Gateway</h5>
-              <small class="text-muted">Pluggable API Service & Access Control</small>
+              <h5 class="fw-bold mb-0">REST API & External Integrations</h5>
+              <small class="text-muted">Pluggable API Gateway & Webhooks</small>
             </div>
           </div>
           <div>
             <% if (settings.apiEnabled) { %>
-              <span class="badge bg-success-subtle text-success border border-success-subtle">
-                <i class="bi bi-check-circle-fill me-1"></i> Enabled (Active)
-              </span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">API Active</span>
             <% } else { %>
-              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                <i class="bi bi-slash-circle-fill me-1"></i> Disabled (Blocked)
-              </span>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">API Disabled</span>
             <% } %>
           </div>
         </div>
 
         <p class="text-muted small mb-3">
-          When this integration is <strong>Enabled</strong>, authorized external systems, mobile clients, and developer integrations can access all <code>/api/*</code> endpoints.
-          When <strong>Disabled</strong>, all public and external API requests are intercepted and blocked with a <code>503 Service Unavailable</code> status.
+          Control external third-party access to QuickFile endpoints (e.g. <code>/api/citizen</code>, <code>/api/staff</code>, <code>/api/admin</code>).
+          When <strong>Disabled</strong>, all programmatic JSON requests are rejected with HTTP 403 Forbidden.
         </p>
 
         <div class="bg-light p-3 rounded-3 mb-3">
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="apiSwitch" name="api_enabled" value="1" <%= settings.apiEnabled ? 'checked' : '' %>>
             <label class="form-check-label fw-bold" for="apiSwitch">
-              Enable REST API Gateway Endpoints (<code>/api/*</code>)
+              Enable REST API Endpoints & Developer Gateway
             </label>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">API Secret / Bearer Key (Optional for External Callers)</label>
-            <input type="password" name="api_secret_key" class="form-control form-control-sm font-monospace" placeholder="e.g. qf_live_sec_••••••••••••••••" value="<%= settings.apiSecretKey %>">
-          </div>
-
-          <div class="d-flex align-items-center justify-content-between pt-1">
-            <small class="text-muted">Instant Action:</small>
-            <button type="submit" formaction="/admin/settings/toggle-api" class="btn btn-sm <%= settings.apiEnabled ? 'btn-outline-danger' : 'btn-outline-success' %> rounded-pill px-3">
-              <i class="bi <%= settings.apiEnabled ? 'bi-toggle-on' : 'bi-toggle-off' %> me-1"></i>
-              <%= settings.apiEnabled ? 'Disable API Now' : 'Enable API Now' %>
-            </button>
+          <div>
+            <label class="form-label small fw-semibold">API Secret Key (Optional Header Validation)</label>
+            <input type="password" name="api_secret_key" class="form-control form-control-sm font-monospace" placeholder="e.g. qf_live_secret_key_xxxx" value="<%= settings.apiSecretKey %>">
+            <small class="text-muted">Leave blank for open API mode (when enabled).</small>
           </div>
         </div>
 
-        <div class="mt-auto small text-muted">
-          <i class="bi bi-shield-check me-1"></i> Base API Endpoint: <code>/api</code> &bull; Status: <strong><%= settings.apiEnabled ? 'Active' : 'Disabled' %></strong>
+        <div class="mt-auto d-flex justify-content-between align-items-center pt-2">
+          <small class="text-muted">
+            <i class="bi bi-shield-check me-1"></i> Status: <strong><%= settings.apiEnabled ? 'Accepting Requests' : 'Blocked' %></strong>
+          </small>
+          <button type="submit" formaction="/admin/settings/toggle-api" class="btn btn-sm <%= settings.apiEnabled ? 'btn-outline-danger' : 'btn-outline-success' %> rounded-pill px-3">
+            <i class="bi bi-power me-1"></i> <%= settings.apiEnabled ? 'Quick Disable API' : 'Quick Enable API' %>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- 3. Communication & Other Pluggable Integrations -->
+    <!-- 3. Communication & System Pluggable Services -->
     <div class="col-12">
       <div class="card card-custom p-4">
         <h5 class="fw-bold mb-3 d-flex align-items-center">
-          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services & Utilities
+          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services
         </h5>
 
         <div class="row g-3">

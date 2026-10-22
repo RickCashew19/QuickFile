@@ -52,5 +52,9 @@ module.exports = {
     user: process.env.SMTP_USER || '',
     pass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     from: process.env.SMTP_FROM || `"QuickFile Barangay Central" <${process.env.SMTP_USER || 'quickfile.notification@gmail.com'}>`
+  },
+  supabase: {
+    url: process.env.SUPABASE_URL || 'https://bnuwahmsxxqqfuwwhzqk.supabase.co',
+    key: process.env.SUPABASE_KEY || ''
   }
 };
