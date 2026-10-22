@@ -17,10 +17,12 @@ function initDatabase() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
+  // Salt for all seed accounts
+  const salt = bcrypt.genSaltSync(10);
+
   // Check if admin user already exists, seed if not
   const existingAdmin = db.prepare('SELECT id FROM users WHERE role = ? LIMIT 1').get('admin');
   if (!existingAdmin) {
-    const salt = bcrypt.genSaltSync(10);
     const adminPasswordHash = bcrypt.hashSync('Admin@123456', salt);
 
     const insertAdmin = db.prepare(`
