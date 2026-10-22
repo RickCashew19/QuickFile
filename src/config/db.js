@@ -8,9 +8,10 @@ function createNodeSqliteAdapter(resolvedPath) {
   const { DatabaseSync } = require('node:sqlite');
   const syncDb = new DatabaseSync(resolvedPath);
 
-  // Enable WAL mode & foreign keys for relational integrity
+  // Enable WAL mode, foreign keys, and busy timeout for high-concurrency access
   syncDb.exec('PRAGMA journal_mode = WAL;');
   syncDb.exec('PRAGMA foreign_keys = ON;');
+  syncDb.exec('PRAGMA busy_timeout = 5000;');
 
   return {
     _raw: syncDb,
@@ -98,6 +99,7 @@ function getDatabase() {
     });
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
+    dbInstance.pragma('busy_timeout = 5000');
     return dbInstance;
   } catch (betterSqliteErr) {
     throw new Error(
@@ -111,4 +113,3 @@ function getDatabase() {
 module.exports = {
   getDatabase
 };
-
