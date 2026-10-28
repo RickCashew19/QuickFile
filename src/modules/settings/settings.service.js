@@ -196,6 +196,42 @@ class SettingsService {
   }
 
   /**
+   * Resolve active Google reCAPTCHA v2 configuration ('default' vs 'custom')
+   */
+  static getActiveRecaptchaConfig() {
+    const map = SettingsModel.getAllAsMap();
+    const source = map['recaptcha_config_source'] || 'default';
+
+    const defaultCfg = {
+      siteKey: config.defaultRecaptcha.siteKey,
+      secretKey: config.defaultRecaptcha.secretKey,
+      source: 'default'
+    };
+
+    if (source === 'custom') {
+      const customSiteKey = map['custom_recaptcha_site_key'] || config.customRecaptcha.siteKey;
+      const customSecretKey = map['custom_recaptcha_secret_key'] || config.customRecaptcha.secretKey;
+
+      if (customSiteKey) {
+        return {
+          siteKey: customSiteKey,
+          secretKey: customSecretKey || '',
+          source: 'custom',
+          isFallback: false
+        };
+      }
+
+      return {
+        ...defaultCfg,
+        source: 'default',
+        isFallback: true
+      };
+    }
+
+    return defaultCfg;
+  }
+
+  /**
    * Get all active integration settings formatted with Default vs Custom tiers
    */
   static getIntegrationSettings() {
@@ -205,6 +241,7 @@ class SettingsService {
     const activeGoogle = this.getActiveGoogleConfig();
     const activeSms = this.getActiveSmsConfig();
     const activeApi = this.getActiveApiConfig();
+    const activeRecaptcha = this.getActiveRecaptchaConfig();
 
     const defaultSmtp = {
       host: config.defaultSmtp.host,
@@ -256,6 +293,16 @@ class SettingsService {
       secretKey: map['custom_api_secret_key'] !== undefined && map['custom_api_secret_key'] !== '' ? map['custom_api_secret_key'] : (map['api_secret_key'] || config.customApi.secretKey)
     };
 
+    const defaultRecaptcha = {
+      siteKey: config.defaultRecaptcha.siteKey,
+      secretKey: config.defaultRecaptcha.secretKey
+    };
+
+    const customRecaptcha = {
+      siteKey: map['custom_recaptcha_site_key'] !== undefined && map['custom_recaptcha_site_key'] !== '' ? map['custom_recaptcha_site_key'] : config.customRecaptcha.siteKey,
+      secretKey: map['custom_recaptcha_secret_key'] !== undefined && map['custom_recaptcha_secret_key'] !== '' ? map['custom_recaptcha_secret_key'] : config.customRecaptcha.secretKey
+    };
+
     return {
       // Feature toggles
       googleAuthEnabled: map['google_auth_enabled'] === '1' || map['google_auth_enabled'] === 'true',
@@ -263,30 +310,35 @@ class SettingsService {
       emailSmtpEnabled: map['email_smtp_enabled'] === '1' || map['email_smtp_enabled'] === 'true',
       qrEngineEnabled: map['qr_engine_enabled'] === '1' || map['qr_engine_enabled'] === 'true',
       apiEnabled: map['api_enabled'] === undefined ? true : (map['api_enabled'] === '1' || map['api_enabled'] === 'true'),
+      recaptchaEnabled: map['recaptcha_enabled'] === undefined ? true : (map['recaptcha_enabled'] === '1' || map['recaptcha_enabled'] === 'true'),
 
       // Configuration sources
       smtpConfigSource: map['smtp_config_source'] || 'default',
       googleConfigSource: map['google_config_source'] || 'default',
       smsConfigSource: map['sms_config_source'] || 'default',
       apiConfigSource: map['api_config_source'] || 'default',
+      recaptchaConfigSource: map['recaptcha_config_source'] || 'default',
 
       // Default presets
       defaultSmtp,
       defaultGoogle,
       defaultSms,
       defaultApi,
+      defaultRecaptcha,
 
       // Custom presets
       customSmtp,
       customGoogle,
       customSms,
       customApi,
+      customRecaptcha,
 
       // Resolved active configurations
       activeSmtp,
       activeGoogle,
       activeSms,
       activeApi,
+      activeRecaptcha,
 
       // Legacy direct access helpers
       googleClientId: activeGoogle.clientId,
@@ -327,12 +379,17 @@ class SettingsService {
       ? (updates.api_enabled === '1' || updates.api_enabled === 'on' || updates.api_enabled === true ? '1' : '0')
       : (current['api_enabled'] !== undefined ? current['api_enabled'] : '1');
 
+    const recaptchaEnabled = updates.recaptcha_enabled !== undefined
+      ? (updates.recaptcha_enabled === '1' || updates.recaptcha_enabled === 'on' || updates.recaptcha_enabled === true ? '1' : '0')
+      : (current['recaptcha_enabled'] !== undefined ? current['recaptcha_enabled'] : '1');
+
     const settingsMap = {
       google_auth_enabled: googleAuthEnabled,
       sms_notifications_enabled: smsEnabled,
       email_smtp_enabled: emailEnabled,
       qr_engine_enabled: qrEnabled,
-      api_enabled: apiEnabled
+      api_enabled: apiEnabled,
+      recaptcha_enabled: recaptchaEnabled
     };
 
     // Config Sources ('default' vs 'custom')
@@ -347,6 +404,9 @@ class SettingsService {
     }
     if (updates.api_config_source !== undefined) {
       settingsMap.api_config_source = updates.api_config_source === 'custom' ? 'custom' : 'default';
+    }
+    if (updates.recaptcha_config_source !== undefined) {
+      settingsMap.recaptcha_config_source = updates.recaptcha_config_source === 'custom' ? 'custom' : 'default';
     }
 
     // Custom SMTP fields
@@ -387,6 +447,12 @@ class SettingsService {
     } else if (updates.api_secret_key !== undefined && updates.api_secret_key !== '') {
       settingsMap.custom_api_secret_key = updates.api_secret_key.trim();
       settingsMap.api_secret_key = updates.api_secret_key.trim();
+    }
+
+    // Custom reCAPTCHA fields
+    if (updates.custom_recaptcha_site_key !== undefined) settingsMap.custom_recaptcha_site_key = updates.custom_recaptcha_site_key.trim();
+    if (updates.custom_recaptcha_secret_key !== undefined && updates.custom_recaptcha_secret_key !== '') {
+      settingsMap.custom_recaptcha_secret_key = updates.custom_recaptcha_secret_key.trim();
     }
 
     SettingsModel.setMultiple(settingsMap);

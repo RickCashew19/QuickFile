@@ -261,6 +261,66 @@ async function testAppSettings() {
   });
   console.log('✓ Restored SMS Gateway to Developer Default preset (PhilSMS)');
 
+  // 7. Test Dual-Tier Google reCAPTCHA v2 (OTH-ASI-RC)
+  console.log('\n[9] Testing Dual-Tier reCAPTCHA Configuration...');
+  const RecaptchaValidator = require('./src/utils/recaptcha');
+
+  // A. Check Default reCAPTCHA Configuration
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    recaptcha_enabled: '1',
+    recaptcha_config_source: 'default'
+  });
+  let activeRecaptcha = SettingsService.getActiveRecaptchaConfig();
+  console.log('✓ Active reCAPTCHA Source:', activeRecaptcha.source);
+  console.log('✓ Active reCAPTCHA Site Key:', activeRecaptcha.siteKey);
+  if (activeRecaptcha.source !== 'default' || !activeRecaptcha.siteKey) {
+    throw new Error('Expected Developer Default reCAPTCHA credentials!');
+  }
+
+  // B. Switch to Client Custom API Mode
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    recaptcha_enabled: '1',
+    recaptcha_config_source: 'custom',
+    custom_recaptcha_site_key: 'custom_client_sitekey_987654321',
+    custom_recaptcha_secret_key: 'custom_client_secret_123456789'
+  });
+  activeRecaptcha = SettingsService.getActiveRecaptchaConfig();
+  console.log('✓ Active reCAPTCHA Source:', activeRecaptcha.source);
+  console.log('✓ Active reCAPTCHA Site Key:', activeRecaptcha.siteKey);
+  console.log('✓ Active reCAPTCHA Secret Key:', activeRecaptcha.secretKey);
+  if (activeRecaptcha.source !== 'custom' || activeRecaptcha.siteKey !== 'custom_client_sitekey_987654321') {
+    throw new Error('Expected Client Custom reCAPTCHA credentials!');
+  }
+
+  // C. Test Fallback when Custom reCAPTCHA is empty
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    recaptcha_enabled: '1',
+    recaptcha_config_source: 'custom',
+    custom_recaptcha_site_key: '',
+    custom_recaptcha_secret_key: ''
+  });
+  const fallbackRecaptcha = SettingsService.getActiveRecaptchaConfig();
+  console.log('✓ Graceful Fallback Source when empty:', fallbackRecaptcha.source, `(Fallback triggered: ${fallbackRecaptcha.isFallback})`);
+  if (!fallbackRecaptcha.isFallback) {
+    throw new Error('Expected fallback to default when custom reCAPTCHA credentials are empty!');
+  }
+
+  // D. Test RecaptchaValidator.verify() in test environment (auto-bypass)
+  const verifyRes = await RecaptchaValidator.verify('test_dummy_token');
+  console.log('✓ RecaptchaValidator.verify() result in test mode:', verifyRes.success, `(bypassed: ${verifyRes.bypassed})`);
+  if (!verifyRes.success || !verifyRes.bypassed) {
+    throw new Error('Expected RecaptchaValidator to auto-bypass in test environment!');
+  }
+
+  // Revert reCAPTCHA to Developer Default
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    recaptcha_enabled: '1',
+    recaptcha_config_source: 'default',
+    custom_recaptcha_site_key: '',
+    custom_recaptcha_secret_key: ''
+  });
+  console.log('✓ Restored reCAPTCHA to Developer Default preset');
+
   console.log('\n=======================================================');
   console.log('🎉 ALL APP SETTINGS & DUAL-TIER API TESTS PASSED 100%!');
   console.log('=======================================================');

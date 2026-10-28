@@ -214,6 +214,31 @@ class SettingsController {
     }
   }
 
+  // POST: Verify reCAPTCHA Secret Key with Google
+  static async handleTestRecaptcha(req, res) {
+    try {
+      const RecaptchaValidator = require('../../utils/recaptcha');
+      let configOverride = null;
+
+      if (req.body.source === 'custom' && req.body.secretKey) {
+        configOverride = {
+          siteKey: req.body.siteKey || '',
+          secretKey: req.body.secretKey.trim(),
+          source: 'custom'
+        };
+      }
+
+      const result = await RecaptchaValidator.testSecretKey(configOverride);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
+
   // GET: JSON API endpoint
   static apiGetSettings(req, res) {
     const settings = SettingsService.getIntegrationSettings();

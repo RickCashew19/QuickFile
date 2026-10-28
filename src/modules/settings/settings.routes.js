@@ -14,6 +14,7 @@ router.post('/test-email', SettingsController.handleTestEmail);
 router.post('/test-smtp-connection', SettingsController.handleTestSmtpConnection);
 router.post('/check-sms-balance', SettingsController.handleCheckSmsBalance);
 router.post('/test-sms', SettingsController.handleTestSms);
+router.post('/test-recaptcha', SettingsController.handleTestRecaptcha);
 router.get('/api', SettingsController.apiGetSettings);
 
 module.exports = router;

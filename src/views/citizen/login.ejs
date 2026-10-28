@@ -59,6 +59,12 @@
           <input type="password" name="password" class="form-control" placeholder="••••••••" required>
         </div>
 
+                <% if (typeof appSettings !== 'undefined' && appSettings && appSettings.recaptchaEnabled) { %>
+          <div class="mb-3 d-flex justify-content-center">
+            <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+            <div class="g-recaptcha" data-sitekey="<%= appSettings.activeRecaptcha.siteKey %>"></div>
+          </div>
+        <% } %>
         <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold">
           <i class="bi bi-box-arrow-in-right me-1"></i> Log In
         </button>

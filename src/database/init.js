@@ -139,12 +139,14 @@ function initDatabase() {
     { key: 'email_smtp_enabled', value: '1', category: 'communication', description: 'Enable/Disable Automated Email Delivery via SMTP' },
     { key: 'qr_engine_enabled', value: '1', category: 'verification', description: 'Enable/Disable Internal QR Verification Engine' },
     { key: 'api_enabled', value: '1', category: 'api_integration', description: 'Enable/Disable REST API Endpoints and External Developer Gateway' },
+    { key: 'recaptcha_enabled', value: '1', category: 'security', description: 'Enable/Disable Google reCAPTCHA v2 Bot Protection on Public Forms' },
 
     // Configuration Source Selectors: 'default' (Developer Presets) vs 'custom' (Client/Admin Configured)
     { key: 'smtp_config_source', value: 'default', category: 'communication', description: 'Active SMTP Config Source (default or custom)' },
     { key: 'google_config_source', value: 'default', category: 'auth_integration', description: 'Active Google Auth Config Source (default or custom)' },
     { key: 'sms_config_source', value: 'default', category: 'communication', description: 'Active SMS Config Source (default or custom)' },
     { key: 'api_config_source', value: 'default', category: 'api_integration', description: 'Active REST API Config Source (default or custom)' },
+    { key: 'recaptcha_config_source', value: 'default', category: 'security', description: 'Active reCAPTCHA Config Source (default or custom)' },
 
     // Client Custom Overrides (Set via Web UI or CUSTOM_* env)
     { key: 'custom_smtp_host', value: '', category: 'communication', description: 'Custom Client SMTP Host' },
@@ -163,6 +165,9 @@ function initDatabase() {
     { key: 'custom_sms_sender_id', value: '', category: 'communication', description: 'Custom Client SMS Sender ID' },
 
     { key: 'custom_api_secret_key', value: '', category: 'api_integration', description: 'Custom Client REST API Secret Key' },
+
+    { key: 'custom_recaptcha_site_key', value: '', category: 'security', description: 'Custom Client reCAPTCHA Site Key' },
+    { key: 'custom_recaptcha_secret_key', value: '', category: 'security', description: 'Custom Client reCAPTCHA Secret Key' },
 
     // Legacy compatibility keys
     { key: 'google_client_id', value: '', category: 'auth_integration', description: 'Google OAuth Client ID (legacy)' },

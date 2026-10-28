@@ -2,6 +2,7 @@ const CitizenService = require('./citizen.service');
 const DocumentService = require('../document/document.service');
 const RequestService = require('../request/request.service');
 const NotificationService = require('../notification/notification.service');
+const RecaptchaValidator = require('../../utils/recaptcha');
 
 class CitizenController {
   // GET: Show registration page (CIT-IAM-01)
@@ -17,6 +18,14 @@ class CitizenController {
   static async handleRegister(req, res) {
     try {
       const { email, password, fullName, phone } = req.body;
+
+      // Google reCAPTCHA v2 Bot Verification
+      const captchaToken = req.body['g-recaptcha-response'];
+      const captchaResult = await RecaptchaValidator.verify(captchaToken);
+      if (!captchaResult.success) {
+        throw new Error(captchaResult.message || 'Security Verification Required: Please complete the reCAPTCHA challenge.');
+      }
+
       const result = await CitizenService.register({ email, password, fullName, phone });
 
       res.cookie('quickfile_token', result.token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
@@ -53,6 +62,14 @@ class CitizenController {
   static async handleLogin(req, res) {
     try {
       const { email, password } = req.body;
+
+      // Google reCAPTCHA v2 Bot Verification
+      const captchaToken = req.body['g-recaptcha-response'];
+      const captchaResult = await RecaptchaValidator.verify(captchaToken);
+      if (!captchaResult.success) {
+        throw new Error(captchaResult.message || 'Security Verification Required: Please complete the reCAPTCHA challenge.');
+      }
+
       const result = await CitizenService.login(email, password);
 
       res.cookie('quickfile_token', result.token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
@@ -103,6 +120,14 @@ class CitizenController {
   static async handleForgotPassword(req, res) {
     try {
       const { email } = req.body;
+
+      // Google reCAPTCHA v2 Bot Verification
+      const captchaToken = req.body['g-recaptcha-response'];
+      const captchaResult = await RecaptchaValidator.verify(captchaToken);
+      if (!captchaResult.success) {
+        throw new Error(captchaResult.message || 'Security Verification Required: Please complete the reCAPTCHA challenge.');
+      }
+
       const result = await CitizenService.initiatePasswordRecovery(email);
 
       if (req.xhr || req.headers.accept?.includes('application/json')) {

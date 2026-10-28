@@ -170,9 +170,22 @@ QuickFile/
 ---
 
 ### 4. OTH OTHER SYSTEM FEATURES
+OTH OTHER SYSTEM FEATURES
+- OTH-ASI: App Settings & Integration Management 
+  - OTH-ASI-GA: Google Authentication (OAuth)  
+  - OTH-ASI-SMS: SMS Gateway Notifications  
+  - OTH-ASI-SMTP: SMTP / Email Service 
+  - OTH-ASI-RA: REST API & External Gateway
+  - OTH-ASI-RC: reCaptcha   
+
 | Requirement ID | Module / Feature Name | Status | Technical Implementation |
 | :--- | :--- | :---: | :--- |
-| **OTH-ASI** | App Settings & Integration Management | **DONE** | Centralized configuration console (`/admin/settings`) featuring dynamic **Enable / Disable controls for the REST API Developer Gateway** (`/api/*`), API secret key management, Google OAuth social login toggle, Twilio/PhilSMS gateway notifications, SMTP automated email dispatch, and internal QR verification engine. When API is disabled, external endpoints are intercepted with `503 Service Unavailable`. |
+| **OTH-ASI** | App Settings & Integration Management | **DONE** | Centralized configuration console (`/admin/settings`) featuring dual-tier API management (Developer Presets vs Client Custom API) across Google OAuth, SMS Gateways, SMTP Email, REST API Gateway, and Google reCAPTCHA. |
+| **OTH-ASI-GA** | Google Authentication (OAuth) | **DONE** | One-click citizen Google sign-in and account registration (`/citizen/auth/google`) with support for developer presets or custom Google Cloud OAuth client credentials. |
+| **OTH-ASI-SMS** | SMS Gateway Notifications | **DONE** | Real-time SMS notifications via PhilSMS v3 (or Twilio/Semaphore) with live balance checking and custom sender ID configuration. |
+| **OTH-ASI-SMTP** | SMTP / Email Service | **DONE** | Automated transactional email delivery for password resets and clearance dispatches with live connection testing and SSL/TLS support. |
+| **OTH-ASI-RA** | REST API & External Gateway | **DONE** | Pluggable REST API gateway (`/api/*`) with instant enable/disable controls and secret token verification. When disabled, requests return `503 Service Unavailable`. |
+| **OTH-ASI-RC** | reCaptcha | **DONE** | Google reCAPTCHA v2 bot protection across citizen registration, login, and password recovery forms with live Google API secret key verification. |
 
 ---
 
@@ -271,6 +284,7 @@ QuickFile provides a unified administrative settings cockpit at `/admin/settings
 - **API Secret Key Management**: Optional bearer / API secret token for authorized third-party or mobile integrations.
 - **Social Sign-In (Google OAuth)**: Dynamic switch allowing citizens to register and log in via one-click Google OAuth or restricting the portal strictly to manual email/password authentication.
 - **Communication & Verification Infrastructure**: Instant feature toggles for real-time SMS notifications (Twilio / PhilSMS), automated email dispatch via SMTP, and the internal QR verification engine.
+- **Bot Protection & Abuse Prevention (Google reCAPTCHA v2)**: Dynamic reCAPTCHA v2 challenge verification safeguarding citizen registration, login, and password reset endpoints against automated attacks and credential stuffing, with instant Default vs Custom key configuration and live Google API verification.
 
 ---
 

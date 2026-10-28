@@ -64,6 +64,11 @@ const defaultApi = {
   secretKey: process.env.DEFAULT_API_SECRET_KEY || 'qf_developer_default_secret_key_2026'
 };
 
+const defaultRecaptcha = {
+  siteKey: process.env.DEFAULT_RECAPTCHA_SITE_KEY || '',
+  secretKey: process.env.DEFAULT_RECAPTCHA_SECRET_KEY || ''
+};
+
 // 2. Client Custom Overrides (can also be overridden in DB app_settings via Web UI)
 const customSmtp = {
   host: process.env.CUSTOM_SMTP_HOST || '',
@@ -90,6 +95,11 @@ const customApi = {
   secretKey: process.env.CUSTOM_API_SECRET_KEY || ''
 };
 
+const customRecaptcha = {
+  siteKey: process.env.CUSTOM_RECAPTCHA_SITE_KEY || '',
+  secretKey: process.env.CUSTOM_RECAPTCHA_SECRET_KEY || ''
+};
+
 module.exports = {
   projectRoot,
   port: process.env.PORT || 3000,
@@ -101,9 +111,11 @@ module.exports = {
   defaultGoogle,
   defaultSms,
   defaultApi,
+  defaultRecaptcha,
   customSmtp,
   customGoogle,
   customSms,
   customApi,
+  customRecaptcha,
   smtp: defaultSmtp
 };
