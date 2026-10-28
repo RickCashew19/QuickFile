@@ -40,12 +40,12 @@ const dbPath = resolveDbPath(process.env.DB_PATH);
 
 // 1. Developer Default Presets (from .env or standard defaults)
 const defaultSmtp = {
-  host: process.env.DEFAULT_SMTP_HOST || process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.DEFAULT_SMTP_PORT || process.env.SMTP_PORT || '465', 10),
-  secure: (process.env.DEFAULT_SMTP_SECURE || process.env.SMTP_SECURE) === 'true' || (process.env.DEFAULT_SMTP_PORT || process.env.SMTP_PORT) === '465',
-  user: process.env.DEFAULT_SMTP_USER || process.env.SMTP_USER || '',
-  pass: (process.env.DEFAULT_SMTP_PASS || process.env.SMTP_PASS || '').replace(/\s+/g, ''),
-  from: process.env.DEFAULT_SMTP_FROM || process.env.SMTP_FROM || `"QuickFile Barangay Central (Default)" <${process.env.DEFAULT_SMTP_USER || 'quickfile.notification@gmail.com'}>`
+  host: process.env.DEFAULT_SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.DEFAULT_SMTP_PORT || '465', 10),
+  secure: process.env.DEFAULT_SMTP_SECURE === 'true' || process.env.DEFAULT_SMTP_PORT === '465',
+  user: process.env.DEFAULT_SMTP_USER || '',
+  pass: (process.env.DEFAULT_SMTP_PASS || '').replace(/\s+/g, ''),
+  from: process.env.DEFAULT_SMTP_FROM || `"QuickFile Barangay Central (Default)" <${process.env.DEFAULT_SMTP_USER || 'quickfile.notification@gmail.com'}>`
 };
 
 const defaultGoogle = {
