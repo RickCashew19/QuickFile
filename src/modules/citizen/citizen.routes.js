@@ -39,27 +39,35 @@ router.get('/dashboard', CitizenController.renderDashboard);
 router.get('/profile', CitizenController.renderProfile);
 router.post('/profile', CitizenController.handleUpdateProfile);
 
+// CIT-APM-03: Profile Reuse (Used by document request forms to pre-populate citizen information)
+router.get('/profile/reuse', CitizenController.getProfileReuse);
+
 // CIT-DCR-01 & CIT-DCR-02: Document Catalog & Requirements
 router.get('/catalog', CitizenController.renderCatalog);
-router.get('/catalog/:code', CitizenController.renderCatalogDetails);
 
-// CIT-ODR-01 & CIT-ODR-02: Online Request Submission
-router.get('/requests/apply/:code', CitizenController.renderApplyForm);
-router.post('/requests/apply', upload.single('id_attachment'), CitizenController.handleApplyRequest);
+// CIT-ODR-01, 02, 03, 04: Online Document Request Form & Submission
+router.get('/request', CitizenController.renderNewRequest);
+router.post('/request', upload.single('attachment'), CitizenController.handleSubmitRequest);
 
-// CIT-RST-01: Status Tracking & Request History
-router.get('/history', CitizenController.renderHistory);
+// CIT-RST-01: Request Status Tracking & Document Viewing
 router.get('/requests/:trackingNumber', CitizenController.renderRequestDetails);
 
-// Citizen Actions: Edit Pending Request & Cancel Request
+// Live Request Status API for client-side auto-updates
+router.get('/requests/:trackingNumber/status', CitizenController.getRequestStatusApi);
+
+// Request Modification (Edit Pending Request)
 router.get('/requests/:trackingNumber/edit', CitizenController.renderEditRequest);
-router.post('/requests/:trackingNumber/edit', upload.single('id_attachment'), CitizenController.handleEditRequest);
+router.post('/requests/:trackingNumber/edit', upload.single('attachment'), CitizenController.handleUpdateRequest);
+
+// Request Cancellation (Cancel Pending Request)
 router.post('/requests/:trackingNumber/cancel', CitizenController.handleCancelRequest);
 
-// CIT-RST-02: Alerts & Notifications
+// CIT-RHV-01: Request History Viewing
+router.get('/history', CitizenController.renderHistory);
+
+// CIT-RST-02: In-App System Notifications & Management
 router.get('/notifications', CitizenController.renderNotifications);
-router.post('/notifications/:id/read', CitizenController.handleMarkNotificationRead);
 router.post('/notifications/:id/delete', CitizenController.handleDeleteNotification);
-router.post('/notifications/clear-all', CitizenController.handleClearAllNotifications);
+router.post('/notifications/clear', CitizenController.handleClearNotifications);
 
 module.exports = router;
