@@ -160,7 +160,7 @@ app.use('/api/verify', verificationRoutes);
 app.use(errorHandler);
 
 // Start Server
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
   app.listen(config.port, () => {
     console.log(`=======================================================`);
     console.log(`   🚀 QuickFile Server running on http://localhost:${config.port}`);

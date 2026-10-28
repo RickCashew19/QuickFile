@@ -11,6 +11,7 @@ router.get('/', SettingsController.renderSettings);
 router.post('/', SettingsController.handleUpdateSettings);
 router.post('/toggle-api', SettingsController.toggleApi);
 router.post('/test-email', SettingsController.handleTestEmail);
+router.post('/test-smtp-connection', SettingsController.handleTestSmtpConnection);
 router.get('/api', SettingsController.apiGetSettings);
 
 module.exports = router;

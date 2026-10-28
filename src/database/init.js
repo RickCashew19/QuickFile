@@ -131,16 +131,42 @@ function initDatabase() {
     // Ignore if table not yet initialized
   }
 
-  // Ensure default app settings exist (pluggable integrations)
+  // Ensure default app settings exist (pluggable integrations & dual-tier Default vs Custom configuration)
   const defaultSettings = [
+    // Feature enable/disable toggles
     { key: 'google_auth_enabled', value: '0', category: 'auth_integration', description: 'Enable/Disable Google OAuth One-Click Sign-In for Citizens' },
-    { key: 'google_client_id', value: '', category: 'auth_integration', description: 'Google OAuth Client ID' },
-    { key: 'google_client_secret', value: '', category: 'auth_integration', description: 'Google OAuth Client Secret' },
     { key: 'sms_notifications_enabled', value: '1', category: 'communication', description: 'Enable/Disable SMS Gateway Notifications (Twilio / PhilSMS)' },
     { key: 'email_smtp_enabled', value: '1', category: 'communication', description: 'Enable/Disable Automated Email Delivery via SMTP' },
     { key: 'qr_engine_enabled', value: '1', category: 'verification', description: 'Enable/Disable Internal QR Verification Engine' },
     { key: 'api_enabled', value: '1', category: 'api_integration', description: 'Enable/Disable REST API Endpoints and External Developer Gateway' },
-    { key: 'api_secret_key', value: '', category: 'api_integration', description: 'API Secret Key for External Integrations' }
+
+    // Configuration Source Selectors: 'default' (Developer Presets) vs 'custom' (Client/Admin Configured)
+    { key: 'smtp_config_source', value: 'default', category: 'communication', description: 'Active SMTP Config Source (default or custom)' },
+    { key: 'google_config_source', value: 'default', category: 'auth_integration', description: 'Active Google Auth Config Source (default or custom)' },
+    { key: 'sms_config_source', value: 'default', category: 'communication', description: 'Active SMS Config Source (default or custom)' },
+    { key: 'api_config_source', value: 'default', category: 'api_integration', description: 'Active REST API Config Source (default or custom)' },
+
+    // Client Custom Overrides (Set via Web UI or CUSTOM_* env)
+    { key: 'custom_smtp_host', value: '', category: 'communication', description: 'Custom Client SMTP Host' },
+    { key: 'custom_smtp_port', value: '465', category: 'communication', description: 'Custom Client SMTP Port' },
+    { key: 'custom_smtp_secure', value: '1', category: 'communication', description: 'Custom Client SMTP SSL/TLS' },
+    { key: 'custom_smtp_user', value: '', category: 'communication', description: 'Custom Client SMTP Username/Email' },
+    { key: 'custom_smtp_pass', value: '', category: 'communication', description: 'Custom Client SMTP Password' },
+    { key: 'custom_smtp_from', value: '', category: 'communication', description: 'Custom Client SMTP Sender Header' },
+
+    { key: 'custom_google_client_id', value: '', category: 'auth_integration', description: 'Custom Client Google OAuth Client ID' },
+    { key: 'custom_google_client_secret', value: '', category: 'auth_integration', description: 'Custom Client Google OAuth Client Secret' },
+
+    { key: 'custom_sms_provider', value: '', category: 'communication', description: 'Custom Client SMS Provider' },
+    { key: 'custom_sms_api_key', value: '', category: 'communication', description: 'Custom Client SMS API Key' },
+    { key: 'custom_sms_sender_id', value: '', category: 'communication', description: 'Custom Client SMS Sender ID' },
+
+    { key: 'custom_api_secret_key', value: '', category: 'api_integration', description: 'Custom Client REST API Secret Key' },
+
+    // Legacy compatibility keys
+    { key: 'google_client_id', value: '', category: 'auth_integration', description: 'Google OAuth Client ID (legacy)' },
+    { key: 'google_client_secret', value: '', category: 'auth_integration', description: 'Google OAuth Client Secret (legacy)' },
+    { key: 'api_secret_key', value: '', category: 'api_integration', description: 'API Secret Key for External Integrations (legacy)' }
   ];
 
   const insertSetting = db.prepare(`

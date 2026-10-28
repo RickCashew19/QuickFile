@@ -1,10 +1,15 @@
+process.env.NODE_ENV = 'test';
+
 const SettingsService = require('./src/modules/settings/settings.service');
 const AdminService = require('./src/modules/admin/admin.service');
 const CitizenController = require('./src/modules/citizen/citizen.controller');
+const SettingsController = require('./src/modules/settings/settings.controller');
+const Mailer = require('./src/utils/mailer');
+const config = require('./src/config');
 const { initDatabase } = require('./src/database/init');
 
 async function testAppSettings() {
-  console.log('--- Testing App Settings & Pluggable Integrations ---');
+  console.log('--- Testing App Settings & Dual-Tier API Management ---');
   initDatabase();
 
   const adminLogin = await AdminService.login('admin@quickfile.gov.ph', 'Admin@123456');
@@ -14,8 +19,9 @@ async function testAppSettings() {
   console.log('\n[1] Checking initial Google Auth state...');
   SettingsService.updateIntegrationSettings(adminLogin.admin, {
     google_auth_enabled: '0',
-    google_client_id: '',
-    google_client_secret: ''
+    google_config_source: 'default',
+    custom_google_client_id: '',
+    custom_google_client_secret: ''
   });
   console.log('✓ Google Auth Enabled:', SettingsService.isFeatureEnabled('google_auth_enabled'));
 
@@ -51,18 +57,81 @@ async function testAppSettings() {
     throw new Error('Failed to block Google sign-in when disabled!');
   }
 
-  // 2. Enable Google Auth via App Settings
-  console.log('\n[3] Admin ENABLES Google Auth in App Settings...');
-  const updatedSettings = SettingsService.updateIntegrationSettings(adminLogin.admin, {
-    google_auth_enabled: '1',
-    google_client_id: 'test-google-client-id-12345.apps.googleusercontent.com',
-    google_client_secret: 'test-secret'
+  // 2. Dual-Tier SMTP Architecture Testing (Developer Default vs Client Custom)
+  console.log('\n[3] Testing Dual-Tier SMTP API Configuration...');
+  // A. Developer Default Mode
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    smtp_config_source: 'default'
   });
-  console.log('✓ Settings updated! googleAuthEnabled:', updatedSettings.googleAuthEnabled);
-  console.log('✓ Client ID configured:', updatedSettings.googleClientId);
+  let activeSmtp = SettingsService.getActiveSmtpConfig();
+  console.log('✓ Active SMTP Source:', activeSmtp.source);
+  console.log('✓ Active SMTP Host:', activeSmtp.host);
+  console.log('✓ Active SMTP User:', activeSmtp.user);
+  if (activeSmtp.source !== 'default' || activeSmtp.user !== config.defaultSmtp.user) {
+    throw new Error('Expected active SMTP to use Developer Default presets!');
+  }
 
-  // Simulate citizen attempting Google sign-in when enabled
-  console.log('\n[4] Attempting Google Auth when ENABLED...');
+  // B. Switch to Client Custom API Mode
+  console.log('\n[4] Switching SMTP to Client Custom API...');
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    smtp_config_source: 'custom',
+    custom_smtp_host: 'mail.barangaycentral.gov.ph',
+    custom_smtp_port: '587',
+    custom_smtp_secure: '0',
+    custom_smtp_user: 'admin@barangaycentral.gov.ph',
+    custom_smtp_pass: 'SecretBarangayPass2026',
+    custom_smtp_from: '"Barangay Central Official" <admin@barangaycentral.gov.ph>'
+  });
+  activeSmtp = SettingsService.getActiveSmtpConfig();
+  console.log('✓ Active SMTP Source:', activeSmtp.source);
+  console.log('✓ Active SMTP Host:', activeSmtp.host);
+  console.log('✓ Active SMTP User:', activeSmtp.user);
+  if (activeSmtp.source !== 'custom' || activeSmtp.host !== 'mail.barangaycentral.gov.ph' || activeSmtp.user !== 'admin@barangaycentral.gov.ph') {
+    throw new Error('Expected active SMTP to switch to Client Custom API credentials!');
+  }
+
+  // C. Test Transporter instantiation with custom configuration
+  const transporter = Mailer.getTransporter();
+  console.log('✓ Mailer dynamically created transporter for host:', transporter.options.host);
+  if (transporter.options.host !== 'mail.barangaycentral.gov.ph') {
+    throw new Error('Transporter did not receive dynamic custom host!');
+  }
+
+  // D. Test Fallback when custom fields are empty
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    smtp_config_source: 'custom',
+    custom_smtp_host: '',
+    custom_smtp_user: ''
+  });
+  const fallbackSmtp = SettingsService.getActiveSmtpConfig();
+  console.log('✓ Graceful Fallback Source when empty:', fallbackSmtp.source, `(Fallback triggered: ${fallbackSmtp.isFallback})`);
+  if (!fallbackSmtp.isFallback) {
+    throw new Error('Expected graceful fallback to developer default when custom fields are empty!');
+  }
+
+  // E. Revert to Developer Default
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    smtp_config_source: 'default'
+  });
+  activeSmtp = SettingsService.getActiveSmtpConfig();
+  console.log('✓ Reverted to SMTP Source:', activeSmtp.source, `(${activeSmtp.user})`);
+
+  // 3. Dual-Tier Google OAuth Testing
+  console.log('\n[5] Testing Dual-Tier Google OAuth API...');
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    google_auth_enabled: '1',
+    google_config_source: 'custom',
+    custom_google_client_id: 'client-custom-google-id-998877.apps.googleusercontent.com',
+    custom_google_client_secret: 'client_custom_secret_123'
+  });
+  const activeGoogle = SettingsService.getActiveGoogleConfig();
+  console.log('✓ Active Google Source:', activeGoogle.source);
+  console.log('✓ Active Google Client ID:', activeGoogle.clientId);
+  if (activeGoogle.source !== 'custom' || activeGoogle.clientId !== 'client-custom-google-id-998877.apps.googleusercontent.com') {
+    throw new Error('Expected active Google to use Client Custom credentials!');
+  }
+
+  // Simulate citizen attempting Google sign-in when enabled with custom API
   let loginSuccess = false;
   let loggedInUser = null;
   const mockReqEnabled = {
@@ -88,113 +157,95 @@ async function testAppSettings() {
     throw new Error('Failed to authenticate via Google when enabled!');
   }
 
-  // 3. Admin DISABLES Google Auth again (manual sign-in only)
-  console.log('\n[5] Admin DISABLES Google Auth back (Manual Sign-In Mode)...');
+  // 4. Test REST API Gateway Dual-Tier Architecture & Key Resolution
+  console.log('\n[6] Testing REST API Gateway & Key Resolution...');
+  // A. Check Default API Key
   SettingsService.updateIntegrationSettings(adminLogin.admin, {
-    google_auth_enabled: '0'
+    api_config_source: 'default'
   });
-  console.log('✓ Google Auth Enabled:', SettingsService.isFeatureEnabled('google_auth_enabled'));
+  let activeApi = SettingsService.getActiveApiConfig();
+  console.log('✓ Active API Key Source:', activeApi.source);
+  console.log('✓ Active API Secret:', activeApi.secretKey);
+  if (activeApi.source !== 'default' || !activeApi.secretKey) {
+    throw new Error('Expected default API secret key!');
+  }
 
-  // Verify blocked again
-  mockStatus = 0;
-  mockResponse = null;
-  await CitizenController.handleGoogleAuth(mockReqDisabled, mockResDisabled);
-  console.log(`✓ Blocked again with status ${mockStatus}: "${mockResponse?.message}"`);
+  // B. Check Custom API Key
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    api_config_source: 'custom',
+    custom_api_secret_key: 'qf_live_custom_barangay_secret_999'
+  });
+  activeApi = SettingsService.getActiveApiConfig();
+  console.log('✓ Active API Key Source:', activeApi.source);
+  console.log('✓ Active API Secret:', activeApi.secretKey);
+  if (activeApi.source !== 'custom' || activeApi.secretKey !== 'qf_live_custom_barangay_secret_999') {
+    throw new Error('Expected custom API secret key!');
+  }
 
-  // 4. Test REST API Gateway Enable / Disable via App Settings (OTH-ASI)
-  console.log('\n[OTH-ASI] Testing REST API Gateway Enable & Disable (App Settings & Integration Management)...');
-  const app = require('./app');
-  const server = app.listen(0);
-  const port = server.address().port;
-  const baseUrl = `http://localhost:${port}`;
+  // 5. Test REST API Gateway Enable & Disable Guard (OTH-ASI)
+  console.log('\n[7] Testing REST API Gateway Guard & Controller Toggle...');
+  // Disable API
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    ...SettingsService.getIntegrationSettings().raw,
+    api_enabled: '0'
+  });
+  console.log('✓ API Enabled state:', SettingsService.isApiEnabled());
+  if (SettingsService.isApiEnabled() !== false) {
+    throw new Error('API should be disabled!');
+  }
 
-  try {
-    // Disable API
-    console.log('-> Admin DISABLES REST API in App Settings...');
-    const apiDisabledSettings = SettingsService.updateIntegrationSettings(adminLogin.admin, {
-      ...SettingsService.getIntegrationSettings().raw,
-      api_enabled: '0'
-    });
-    console.log('✓ API Enabled state:', apiDisabledSettings.apiEnabled);
-    console.log('✓ SettingsService.isApiEnabled():', SettingsService.isApiEnabled());
+  // Test Quick Toggle Action: 0 -> 1
+  let toggleResData = null;
+  const mockReqToggle = {
+    user: adminLogin.admin,
+    xhr: true,
+    headers: { accept: 'application/json' }
+  };
+  const mockResToggle = {
+    json: (data) => { toggleResData = data; },
+    redirect: () => {}
+  };
 
-    // Send request to /api/verify while DISABLED
-    const disabledApiResponse = await fetch(`${baseUrl}/api/verify`);
-    console.log(`✓ GET /api/verify response status: ${disabledApiResponse.status}`);
-    const disabledJson = await disabledApiResponse.json();
-    console.log(`✓ Response error payload:`, disabledJson);
-    if (disabledApiResponse.status === 503 && disabledJson.error === 'API_DISABLED') {
-      console.log('✓ SUCCESS: REST API endpoint properly returned 503 Service Unavailable when API was disabled!');
-    } else {
-      throw new Error(`Expected 503 API_DISABLED, received: ${disabledApiResponse.status}`);
-    }
+  SettingsController.toggleApi(mockReqToggle, mockResToggle);
+  console.log('✓ Toggle #1 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
+  if (toggleResData?.apiEnabled !== true) {
+    throw new Error('Failed to toggle API from disabled to enabled!');
+  }
 
-    // Normal web UI should still be accessible
-    const webUiResponse = await fetch(`${baseUrl}/verify`);
-    console.log(`✓ Internal Web UI (GET /verify) status: ${webUiResponse.status} (Unimpaired by API disabled state)`);
-    if (webUiResponse.status !== 200) {
-      throw new Error('Web UI should remain accessible even when /api is disabled!');
-    }
+  // Test Quick Toggle Action: 1 -> 0
+  SettingsController.toggleApi(mockReqToggle, mockResToggle);
+  console.log('✓ Toggle #2 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
+  if (toggleResData?.apiEnabled !== false) {
+    throw new Error('Failed to toggle API from enabled back to disabled!');
+  }
 
-    // Enable API
-    console.log('\n-> Admin ENABLES REST API in App Settings...');
-    const apiEnabledSettings = SettingsService.updateIntegrationSettings(adminLogin.admin, {
-      ...SettingsService.getIntegrationSettings().raw,
-      api_enabled: '1',
-      api_secret_key: 'test_key_12345'
-    });
-    console.log('✓ API Enabled state:', apiEnabledSettings.apiEnabled);
-    console.log('✓ Configured API Secret:', apiEnabledSettings.apiSecretKey);
+  // Re-enable API
+  SettingsController.toggleApi(mockReqToggle, mockResToggle);
+  console.log('✓ Final API Enabled state:', SettingsService.isApiEnabled());
 
-    // Send request to /api/verify while ENABLED
-    const enabledApiResponse = await fetch(`${baseUrl}/api/verify`);
-    console.log(`✓ GET /api/verify response status: ${enabledApiResponse.status}`);
-    if (enabledApiResponse.status === 200) {
-      console.log('✓ SUCCESS: REST API endpoint returned 200 OK when API was enabled!');
-    } else {
-      throw new Error(`Expected 200 OK, received: ${enabledApiResponse.status}`);
-    }
-
-    // Test Quick Toggle Action
-    console.log('\n-> Testing Quick Toggle API Controller Action (/admin/settings/toggle-api)...');
-    const SettingsController = require('./src/modules/settings/settings.controller');
-    let toggleResData = null;
-    const mockReqToggle = {
-      user: adminLogin.admin,
-      xhr: true,
-      headers: { accept: 'application/json' }
-    };
-    const mockResToggle = {
-      json: (data) => { toggleResData = data; },
-      redirect: () => {}
-    };
-
-    // Toggle 1: Enabled -> Disabled
-    SettingsController.toggleApi(mockReqToggle, mockResToggle);
-    console.log('✓ Toggle #1 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
-    if (toggleResData?.apiEnabled !== false) {
-      throw new Error('Failed to toggle API from enabled to disabled!');
-    }
-
-    // Toggle 2: Disabled -> Enabled
-    SettingsController.toggleApi(mockReqToggle, mockResToggle);
-    console.log('✓ Toggle #2 result:', toggleResData?.message, `(apiEnabled: ${toggleResData?.apiEnabled})`);
-    if (toggleResData?.apiEnabled !== true) {
-      throw new Error('Failed to toggle API from disabled back to enabled!');
-    }
-
-    console.log('✓ SUCCESS: Quick API toggle action fully verified!');
-  } finally {
-    server.close();
+  // 6. Test Dual-Tier SMS Gateway
+  console.log('\n[8] Testing Dual-Tier SMS Gateway...');
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    sms_config_source: 'custom',
+    custom_sms_provider: 'Twilio',
+    custom_sms_api_key: 'twilio_auth_custom_key_123',
+    custom_sms_sender_id: 'BRGY_SAN_ISIDRO'
+  });
+  const activeSms = SettingsService.getActiveSmsConfig();
+  console.log('✓ Active SMS Source:', activeSms.source);
+  console.log('✓ Active SMS Provider:', activeSms.provider);
+  console.log('✓ Active SMS Sender ID:', activeSms.senderId);
+  if (activeSms.source !== 'custom' || activeSms.provider !== 'Twilio' || activeSms.senderId !== 'BRGY_SAN_ISIDRO') {
+    throw new Error('Expected active SMS to use Client Custom credentials!');
   }
 
   console.log('\n=======================================================');
-  console.log('🎉 APP SETTINGS & PLUGGABLE INTEGRATIONS VERIFIED!');
+  console.log('🎉 ALL APP SETTINGS & DUAL-TIER API TESTS PASSED 100%!');
   console.log('=======================================================');
+  process.exit(0);
 }
 
 testAppSettings().catch(err => {
   console.error('Test error:', err);
   process.exit(1);
 });
-

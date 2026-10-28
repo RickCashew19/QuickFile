@@ -2,14 +2,21 @@ const nodemailer = require('nodemailer');
 const config = require('../config');
 
 class Mailer {
-  static getTransporter() {
+  /**
+   * Create nodemailer transporter dynamically using active configuration or override
+   * @param {object} [overrideConfig]
+   */
+  static getTransporter(overrideConfig = null) {
+    const SettingsService = require('../modules/settings/settings.service');
+    const activeSmtp = overrideConfig || SettingsService.getActiveSmtpConfig();
+
     return nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
+      host: activeSmtp.host,
+      port: activeSmtp.port,
+      secure: activeSmtp.secure,
       auth: {
-        user: config.smtp.user,
-        pass: config.smtp.pass
+        user: activeSmtp.user,
+        pass: (activeSmtp.pass || '').replace(/\s+/g, '')
       },
       tls: {
         rejectUnauthorized: false
@@ -18,14 +25,21 @@ class Mailer {
   }
 
   /**
-   * Verify SMTP credentials connection
-   * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+   * Verify SMTP credentials connection (dynamically against active or specified config)
+   * @param {object} [overrideConfig]
+   * @returns {Promise<{success: boolean, message?: string, error?: string, source?: string}>}
    */
-  static async verifyConnection() {
+  static async verifyConnection(overrideConfig = null) {
     try {
-      const transporter = this.getTransporter();
+      const SettingsService = require('../modules/settings/settings.service');
+      const activeSmtp = overrideConfig || SettingsService.getActiveSmtpConfig();
+      const transporter = this.getTransporter(activeSmtp);
       await transporter.verify();
-      return { success: true, message: 'SMTP credentials verified successfully.' };
+      return { 
+        success: true, 
+        message: `SMTP connection established and verified successfully (${activeSmtp.source.toUpperCase()} API).`,
+        source: activeSmtp.source
+      };
     } catch (err) {
       console.error('[SMTP Verify Error]', err.message);
       return { success: false, error: err.message };
@@ -33,33 +47,38 @@ class Mailer {
   }
 
   /**
-   * Generic send email method
+   * Generic send email method using dynamic active configuration
+   * @param {object} emailOptions
+   * @param {object} [overrideConfig]
    */
-  static async sendMail({ to, subject, html, text }) {
+  static async sendMail({ to, subject, html, text }, overrideConfig = null) {
     try {
-      // Dynamic feature toggle check
       const SettingsService = require('../modules/settings/settings.service');
       if (!SettingsService.isFeatureEnabled('email_smtp_enabled')) {
         console.log(`[SMTP Mailer Disabled] Email to <${to}> skipped because email_smtp_enabled is off.`);
         return { success: false, skipped: true, message: 'SMTP email is currently disabled in App Settings.' };
       }
 
-      if (!config.smtp.user || !config.smtp.pass) {
-        console.warn(`[SMTP Mailer Notice] SMTP credentials missing in configuration.`);
-        return { success: false, skipped: true, message: 'SMTP credentials not configured.' };
+      const activeSmtp = overrideConfig || SettingsService.getActiveSmtpConfig();
+
+      if (!activeSmtp.user || !activeSmtp.pass) {
+        console.warn(`[SMTP Mailer Notice] SMTP credentials missing in active configuration (${activeSmtp.source}).`);
+        return { success: false, skipped: true, message: `SMTP credentials not configured in ${activeSmtp.source} configuration.` };
       }
 
-      const transporter = this.getTransporter();
+      const transporter = this.getTransporter(activeSmtp);
+      const senderHeader = activeSmtp.from || `"QuickFile Barangay Central" <${activeSmtp.user}>`;
+
       const info = await transporter.sendMail({
-        from: config.smtp.from,
+        from: senderHeader,
         to,
         subject,
         text: text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
         html
       });
 
-      console.log(`[SMTP Email Dispatched] MessageId: ${info.messageId} -> To: <${to}> | Subject: "${subject}"`);
-      return { success: true, messageId: info.messageId };
+      console.log(`[SMTP Email Dispatched] MessageId: ${info.messageId} -> To: <${to}> | Subject: "${subject}" (via ${activeSmtp.source.toUpperCase()} API: ${activeSmtp.user})`);
+      return { success: true, messageId: info.messageId, source: activeSmtp.source };
     } catch (err) {
       console.error(`[SMTP Mailer Error] Failed sending to <${to}>:`, err.message);
       return { success: false, error: err.message };
@@ -73,6 +92,10 @@ class Mailer {
     const fullResetUrl = resetUrl.startsWith('http') 
       ? resetUrl 
       : `http://localhost:${config.port}${resetUrl}`;
+
+    const SettingsService = require('../modules/settings/settings.service');
+    const activeSmtp = SettingsService.getActiveSmtpConfig();
+    const senderEmail = activeSmtp.user || 'quickfile.notification@gmail.com';
 
     const subject = 'QuickFile: Password Reset Request';
     const html = `
@@ -113,7 +136,7 @@ class Mailer {
 
         <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
           <p style="margin: 0;">QuickFile &bull; Automated Barangay Public Service System</p>
-          <p style="margin: 4px 0 0;">This is an automated system dispatch from quickfile.notification@gmail.com.</p>
+          <p style="margin: 4px 0 0;">This is an automated system dispatch from ${senderEmail}.</p>
         </div>
       </div>
     `;
@@ -132,6 +155,10 @@ class Mailer {
     const fullActionUrl = link 
       ? (link.startsWith('http') ? link : `http://localhost:${config.port}${link}`)
       : null;
+
+    const SettingsService = require('../modules/settings/settings.service');
+    const activeSmtp = SettingsService.getActiveSmtpConfig();
+    const senderEmail = activeSmtp.user || 'quickfile.notification@gmail.com';
 
     const subject = `QuickFile: ${title}`;
     const html = `
@@ -168,7 +195,7 @@ class Mailer {
 
         <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
           <p style="margin: 0;">QuickFile &bull; Automated Barangay Public Service System</p>
-          <p style="margin: 4px 0 0;">This is an automated system dispatch from quickfile.notification@gmail.com.</p>
+          <p style="margin: 4px 0 0;">This is an automated system dispatch from ${senderEmail}.</p>
         </div>
       </div>
     `;
@@ -182,4 +209,3 @@ class Mailer {
 }
 
 module.exports = Mailer;
-

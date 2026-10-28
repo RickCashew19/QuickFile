@@ -1,12 +1,14 @@
-<%- include('../layouts/header', { title: 'App Settings & Pluggable Integrations - QuickFile' }) %>
+<%- include('../layouts/header', { title: 'App Settings & API Gateway Management - QuickFile' }) %>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
   <div>
     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
-      OTH-ASI &bull; App Settings & Integration Management
+      OTH-ASI &bull; Dual-Tier API & Integration Management
     </span>
-    <h2 class="fw-bold mb-1">App Settings & Integration Management</h2>
-    <p class="text-muted small mb-0">Enable, disable, or reconfigure external service integrations and authentication providers.</p>
+    <h2 class="fw-bold mb-1">App Settings & Pluggable Integrations</h2>
+    <p class="text-muted small mb-0">
+      Configure system integrations using <strong>Developer Default Presets</strong> (out-of-the-box system defaults) or <strong>Client Custom APIs</strong> (configured by your barangay).
+    </p>
   </div>
   <div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary rounded-pill px-3">
@@ -16,24 +18,36 @@
 </div>
 
 <% if (typeof success !== 'undefined' && success) { %>
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
+  <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <% } %>
 
 <% if (typeof error !== 'undefined' && error) { %>
-  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+  <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
     <i class="bi bi-exclamation-circle-fill me-2"></i> <%= error %>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <% } %>
 
-<form action="/admin/settings" method="POST">
+<div class="alert alert-info border-info-subtle bg-info-subtle text-dark d-flex align-items-start gap-3 rounded-4 mb-4">
+  <i class="bi bi-info-circle-fill fs-4 text-primary mt-1"></i>
+  <div>
+    <h6 class="fw-bold mb-1">Dual-Tier API Architecture</h6>
+    <p class="small mb-0">
+      <strong>Developer Default:</strong> Pre-packaged credentials provided by the developers (via <code>.env</code> presets) to ensure instant zero-config operations.<br>
+      <strong>Client Custom API:</strong> Tap or click any service card below to open its API configuration modal, allowing the barangay administrator to set their own Google OAuth, SMTP server, SMS Gateway, or API tokens directly through this UI.
+    </p>
+  </div>
+</div>
+
+<form id="masterSettingsForm" action="/admin/settings" method="POST">
   <div class="row g-4 mb-4">
+
     <!-- 1. Google OAuth Pluggable Integration Card -->
     <div class="col-lg-6">
-      <div class="card card-custom p-4 h-100 border-<%= settings.googleAuthEnabled ? 'primary' : 'light' %>">
+      <div class="card card-custom p-4 h-100 border-<%= settings.googleAuthEnabled ? 'primary' : 'light' %> shadow-sm position-relative">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div class="d-flex align-items-center gap-3">
             <div class="avatar-circle <%= settings.googleAuthEnabled ? 'bg-primary' : 'bg-secondary' %> text-white">
@@ -44,21 +58,32 @@
               <small class="text-muted">Pluggable Social Sign-In Provider</small>
             </div>
           </div>
-          <div>
+          <div class="text-end">
             <% if (settings.googleAuthEnabled) { %>
-              <span class="badge bg-success-subtle text-success border border-success-subtle">Enabled</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle mb-1 d-inline-block">Enabled</span>
             <% } else { %>
-              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled (Manual Sign-In Only)</span>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle mb-1 d-inline-block">Disabled</span>
             <% } %>
+            <div>
+              <% if (settings.googleConfigSource === 'custom') { %>
+                <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">
+                  <i class="bi bi-person-gear me-1"></i> Client Custom API
+                </span>
+              <% } else { %>
+                <span class="badge bg-secondary text-white">
+                  <i class="bi bi-code-slash me-1"></i> Developer Preset (Default)
+                </span>
+              <% } %>
+            </div>
           </div>
         </div>
 
         <p class="text-muted small mb-3">
-          When this integration is <strong>Enabled</strong>, citizens can sign in or register with one click using their Google Account.
-          When <strong>Disabled</strong>, the Google sign-in option is hidden and blocked; <strong>all logins must be performed manually</strong> using email and password.
+          When <strong>Enabled</strong>, citizens can sign in or register with one click using Google. When <strong>Disabled</strong>, logins are restricted to manual email & password.
         </p>
 
-        <div class="bg-light p-3 rounded-3 mb-3">
+        <!-- Current Configuration Preview -->
+        <div class="bg-light p-3 rounded-3 mb-3 border">
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="googleAuthSwitch" name="google_auth_enabled" value="1" <%= settings.googleAuthEnabled ? 'checked' : '' %>>
             <label class="form-check-label fw-bold" for="googleAuthSwitch">
@@ -66,15 +91,21 @@
             </label>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">Google Client ID (Optional for Demo / Production)</label>
-            <input type="text" name="google_client_id" class="form-control form-control-sm font-monospace" placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com" value="<%= settings.googleClientId %>">
+          <div class="small text-muted mb-2">
+            <strong>Active Client ID:</strong>
+            <span class="font-monospace text-dark d-block text-truncate">
+              <%= settings.activeGoogle.clientId || 'Not configured (using dev default)' %>
+            </span>
           </div>
 
-          <div>
-            <label class="form-label small fw-semibold">Google Client Secret</label>
-            <input type="password" name="google_client_secret" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.googleClientSecret %>">
-          </div>
+          <!-- Hidden inputs to submit current values if not modified via modal -->
+          <input type="hidden" name="google_config_source" id="google_config_source_hidden" value="<%= settings.googleConfigSource %>">
+          <input type="hidden" name="custom_google_client_id" id="custom_google_client_id_hidden" value="<%= settings.customGoogle.clientId %>">
+          <input type="hidden" name="custom_google_client_secret" id="custom_google_client_secret_hidden" value="<%= settings.customGoogle.clientSecret %>">
+
+          <button type="button" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-2" data-bs-toggle="modal" data-bs-target="#modalGoogleConfig">
+            <i class="bi bi-sliders me-1"></i> Configure Google API (Default vs Custom)
+          </button>
         </div>
 
         <div class="mt-auto small text-muted">
@@ -85,7 +116,7 @@
 
     <!-- 2. REST API Pluggable Gateway Card -->
     <div class="col-lg-6">
-      <div class="card card-custom p-4 h-100 border-<%= settings.apiEnabled ? 'primary' : 'light' %>">
+      <div class="card card-custom p-4 h-100 border-<%= settings.apiEnabled ? 'primary' : 'light' %> shadow-sm">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div class="d-flex align-items-center gap-3">
             <div class="avatar-circle <%= settings.apiEnabled ? 'bg-primary' : 'bg-secondary' %> text-white">
@@ -96,25 +127,36 @@
               <small class="text-muted">Pluggable API Service & Access Control</small>
             </div>
           </div>
-          <div>
+          <div class="text-end">
             <% if (settings.apiEnabled) { %>
-              <span class="badge bg-success-subtle text-success border border-success-subtle">
+              <span class="badge bg-success-subtle text-success border border-success-subtle mb-1 d-inline-block">
                 <i class="bi bi-check-circle-fill me-1"></i> Enabled (Active)
               </span>
             <% } else { %>
-              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle mb-1 d-inline-block">
                 <i class="bi bi-slash-circle-fill me-1"></i> Disabled (Blocked)
               </span>
             <% } %>
+            <div>
+              <% if (settings.apiConfigSource === 'custom') { %>
+                <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">
+                  <i class="bi bi-person-gear me-1"></i> Client Custom API
+                </span>
+              <% } else { %>
+                <span class="badge bg-secondary text-white">
+                  <i class="bi bi-code-slash me-1"></i> Developer Preset (Default)
+                </span>
+              <% } %>
+            </div>
           </div>
         </div>
 
         <p class="text-muted small mb-3">
-          When this integration is <strong>Enabled</strong>, authorized external systems, mobile clients, and developer integrations can access all <code>/api/*</code> endpoints.
-          When <strong>Disabled</strong>, all public and external API requests are intercepted and blocked with a <code>503 Service Unavailable</code> status.
+          When <strong>Enabled</strong>, external integrations and mobile apps can access <code>/api/*</code>. When <strong>Disabled</strong>, requests return <code>503 Service Unavailable</code>.
         </p>
 
-        <div class="bg-light p-3 rounded-3 mb-3">
+        <!-- Current Configuration Preview -->
+        <div class="bg-light p-3 rounded-3 mb-3 border">
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="apiSwitch" name="api_enabled" value="1" <%= settings.apiEnabled ? 'checked' : '' %>>
             <label class="form-check-label fw-bold" for="apiSwitch">
@@ -122,16 +164,24 @@
             </label>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">API Secret / Bearer Key (Optional for External Callers)</label>
-            <input type="password" name="api_secret_key" class="form-control form-control-sm font-monospace" placeholder="e.g. qf_live_sec_••••••••••••••••" value="<%= settings.apiSecretKey %>">
+          <div class="small text-muted mb-2">
+            <strong>Active API Secret:</strong>
+            <span class="font-monospace text-dark d-block">
+              <%= settings.activeApi.secretKey ? '••••••••••••••••' + settings.activeApi.secretKey.slice(-4) : 'None (Open Gateway)' %>
+            </span>
           </div>
 
-          <div class="d-flex align-items-center justify-content-between pt-1">
-            <small class="text-muted">Instant Action:</small>
+          <!-- Hidden inputs for REST API -->
+          <input type="hidden" name="api_config_source" id="api_config_source_hidden" value="<%= settings.apiConfigSource %>">
+          <input type="hidden" name="custom_api_secret_key" id="custom_api_secret_key_hidden" value="<%= settings.customApi.secretKey %>">
+
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalRestApiConfig">
+              <i class="bi bi-key me-1"></i> Configure API Key (Default vs Custom)
+            </button>
             <button type="submit" formaction="/admin/settings/toggle-api" class="btn btn-sm <%= settings.apiEnabled ? 'btn-outline-danger' : 'btn-outline-success' %> rounded-pill px-3">
               <i class="bi <%= settings.apiEnabled ? 'bi-toggle-on' : 'bi-toggle-off' %> me-1"></i>
-              <%= settings.apiEnabled ? 'Disable API Now' : 'Enable API Now' %>
+              <%= settings.apiEnabled ? 'Disable' : 'Enable' %>
             </button>
           </div>
         </div>
@@ -142,80 +192,162 @@
       </div>
     </div>
 
-    <!-- 3. Communication & Other Pluggable Integrations -->
+    <!-- 3. Additional Pluggable Services (SMTP & SMS & QR) -->
     <div class="col-12">
-      <div class="card card-custom p-4">
+      <div class="card card-custom p-4 shadow-sm">
         <h5 class="fw-bold mb-3 d-flex align-items-center">
-          <i class="bi bi-plug-fill text-warning me-2"></i> Additional Pluggable Services & Utilities
+          <i class="bi bi-plug-fill text-warning me-2"></i> Communication & Verification Services
         </h5>
 
-        <div class="row g-3">
-          <!-- SMS Notifications -->
-          <div class="col-md-4">
-            <div class="p-3 border rounded-3 bg-light h-100">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <div class="form-check form-switch mb-0">
-                  <input class="form-check-input" type="checkbox" id="smsSwitch" name="sms_notifications_enabled" value="1" <%= settings.smsNotificationsEnabled ? 'checked' : '' %>>
-                  <label class="form-check-label fw-bold" for="smsSwitch">SMS Gateway</label>
+        <div class="row g-4">
+          <!-- SMTP Email Service Card -->
+          <div class="col-lg-6">
+            <div class="p-4 border rounded-3 bg-light h-100 d-flex flex-column shadow-sm">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <div class="form-check form-switch mb-1">
+                    <input class="form-check-input" type="checkbox" id="emailSwitch" name="email_smtp_enabled" value="1" <%= settings.emailSmtpEnabled ? 'checked' : '' %>>
+                    <label class="form-check-label fw-bold fs-6" for="emailSwitch">SMTP / Email Service</label>
+                  </div>
+                  <small class="text-muted">Automated password recovery & clearance dispatch</small>
                 </div>
-                <% if (settings.smsNotificationsEnabled) { %>
-                  <span class="badge bg-success">Active</span>
-                <% } else { %>
-                  <span class="badge bg-secondary">Inactive</span>
-                <% } %>
+                <div class="text-end">
+                  <% if (settings.emailSmtpEnabled) { %>
+                    <span class="badge bg-success mb-1 d-inline-block">Active</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary mb-1 d-inline-block">Inactive</span>
+                  <% } %>
+                  <div>
+                    <% if (settings.smtpConfigSource === 'custom') { %>
+                      <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">
+                        <i class="bi bi-person-gear me-1"></i> Client Custom API
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-secondary text-white">
+                        <i class="bi bi-code-slash me-1"></i> Developer Preset (Default)
+                      </span>
+                    <% } %>
+                  </div>
+                </div>
               </div>
-              <small class="text-muted d-block mt-2">
-                Sends real-time SMS notifications via Twilio/PhilSMS when a document request changes status.
-              </small>
-            </div>
-          </div>
 
-          <!-- SMTP Email Service -->
-          <div class="col-md-4">
-            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <div class="form-check form-switch mb-0">
-                  <input class="form-check-input" type="checkbox" id="emailSwitch" name="email_smtp_enabled" value="1" <%= settings.emailSmtpEnabled ? 'checked' : '' %>>
-                  <label class="form-check-label fw-bold" for="emailSwitch">SMTP / Email Service</label>
+              <!-- Active SMTP Details -->
+              <div class="bg-white p-3 rounded border my-3">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Host & Port:</span>
+                  <span class="fw-semibold text-dark font-monospace"><%= settings.activeSmtp.host %>:<%= settings.activeSmtp.port %></span>
                 </div>
-                <% if (settings.emailSmtpEnabled) { %>
-                  <span class="badge bg-success">Active</span>
-                <% } else { %>
-                  <span class="badge bg-secondary">Inactive</span>
-                <% } %>
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Sender Account:</span>
+                  <span class="fw-semibold text-primary font-monospace text-truncate ms-2"><%= settings.activeSmtp.user || 'Not set' %></span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted">
+                  <span>SSL/TLS:</span>
+                  <span class="fw-semibold text-success"><%= settings.activeSmtp.secure ? 'Enabled (SSL 465)' : 'STARTTLS (587)' %></span>
+                </div>
               </div>
-              <small class="text-muted d-block mt-2 mb-2">
-                Automated dispatch of password recovery links and document release clearance notifications via Gmail SMTP.
-              </small>
-              <div class="mt-auto pt-2 border-top small">
-                <div class="text-truncate text-muted mb-2">
-                  <i class="bi bi-envelope-check-fill text-primary me-1"></i>
-                  <code><%= settings.smtpUser || 'quickfile.notification@gmail.com' %></code>
-                </div>
-                <button type="submit" formaction="/admin/settings/test-email" class="btn btn-sm btn-outline-primary rounded-pill w-100">
-                  <i class="bi bi-send-fill me-1"></i> Send Test Verification Email
+
+              <!-- Hidden inputs for SMTP -->
+              <input type="hidden" name="smtp_config_source" id="smtp_config_source_hidden" value="<%= settings.smtpConfigSource %>">
+              <input type="hidden" name="custom_smtp_host" id="custom_smtp_host_hidden" value="<%= settings.customSmtp.host %>">
+              <input type="hidden" name="custom_smtp_port" id="custom_smtp_port_hidden" value="<%= settings.customSmtp.port %>">
+              <input type="hidden" name="custom_smtp_secure" id="custom_smtp_secure_hidden" value="<%= settings.customSmtp.secure ? '1' : '0' %>">
+              <input type="hidden" name="custom_smtp_user" id="custom_smtp_user_hidden" value="<%= settings.customSmtp.user %>">
+              <input type="hidden" name="custom_smtp_pass" id="custom_smtp_pass_hidden" value="<%= settings.customSmtp.pass %>">
+              <input type="hidden" name="custom_smtp_from" id="custom_smtp_from_hidden" value="<%= settings.customSmtp.from %>">
+
+              <div class="mt-auto d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalSmtpConfig">
+                  <i class="bi bi-gear-fill me-1"></i> Configure SMTP API (Default vs Custom)
+                </button>
+                <button type="submit" formaction="/admin/settings/test-email" class="btn btn-sm btn-outline-secondary rounded-pill px-3" title="Send a test email using active SMTP configuration">
+                  <i class="bi bi-send-fill me-1"></i> Test Email
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- QR Engine -->
-          <div class="col-md-4">
-            <div class="p-3 border rounded-3 bg-light h-100">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <div class="form-check form-switch mb-0">
-                  <input class="form-check-input" type="checkbox" id="qrSwitch" name="qr_engine_enabled" value="1" <%= settings.qrEngineEnabled ? 'checked' : '' %>>
-                  <label class="form-check-label fw-bold" for="qrSwitch">QR Engine</label>
+          <!-- SMS Gateway Service Card -->
+          <div class="col-lg-6">
+            <div class="p-4 border rounded-3 bg-light h-100 d-flex flex-column shadow-sm">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <div class="form-check form-switch mb-1">
+                    <input class="form-check-input" type="checkbox" id="smsSwitch" name="sms_notifications_enabled" value="1" <%= settings.smsNotificationsEnabled ? 'checked' : '' %>>
+                    <label class="form-check-label fw-bold fs-6" for="smsSwitch">SMS Gateway Notifications</label>
+                  </div>
+                  <small class="text-muted">Real-time SMS alerts (PhilSMS / Twilio)</small>
                 </div>
+                <div class="text-end">
+                  <% if (settings.smsNotificationsEnabled) { %>
+                    <span class="badge bg-success mb-1 d-inline-block">Active</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary mb-1 d-inline-block">Inactive</span>
+                  <% } %>
+                  <div>
+                    <% if (settings.smsConfigSource === 'custom') { %>
+                      <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">
+                        <i class="bi bi-person-gear me-1"></i> Client Custom API
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-secondary text-white">
+                        <i class="bi bi-code-slash me-1"></i> Developer Preset (Default)
+                      </span>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Active SMS Details -->
+              <div class="bg-white p-3 rounded border my-3">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Provider:</span>
+                  <span class="fw-semibold text-dark"><%= settings.activeSms.provider || 'PhilSMS' %></span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Sender ID:</span>
+                  <span class="fw-semibold text-primary font-monospace"><%= settings.activeSms.senderId || 'BRGY_CENTRAL' %></span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted">
+                  <span>API Key:</span>
+                  <span class="fw-semibold text-muted font-monospace"><%= settings.activeSms.apiKey ? '••••••••' + settings.activeSms.apiKey.slice(-4) : 'Default Dev Key' %></span>
+                </div>
+              </div>
+
+              <!-- Hidden inputs for SMS -->
+              <input type="hidden" name="sms_config_source" id="sms_config_source_hidden" value="<%= settings.smsConfigSource %>">
+              <input type="hidden" name="custom_sms_provider" id="custom_sms_provider_hidden" value="<%= settings.customSms.provider %>">
+              <input type="hidden" name="custom_sms_api_key" id="custom_sms_api_key_hidden" value="<%= settings.customSms.apiKey %>">
+              <input type="hidden" name="custom_sms_sender_id" id="custom_sms_sender_id_hidden" value="<%= settings.customSms.senderId %>">
+
+              <div class="mt-auto">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill w-100" data-bs-toggle="modal" data-bs-target="#modalSmsConfig">
+                  <i class="bi bi-chat-dots me-1"></i> Configure SMS API (Default vs Custom)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Internal QR Engine Card -->
+          <div class="col-12">
+            <div class="p-3 border rounded-3 bg-light d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-qr-code-scan text-primary fs-3"></i>
+                <div>
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="qrSwitch" name="qr_engine_enabled" value="1" <%= settings.qrEngineEnabled ? 'checked' : '' %>>
+                    <label class="form-check-label fw-bold" for="qrSwitch">Internal QR Code Verification Engine</label>
+                  </div>
+                  <small class="text-muted">Generates cryptographic QR codes printed onto issued certificates for real-time validation.</small>
+                </div>
+              </div>
+              <div>
                 <% if (settings.qrEngineEnabled) { %>
                   <span class="badge bg-success">Active</span>
                 <% } else { %>
                   <span class="badge bg-secondary">Inactive</span>
                 <% } %>
               </div>
-              <small class="text-muted d-block mt-2">
-                Generates verifiable QR hashes printed on barangay clearances and certifications.
-              </small>
             </div>
           </div>
         </div>
@@ -223,11 +355,12 @@
     </div>
   </div>
 
-  <div class="card card-custom p-4 bg-light border-0">
+  <!-- Master Save Actions -->
+  <div class="card card-custom p-4 bg-light border-0 shadow-sm">
     <div class="d-flex justify-content-between align-items-center">
       <div>
-        <h6 class="fw-bold mb-0">Save Integration Changes</h6>
-        <small class="text-muted">Changes take effect immediately across all citizen and staff portals.</small>
+        <h6 class="fw-bold mb-0">Save Global Integration Changes</h6>
+        <small class="text-muted">Applies all toggle statuses and API configurations immediately across citizen and staff portals.</small>
       </div>
       <button type="submit" class="btn btn-primary px-4 py-2 rounded-pill fw-semibold">
         <i class="bi bi-save-fill me-1"></i> Save App Settings
@@ -235,5 +368,506 @@
     </div>
   </div>
 </form>
+
+<!-- ======================================================== -->
+<!-- MODAL 1: SMTP API Configuration (Default vs Custom)      -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalSmtpConfig" tabindex="-1" aria-labelledby="modalSmtpLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold" id="modalSmtpLabel">
+          <i class="bi bi-envelope-gear me-2"></i> Configure SMTP / Email Service API
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-4">
+          Choose whether QuickFile should send system emails using the out-of-the-box <strong>Developer Default Presets</strong> or your barangay's <strong>Client Custom SMTP</strong> server.
+        </p>
+
+        <!-- Source Selector Tabs / Radios -->
+        <div class="card bg-light p-3 mb-4 border">
+          <label class="form-label fw-bold small text-uppercase text-muted mb-2">Select Active API Source</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="smtp_source_radio" id="smtpSourceDefault" value="default" <%= settings.smtpConfigSource === 'default' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="smtpSourceDefault">
+                <i class="bi bi-code-slash text-secondary me-1"></i> 1. Developer Default (Presets)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="smtp_source_radio" id="smtpSourceCustom" value="custom" <%= settings.smtpConfigSource === 'custom' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="smtpSourceCustom">
+                <i class="bi bi-person-gear text-primary me-1"></i> 2. Client Custom API (Barangay Setup)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Developer Default Card View -->
+        <div id="smtpDefaultSection" class="<%= settings.smtpConfigSource === 'default' ? '' : 'd-none' %>">
+          <div class="alert alert-secondary border">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-secondary">System Preset</span>
+              <strong class="text-dark">Developer Default Out-of-the-Box Configuration</strong>
+            </div>
+            <p class="small text-muted mb-3">
+              Configured by the developer team in <code>.env</code> (<code>DEFAULT_SMTP_*</code>). Ready to dispatch emails without any extra setup.
+            </p>
+            <div class="row g-2 small font-monospace bg-white p-3 rounded border">
+              <div class="col-sm-6 text-muted">SMTP Host: <strong class="text-dark"><%= settings.defaultSmtp.host %></strong></div>
+              <div class="col-sm-6 text-muted">SMTP Port: <strong class="text-dark"><%= settings.defaultSmtp.port %></strong></div>
+              <div class="col-sm-6 text-muted">Sender Account: <strong class="text-dark"><%= settings.defaultSmtp.user %></strong></div>
+              <div class="col-sm-6 text-muted">SSL/TLS Secure: <strong class="text-dark"><%= settings.defaultSmtp.secure ? 'true' : 'false' %></strong></div>
+              <div class="col-12 text-muted">From Header: <strong class="text-dark"><%= settings.defaultSmtp.from %></strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Client Custom API Inputs -->
+        <div id="smtpCustomSection" class="<%= settings.smtpConfigSource === 'custom' ? '' : 'd-none' %>">
+          <div class="border rounded-3 p-3 bg-white mb-3">
+            <h6 class="fw-bold text-primary mb-3">
+              <i class="bi bi-sliders me-1"></i> Client Custom SMTP Credentials
+            </h6>
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label small fw-semibold">SMTP Host / Server</label>
+                <input type="text" id="modal_custom_smtp_host" class="form-control form-control-sm font-monospace" placeholder="smtp.gmail.com or mail.barangay.gov.ph" value="<%= settings.customSmtp.host %>">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Port</label>
+                <input type="number" id="modal_custom_smtp_port" class="form-control form-control-sm font-monospace" placeholder="465" value="<%= settings.customSmtp.port %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Username / Email Address</label>
+                <input type="email" id="modal_custom_smtp_user" class="form-control form-control-sm font-monospace" placeholder="barangay.official@gmail.com" value="<%= settings.customSmtp.user %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">App Password / Secret Key</label>
+                <input type="password" id="modal_custom_smtp_pass" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.customSmtp.pass %>">
+                <small class="text-muted" style="font-size: 11px;">For Gmail, generate a 16-character Google App Password.</small>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label small fw-semibold">Custom Sender Display (From Header)</label>
+                <input type="text" id="modal_custom_smtp_from" class="form-control form-control-sm" placeholder='"Barangay Central Services" <barangay.official@gmail.com>' value="<%= settings.customSmtp.from %>">
+              </div>
+              <div class="col-md-4 d-flex align-items-center pt-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="modal_custom_smtp_secure" <%= settings.customSmtp.secure ? 'checked' : '' %>>
+                  <label class="form-check-label small fw-semibold" for="modal_custom_smtp_secure">SSL/TLS (Port 465)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Connection Test Panel -->
+        <div class="border rounded-3 p-3 bg-light mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-bold">Live SMTP Connection Verification</span>
+            <button type="button" id="btnTestSmtpConnection" class="btn btn-sm btn-outline-primary rounded-pill">
+              <span id="spinnerTestSmtp" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+              <i class="bi bi-broadcast me-1"></i> Test Connection Now
+            </button>
+          </div>
+          <div id="smtpTestAlert" class="alert d-none py-2 px-3 small mb-0" role="alert"></div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnApplySmtpModal" class="btn btn-primary rounded-pill px-4">
+          <i class="bi bi-check-lg me-1"></i> Apply & Save SMTP Settings
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL 2: Google OAuth Configuration (Default vs Custom)  -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalGoogleConfig" tabindex="-1" aria-labelledby="modalGoogleLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold" id="modalGoogleLabel">
+          <i class="bi bi-google me-2"></i> Configure Google Authentication API
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-4">
+          Select between using developer default OAuth client parameters or your barangay's registered Google Cloud Console OAuth App.
+        </p>
+
+        <!-- Source Selector Tabs / Radios -->
+        <div class="card bg-light p-3 mb-4 border">
+          <label class="form-label fw-bold small text-uppercase text-muted mb-2">Select Active API Source</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="google_source_radio" id="googleSourceDefault" value="default" <%= settings.googleConfigSource === 'default' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="googleSourceDefault">
+                <i class="bi bi-code-slash text-secondary me-1"></i> 1. Developer Default (Presets)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="google_source_radio" id="googleSourceCustom" value="custom" <%= settings.googleConfigSource === 'custom' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="googleSourceCustom">
+                <i class="bi bi-person-gear text-primary me-1"></i> 2. Client Custom API (Barangay Setup)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Developer Default Card View -->
+        <div id="googleDefaultSection" class="<%= settings.googleConfigSource === 'default' ? '' : 'd-none' %>">
+          <div class="alert alert-secondary border">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-secondary">System Preset</span>
+              <strong class="text-dark">Developer Default Google OAuth Client</strong>
+            </div>
+            <p class="small text-muted mb-2">
+              Preset configured via <code>DEFAULT_GOOGLE_CLIENT_ID</code> in <code>.env</code>.
+            </p>
+            <div class="small font-monospace bg-white p-3 rounded border text-muted">
+              Client ID: <strong class="text-dark"><%= settings.defaultGoogle.clientId %></strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Client Custom API Inputs -->
+        <div id="googleCustomSection" class="<%= settings.googleConfigSource === 'custom' ? '' : 'd-none' %>">
+          <div class="border rounded-3 p-3 bg-white mb-3">
+            <h6 class="fw-bold text-primary mb-3">
+              <i class="bi bi-sliders me-1"></i> Client Custom Google OAuth Credentials
+            </h6>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Google OAuth Client ID</label>
+              <input type="text" id="modal_custom_google_client_id" class="form-control form-control-sm font-monospace" placeholder="123456789-abcdef.apps.googleusercontent.com" value="<%= settings.customGoogle.clientId %>">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Google OAuth Client Secret</label>
+              <input type="password" id="modal_custom_google_client_secret" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.customGoogle.clientSecret %>">
+            </div>
+            <div class="alert alert-light border small text-muted mb-0">
+              <i class="bi bi-info-circle me-1"></i> Authorized Redirect URI to whitelist in your Google Cloud Console:
+              <br><code class="text-primary font-monospace">http://localhost:3000/citizen/auth/google</code>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnApplyGoogleModal" class="btn btn-primary rounded-pill px-4">
+          <i class="bi bi-check-lg me-1"></i> Apply & Save Google API
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL 3: REST API Gateway Key (Default vs Custom)        -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalRestApiConfig" tabindex="-1" aria-labelledby="modalRestApiLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold" id="modalRestApiLabel">
+          <i class="bi bi-key me-2"></i> Configure REST API & External Gateway Key
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-4">
+          Configure external API access authentication. Choose between developer default authorization token or generate a custom barangay API secret.
+        </p>
+
+        <!-- Source Selector Tabs / Radios -->
+        <div class="card bg-light p-3 mb-4 border">
+          <label class="form-label fw-bold small text-uppercase text-muted mb-2">Select Active API Source</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="api_source_radio" id="apiSourceDefault" value="default" <%= settings.apiConfigSource === 'default' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="apiSourceDefault">
+                <i class="bi bi-code-slash text-secondary me-1"></i> 1. Developer Default (Presets)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="api_source_radio" id="apiSourceCustom" value="custom" <%= settings.apiConfigSource === 'custom' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="apiSourceCustom">
+                <i class="bi bi-person-gear text-primary me-1"></i> 2. Client Custom API (Barangay Setup)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Developer Default Card View -->
+        <div id="apiDefaultSection" class="<%= settings.apiConfigSource === 'default' ? '' : 'd-none' %>">
+          <div class="alert alert-secondary border">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-secondary">System Preset</span>
+              <strong class="text-dark">Developer Default API Key</strong>
+            </div>
+            <div class="small font-monospace bg-white p-3 rounded border text-muted">
+              Secret Key: <strong class="text-dark"><%= settings.defaultApi.secretKey %></strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Client Custom API Inputs -->
+        <div id="apiCustomSection" class="<%= settings.apiConfigSource === 'custom' ? '' : 'd-none' %>">
+          <div class="border rounded-3 p-3 bg-white mb-3">
+            <h6 class="fw-bold text-primary mb-3">
+              <i class="bi bi-sliders me-1"></i> Custom Client API Gateway Token
+            </h6>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Custom API Secret / Bearer Key</label>
+              <div class="input-group">
+                <input type="text" id="modal_custom_api_secret_key" class="form-control form-control-sm font-monospace" placeholder="qf_live_sec_••••••••••••••••" value="<%= settings.customApi.secretKey %>">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="btnGenApiKey">
+                  <i class="bi bi-magic me-1"></i> Generate
+                </button>
+              </div>
+              <small class="text-muted">External systems pass this via <code>Authorization: Bearer &lt;key&gt;</code> or <code>x-api-key</code>.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnApplyRestApiModal" class="btn btn-primary rounded-pill px-4">
+          <i class="bi bi-check-lg me-1"></i> Apply & Save API Key
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL 4: SMS Gateway Configuration (Default vs Custom)   -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalSmsConfig" tabindex="-1" aria-labelledby="modalSmsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold" id="modalSmsLabel">
+          <i class="bi bi-chat-dots me-2"></i> Configure SMS Gateway API
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-4">
+          Manage SMS notifications dispatched when request statuses change. Use developer default SMS presets or your own PhilSMS / Twilio credentials.
+        </p>
+
+        <!-- Source Selector Tabs / Radios -->
+        <div class="card bg-light p-3 mb-4 border">
+          <label class="form-label fw-bold small text-uppercase text-muted mb-2">Select Active API Source</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="sms_source_radio" id="smsSourceDefault" value="default" <%= settings.smsConfigSource === 'default' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="smsSourceDefault">
+                <i class="bi bi-code-slash text-secondary me-1"></i> 1. Developer Default (Presets)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="sms_source_radio" id="smsSourceCustom" value="custom" <%= settings.smsConfigSource === 'custom' ? 'checked' : '' %>>
+              <label class="form-check-label fw-semibold" for="smsSourceCustom">
+                <i class="bi bi-person-gear text-primary me-1"></i> 2. Client Custom API (Barangay Setup)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Developer Default Card View -->
+        <div id="smsDefaultSection" class="<%= settings.smsConfigSource === 'default' ? '' : 'd-none' %>">
+          <div class="alert alert-secondary border">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-secondary">System Preset</span>
+              <strong class="text-dark">Developer Default SMS Gateway</strong>
+            </div>
+            <div class="row g-2 small font-monospace bg-white p-3 rounded border text-muted">
+              <div class="col-sm-6">Provider: <strong class="text-dark"><%= settings.defaultSms.provider %></strong></div>
+              <div class="col-sm-6">Sender ID: <strong class="text-dark"><%= settings.defaultSms.senderId %></strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Client Custom API Inputs -->
+        <div id="smsCustomSection" class="<%= settings.smsConfigSource === 'custom' ? '' : 'd-none' %>">
+          <div class="border rounded-3 p-3 bg-white mb-3">
+            <h6 class="fw-bold text-primary mb-3">
+              <i class="bi bi-sliders me-1"></i> Client Custom SMS Gateway Credentials
+            </h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">SMS Provider</label>
+                <select id="modal_custom_sms_provider" class="form-select form-select-sm">
+                  <option value="PhilSMS" <%= settings.customSms.provider === 'PhilSMS' ? 'selected' : '' %>>PhilSMS</option>
+                  <option value="Twilio" <%= settings.customSms.provider === 'Twilio' ? 'selected' : '' %>>Twilio</option>
+                  <option value="Semaphore" <%= settings.customSms.provider === 'Semaphore' ? 'selected' : '' %>>Semaphore</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Sender ID (Alpha Tag)</label>
+                <input type="text" id="modal_custom_sms_sender_id" class="form-control form-control-sm font-monospace" placeholder="e.g. BRGY_CENTRAL" value="<%= settings.customSms.senderId %>">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">API Key / Auth Token</label>
+                <input type="password" id="modal_custom_sms_api_key" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.customSms.apiKey %>">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnApplySmsModal" class="btn btn-primary rounded-pill px-4">
+          <i class="bi bi-check-lg me-1"></i> Apply & Save SMS Settings
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Dynamic Tab / Radio Toggling for SMTP
+  document.querySelectorAll('input[name="smtp_source_radio"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      document.getElementById('smtpDefaultSection').classList.toggle('d-none', isCustom);
+      document.getElementById('smtpCustomSection').classList.toggle('d-none', !isCustom);
+    });
+  });
+
+  // Dynamic Tab / Radio Toggling for Google
+  document.querySelectorAll('input[name="google_source_radio"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      document.getElementById('googleDefaultSection').classList.toggle('d-none', isCustom);
+      document.getElementById('googleCustomSection').classList.toggle('d-none', !isCustom);
+    });
+  });
+
+  // Dynamic Tab / Radio Toggling for REST API
+  document.querySelectorAll('input[name="api_source_radio"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      document.getElementById('apiDefaultSection').classList.toggle('d-none', isCustom);
+      document.getElementById('apiCustomSection').classList.toggle('d-none', !isCustom);
+    });
+  });
+
+  // Dynamic Tab / Radio Toggling for SMS
+  document.querySelectorAll('input[name="sms_source_radio"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      document.getElementById('smsDefaultSection').classList.toggle('d-none', isCustom);
+      document.getElementById('smsCustomSection').classList.toggle('d-none', !isCustom);
+    });
+  });
+
+  // Generator for REST API Secret Key
+  document.getElementById('btnGenApiKey')?.addEventListener('click', () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let key = 'qf_live_sec_';
+    for (let i = 0; i < 32; i++) {
+      key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('modal_custom_api_secret_key').value = key;
+  });
+
+  // Test SMTP Connection Button inside Modal
+  document.getElementById('btnTestSmtpConnection')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btnTestSmtpConnection');
+    const spinner = document.getElementById('spinnerTestSmtp');
+    const alertBox = document.getElementById('smtpTestAlert');
+
+    const source = document.querySelector('input[name="smtp_source_radio"]:checked').value;
+    const payload = {
+      source: source
+    };
+
+    if (source === 'custom') {
+      payload.host = document.getElementById('modal_custom_smtp_host').value;
+      payload.port = document.getElementById('modal_custom_smtp_port').value;
+      payload.secure = document.getElementById('modal_custom_smtp_secure').checked;
+      payload.user = document.getElementById('modal_custom_smtp_user').value;
+      payload.pass = document.getElementById('modal_custom_smtp_pass').value;
+    }
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    alertBox.className = 'alert alert-info py-2 px-3 small mb-0';
+    alertBox.textContent = 'Testing SMTP connection to server...';
+    alertBox.classList.remove('d-none');
+
+    try {
+      const res = await fetch('/admin/settings/test-smtp-connection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alertBox.className = 'alert alert-success py-2 px-3 small mb-0';
+        alertBox.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> ' + data.message;
+      } else {
+        alertBox.className = 'alert alert-danger py-2 px-3 small mb-0';
+        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Error: ' + (data.message || 'Connection failed.');
+      }
+    } catch (err) {
+      alertBox.className = 'alert alert-danger py-2 px-3 small mb-0';
+      alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Network error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    }
+  });
+
+  // Modal Apply Handlers: sync modal inputs to master form and submit
+  document.getElementById('btnApplySmtpModal')?.addEventListener('click', () => {
+    const source = document.querySelector('input[name="smtp_source_radio"]:checked').value;
+    document.getElementById('smtp_config_source_hidden').value = source;
+    document.getElementById('custom_smtp_host_hidden').value = document.getElementById('modal_custom_smtp_host').value;
+    document.getElementById('custom_smtp_port_hidden').value = document.getElementById('modal_custom_smtp_port').value;
+    document.getElementById('custom_smtp_secure_hidden').value = document.getElementById('modal_custom_smtp_secure').checked ? '1' : '0';
+    document.getElementById('custom_smtp_user_hidden').value = document.getElementById('modal_custom_smtp_user').value;
+    document.getElementById('custom_smtp_pass_hidden').value = document.getElementById('modal_custom_smtp_pass').value;
+    document.getElementById('custom_smtp_from_hidden').value = document.getElementById('modal_custom_smtp_from').value;
+    document.getElementById('masterSettingsForm').submit();
+  });
+
+  document.getElementById('btnApplyGoogleModal')?.addEventListener('click', () => {
+    const source = document.querySelector('input[name="google_source_radio"]:checked').value;
+    document.getElementById('google_config_source_hidden').value = source;
+    document.getElementById('custom_google_client_id_hidden').value = document.getElementById('modal_custom_google_client_id').value;
+    document.getElementById('custom_google_client_secret_hidden').value = document.getElementById('modal_custom_google_client_secret').value;
+    document.getElementById('masterSettingsForm').submit();
+  });
+
+  document.getElementById('btnApplyRestApiModal')?.addEventListener('click', () => {
+    const source = document.querySelector('input[name="api_source_radio"]:checked').value;
+    document.getElementById('api_config_source_hidden').value = source;
+    document.getElementById('custom_api_secret_key_hidden').value = document.getElementById('modal_custom_api_secret_key').value;
+    document.getElementById('masterSettingsForm').submit();
+  });
+
+  document.getElementById('btnApplySmsModal')?.addEventListener('click', () => {
+    const source = document.querySelector('input[name="sms_source_radio"]:checked').value;
+    document.getElementById('sms_config_source_hidden').value = source;
+    document.getElementById('custom_sms_provider_hidden').value = document.getElementById('modal_custom_sms_provider').value;
+    document.getElementById('custom_sms_api_key_hidden').value = document.getElementById('modal_custom_sms_api_key').value;
+    document.getElementById('custom_sms_sender_id_hidden').value = document.getElementById('modal_custom_sms_sender_id').value;
+    document.getElementById('masterSettingsForm').submit();
+  });
+</script>
 
 <%- include('../layouts/footer') %>
