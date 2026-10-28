@@ -32,7 +32,8 @@ async function testAppSettings() {
   const mockReqDisabled = {
     xhr: true,
     headers: { accept: 'application/json' },
-    body: { googleEmail: 'google.test@gmail.com' }
+    body: { googleEmail: 'google.test@gmail.com' },
+    query: {}
   };
   const mockResDisabled = {
     status: (code) => {
@@ -137,7 +138,8 @@ async function testAppSettings() {
   const mockReqEnabled = {
     xhr: true,
     headers: { accept: 'application/json' },
-    body: { googleEmail: 'juandelacruz.google@gmail.com', googleName: 'Juan Dela Cruz (Google)' }
+    body: { googleEmail: 'juandelacruz.google@gmail.com', googleName: 'Juan Dela Cruz (Google)' },
+    query: {}
   };
   const mockResEnabled = {
     status: (code) => mockResEnabled,
@@ -156,6 +158,15 @@ async function testAppSettings() {
   if (!loginSuccess) {
     throw new Error('Failed to authenticate via Google when enabled!');
   }
+
+  // Revert Google OAuth back to developer default
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    google_auth_enabled: '1',
+    google_config_source: 'default',
+    custom_google_client_id: '',
+    custom_google_client_secret: ''
+  });
+  console.log('✓ Restored Google Auth to Developer Default preset');
 
   // 4. Test REST API Gateway Dual-Tier Architecture & Key Resolution
   console.log('\n[6] Testing REST API Gateway & Key Resolution...');
@@ -199,7 +210,8 @@ async function testAppSettings() {
   const mockReqToggle = {
     user: adminLogin.admin,
     xhr: true,
-    headers: { accept: 'application/json' }
+    headers: { accept: 'application/json' },
+    query: {}
   };
   const mockResToggle = {
     json: (data) => { toggleResData = data; },

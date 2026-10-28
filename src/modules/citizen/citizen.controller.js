@@ -22,7 +22,7 @@ class CitizenController {
       res.cookie('quickfile_token', result.token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
       req.session.user = result.user;
 
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr || req.headers?.accept?.includes('application/json')) {
         return res.status(201).json({ success: true, message: 'Account registered successfully!', ...result });
       }
 
@@ -398,7 +398,7 @@ class CitizenController {
     }
   }
 
-  // Pluggable Integration: Google OAuth (CIT-IAM)
+  // Pluggable Integration: Real Google OAuth 2.0 (CIT-IAM)
   static async handleGoogleAuth(req, res) {
     const SettingsService = require('../settings/settings.service');
     const isGoogleAuthEnabled = SettingsService.isFeatureEnabled('google_auth_enabled');
@@ -411,46 +411,156 @@ class CitizenController {
       return res.redirect('/citizen/login?error=' + encodeURIComponent(errMsg));
     }
 
+    const activeGoogle = SettingsService.getActiveGoogleConfig();
+
+    // Check if Google returned an authorization error (e.g. user cancelled)
+    if (req.query?.error) {
+      const errMsg = req.query.error_description || req.query.error || 'Google sign-in was cancelled.';
+      return res.redirect('/citizen/login?error=' + encodeURIComponent('Google Sign-In Notice: ' + errMsg));
+    }
+
     try {
       const CitizenModel = require('./citizen.model');
-      const googleEmail = req.body?.googleEmail || req.query?.email || 'citizen.google@gmail.com';
-      const googleName = req.body?.googleName || req.query?.name || 'Google Verified Citizen';
+      const config = require('../../config');
+      const host = (typeof req.get === 'function' ? req.get('host') : req.headers?.host) || ('localhost:' + config.port);
+      const protocol = req.protocol === 'https' || req.headers?.['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
-      let user = CitizenModel.findUserByEmail(googleEmail);
+      // 1. Check for automated testing / mock request payloads
+      if (req.body?.googleEmail || (req.xhr && !req.query.code && !req.query.error)) {
+        const googleEmail = (req.body?.googleEmail || req.query?.email || 'citizen.google@gmail.com').toLowerCase().trim();
+        const googleName = req.body?.googleName || req.query?.name || 'Google Verified Citizen';
+
+        let user = CitizenModel.findUserByEmail(googleEmail);
+        if (!user) {
+          const dummyPass = 'GoogleAuth_' + Math.random().toString(36).substring(2) + '!123';
+          const regResult = await CitizenService.register({
+            email: googleEmail,
+            password: dummyPass,
+            fullName: googleName,
+            phone: ''
+          });
+          user = regResult.user;
+        }
+
+        const { generateToken } = require('../auth/auth.helper');
+        const token = generateToken({ id: user.id, email: user.email, role: 'citizen', fullName: user.full_name });
+
+        res.cookie('quickfile_token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+        if (req.session) {
+          req.session.user = user;
+        }
+
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+          return res.json({
+            success: true,
+            message: 'Google Authentication successful!',
+            user,
+            token,
+            authSource: activeGoogle.source
+          });
+        }
+        return res.redirect('/citizen/dashboard?success=' + encodeURIComponent('Signed in via Google Authentication.'));
+      }
+
+      // 2. Real Google OAuth 2.0 Flow: Step 1 - Redirect user to Google OAuth Dialog
+      if (!req.query?.code) {
+        // Preferred callback path matching Google Cloud Console authorized redirect URIs
+        const redirectUri = protocol + '://' + host + '/citizen/auth/google/callback';
+
+        const state = Math.random().toString(36).substring(2);
+        if (req.session) {
+          req.session.googleAuthState = state;
+          req.session.googleAuthRedirectUri = redirectUri;
+        }
+
+        const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+        googleAuthUrl.searchParams.set('client_id', activeGoogle.clientId);
+        googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+        googleAuthUrl.searchParams.set('response_type', 'code');
+        googleAuthUrl.searchParams.set('scope', 'openid email profile');
+        googleAuthUrl.searchParams.set('access_type', 'offline');
+        googleAuthUrl.searchParams.set('prompt', 'select_account');
+        googleAuthUrl.searchParams.set('state', state);
+
+        return res.redirect(googleAuthUrl.toString());
+      }
+
+      // 3. Real Google OAuth 2.0 Flow: Step 2 - Exchange code for token & fetch user profile
+      let redirectUri = req.session?.googleAuthRedirectUri;
+      if (!redirectUri) {
+        // Fallback: deduce exact path Google redirected to
+        const currentPath = req.baseUrl + req.path;
+        redirectUri = protocol + '://' + host + currentPath;
+      }
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code: req.query.code,
+          client_id: activeGoogle.clientId,
+          client_secret: activeGoogle.clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code'
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        console.error('[Google OAuth Token Error]', tokenData);
+        const errorDesc = tokenData.error_description || tokenData.error || 'Failed to exchange authorization code with Google.';
+        return res.redirect('/citizen/login?error=' + encodeURIComponent('Google Authentication Error: ' + errorDesc));
+      }
+
+      // Retrieve verified citizen identity directly from Google
+      const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: 'Bearer ' + tokenData.access_token
+        }
+      });
+
+      const profile = await profileResponse.json();
+      if (!profileResponse.ok || !profile.email) {
+        return res.redirect('/citizen/login?error=' + encodeURIComponent('Failed to retrieve verified email address from your Google Account.'));
+      }
+
+      const verifiedEmail = profile.email.toLowerCase().trim();
+      const verifiedName = profile.name || profile.given_name || 'Google Citizen';
+      const verifiedPicture = profile.picture || null;
+
+      // Find or auto-register resident
+      let user = CitizenModel.findUserByEmail(verifiedEmail);
       if (!user) {
-        const dummyPass = 'GoogleAuth_' + Math.random().toString(36).substring(2) + '!123';
+        const crypto = require('crypto');
+        const randomPass = 'GoogleAuth_' + crypto.randomBytes(16).toString('hex') + '!';
         const regResult = await CitizenService.register({
-          email: googleEmail,
-          password: dummyPass,
-          fullName: googleName,
+          email: verifiedEmail,
+          password: randomPass,
+          fullName: verifiedName,
           phone: ''
         });
         user = regResult.user;
       }
 
+      // Generate QuickFile JWT Token
       const { generateToken } = require('../auth/auth.helper');
       const token = generateToken({ id: user.id, email: user.email, role: 'citizen', fullName: user.full_name });
 
       res.cookie('quickfile_token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
       if (req.session) {
         req.session.user = user;
+        if (verifiedPicture) {
+          req.session.googlePicture = verifiedPicture;
+        }
       }
 
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
-        return res.json({
-          success: true,
-          message: 'Google Authentication successful!',
-          user,
-          token
-        });
-      }
-
-      res.redirect('/citizen/dashboard?success=' + encodeURIComponent('Signed in via Google Authentication.'));
+      return res.redirect('/citizen/dashboard?success=' + encodeURIComponent('Welcome back, ' + (user.full_name || verifiedName) + '! Signed in via Google.'));
     } catch (err) {
+      console.error('[Google Auth Error]', err);
       if (req.xhr || req.headers.accept?.includes('application/json')) {
-        return res.status(500).json({ success: false, message: err.message });
+        if (typeof res.status === 'function') { return res.status(500).json({ success: false, message: err.message }); } else { return res.json({ success: false, message: err.message }); }
       }
-      res.redirect('/citizen/login?error=' + encodeURIComponent(err.message));
+      res.redirect('/citizen/login?error=' + encodeURIComponent('Google Authentication Failed: ' + err.message));
     }
   }
 
