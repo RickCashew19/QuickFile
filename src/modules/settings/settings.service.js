@@ -129,6 +129,7 @@ class SettingsService {
 
     const defaultCfg = {
       provider: config.defaultSms.provider,
+      apiEndpoint: config.defaultSms.apiEndpoint,
       apiKey: config.defaultSms.apiKey,
       senderId: config.defaultSms.senderId,
       source: 'default'
@@ -136,14 +137,16 @@ class SettingsService {
 
     if (source === 'custom') {
       const customProvider = map['custom_sms_provider'] || config.customSms.provider;
+      const customApiEndpoint = map['custom_sms_api_endpoint'] || config.customSms.apiEndpoint;
       const customApiKey = map['custom_sms_api_key'] || config.customSms.apiKey;
       const customSenderId = map['custom_sms_sender_id'] || config.customSms.senderId;
 
       if (customApiKey) {
         return {
           provider: customProvider || 'PhilSMS',
+          apiEndpoint: customApiEndpoint || config.defaultSms.apiEndpoint,
           apiKey: customApiKey,
-          senderId: customSenderId || 'BRGY_CENTRAL',
+          senderId: customSenderId || 'PhilSMS',
           source: 'custom',
           isFallback: false
         };
@@ -233,12 +236,14 @@ class SettingsService {
 
     const defaultSms = {
       provider: config.defaultSms.provider,
+      apiEndpoint: config.defaultSms.apiEndpoint,
       apiKey: config.defaultSms.apiKey,
       senderId: config.defaultSms.senderId
     };
 
     const customSms = {
       provider: map['custom_sms_provider'] !== undefined && map['custom_sms_provider'] !== '' ? map['custom_sms_provider'] : config.customSms.provider,
+      apiEndpoint: map['custom_sms_api_endpoint'] !== undefined && map['custom_sms_api_endpoint'] !== '' ? map['custom_sms_api_endpoint'] : config.customSms.apiEndpoint,
       apiKey: map['custom_sms_api_key'] !== undefined && map['custom_sms_api_key'] !== '' ? map['custom_sms_api_key'] : config.customSms.apiKey,
       senderId: map['custom_sms_sender_id'] !== undefined && map['custom_sms_sender_id'] !== '' ? map['custom_sms_sender_id'] : config.customSms.senderId
     };
@@ -371,6 +376,7 @@ class SettingsService {
 
     // Custom SMS Gateway fields
     if (updates.custom_sms_provider !== undefined) settingsMap.custom_sms_provider = updates.custom_sms_provider.trim();
+    if (updates.custom_sms_api_endpoint !== undefined) settingsMap.custom_sms_api_endpoint = updates.custom_sms_api_endpoint.trim();
     if (updates.custom_sms_api_key !== undefined) settingsMap.custom_sms_api_key = updates.custom_sms_api_key.trim();
     if (updates.custom_sms_sender_id !== undefined) settingsMap.custom_sms_sender_id = updates.custom_sms_sender_id.trim();
 

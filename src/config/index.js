@@ -55,8 +55,9 @@ const defaultGoogle = {
 
 const defaultSms = {
   provider: process.env.DEFAULT_SMS_PROVIDER || 'PhilSMS',
+  apiEndpoint: process.env.DEFAULT_SMS_API_ENDPOINT || 'https://dashboard.philsms.com/api/v3/',
   apiKey: process.env.DEFAULT_SMS_API_KEY || 'philsms_default_dev_key_2026',
-  senderId: process.env.DEFAULT_SMS_SENDER_ID || 'BRGY_CENTRAL'
+  senderId: process.env.DEFAULT_SMS_SENDER_ID || 'PhilSMS'
 };
 
 const defaultApi = {
@@ -80,6 +81,7 @@ const customGoogle = {
 
 const customSms = {
   provider: process.env.CUSTOM_SMS_PROVIDER || '',
+  apiEndpoint: process.env.CUSTOM_SMS_API_ENDPOINT || '',
   apiKey: process.env.CUSTOM_SMS_API_KEY || '',
   senderId: process.env.CUSTOM_SMS_SENDER_ID || ''
 };

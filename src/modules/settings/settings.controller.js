@@ -152,6 +152,68 @@ class SettingsController {
     }
   }
 
+  // POST: Check SMS Gateway Balance and Status
+  static async handleCheckSmsBalance(req, res) {
+    try {
+      const SmsSender = require('../../utils/sms');
+      let configOverride = null;
+
+      if (req.body.source === 'custom' && req.body.apiKey) {
+        configOverride = {
+          provider: req.body.provider || 'PhilSMS',
+          apiEndpoint: req.body.apiEndpoint || 'https://dashboard.philsms.com/api/v3/',
+          apiKey: req.body.apiKey.trim(),
+          senderId: req.body.senderId || 'PhilSMS',
+          source: 'custom'
+        };
+      }
+
+      const result = await SmsSender.checkBalance(configOverride);
+      if (!result.success) {
+        return res.status(400).json({ success: false, message: result.error || 'Failed to verify SMS Gateway status.' });
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
+
+  // POST: Send Test SMS
+  static async handleTestSms(req, res) {
+    try {
+      const SmsSender = require('../../utils/sms');
+      const targetPhone = req.body.phone || req.user?.phone || '09170000001';
+      let configOverride = null;
+
+      if (req.body.source === 'custom' && req.body.apiKey) {
+        configOverride = {
+          provider: req.body.provider || 'PhilSMS',
+          apiEndpoint: req.body.apiEndpoint || 'https://dashboard.philsms.com/api/v3/',
+          apiKey: req.body.apiKey.trim(),
+          senderId: req.body.senderId || 'PhilSMS',
+          source: 'custom'
+        };
+      }
+
+      const result = await SmsSender.sendSms({
+        to: targetPhone,
+        message: 'QuickFile: SMS Gateway test dispatch from Barangay Central.'
+      }, configOverride);
+
+      if (!result.success && !result.skipped) {
+        return res.status(400).json({ success: false, message: result.error || 'Failed to dispatch test SMS.' });
+      }
+
+      return res.json({
+        success: true,
+        message: `Test SMS request dispatched to ${targetPhone} via ${result.provider} (${result.source.toUpperCase()})!`
+      });
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
+
   // GET: JSON API endpoint
   static apiGetSettings(req, res) {
     const settings = SettingsService.getIntegrationSettings();

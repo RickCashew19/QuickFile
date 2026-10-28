@@ -251,6 +251,16 @@ async function testAppSettings() {
     throw new Error('Expected active SMS to use Client Custom credentials!');
   }
 
+  // Reset SMS back to default preset (PhilSMS)
+  SettingsService.updateIntegrationSettings(adminLogin.admin, {
+    sms_config_source: 'default',
+    custom_sms_provider: '',
+    custom_sms_api_endpoint: '',
+    custom_sms_api_key: '',
+    custom_sms_sender_id: ''
+  });
+  console.log('✓ Restored SMS Gateway to Developer Default preset (PhilSMS)');
+
   console.log('\n=======================================================');
   console.log('🎉 ALL APP SETTINGS & DUAL-TIER API TESTS PASSED 100%!');
   console.log('=======================================================');

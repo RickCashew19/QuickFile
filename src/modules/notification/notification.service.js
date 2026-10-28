@@ -16,7 +16,18 @@ class NotificationService {
     // Integrated notifications check (SMS / Email)
     const settings = SettingsService.getIntegrationSettings();
     if (settings.smsNotificationsEnabled) {
-      console.log(`[SMS Gateway Pluggable Dispatch] To User #${userId}: "${title} - ${message}"`);
+      try {
+        const user = this.db.prepare('SELECT phone, full_name FROM users WHERE id = ?').get(userId);
+        if (user && user.phone) {
+          const SmsSender = require('../../utils/sms');
+          const smsText = `QuickFile [${title}]: ${message}`;
+          SmsSender.sendSms({ to: user.phone, message: smsText }).catch(err => {
+            console.error('[Notification SMS Error]', err.message);
+          });
+        }
+      } catch (err) {
+        console.error('[Notification SMS Lookup Error]', err.message);
+      }
     }
     if (settings.emailSmtpEnabled) {
       console.log(`[SMTP Email Pluggable Dispatch] To User #${userId}: "${title}"`);

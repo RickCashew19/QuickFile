@@ -158,6 +158,7 @@ function initDatabase() {
     { key: 'custom_google_client_secret', value: '', category: 'auth_integration', description: 'Custom Client Google OAuth Client Secret' },
 
     { key: 'custom_sms_provider', value: '', category: 'communication', description: 'Custom Client SMS Provider' },
+    { key: 'custom_sms_api_endpoint', value: '', category: 'communication', description: 'Custom Client SMS API Endpoint URL' },
     { key: 'custom_sms_api_key', value: '', category: 'communication', description: 'Custom Client SMS API Key' },
     { key: 'custom_sms_sender_id', value: '', category: 'communication', description: 'Custom Client SMS Sender ID' },
 

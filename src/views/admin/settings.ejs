@@ -317,6 +317,7 @@
               <!-- Hidden inputs for SMS -->
               <input type="hidden" name="sms_config_source" id="sms_config_source_hidden" value="<%= settings.smsConfigSource %>">
               <input type="hidden" name="custom_sms_provider" id="custom_sms_provider_hidden" value="<%= settings.customSms.provider %>">
+              <input type="hidden" name="custom_sms_api_endpoint" id="custom_sms_api_endpoint_hidden" value="<%= settings.customSms.apiEndpoint %>">
               <input type="hidden" name="custom_sms_api_key" id="custom_sms_api_key_hidden" value="<%= settings.customSms.apiKey %>">
               <input type="hidden" name="custom_sms_sender_id" id="custom_sms_sender_id_hidden" value="<%= settings.customSms.senderId %>">
 
@@ -687,11 +688,15 @@
           <div class="alert alert-secondary border">
             <div class="d-flex align-items-center gap-2 mb-2">
               <span class="badge bg-secondary">System Preset</span>
-              <strong class="text-dark">Developer Default SMS Gateway</strong>
+              <strong class="text-dark">Developer Default SMS Gateway (PhilSMS)</strong>
             </div>
+            <p class="small text-muted mb-2">
+              Pre-configured PhilSMS v3 Gateway credentials from <code>.env</code>.
+            </p>
             <div class="row g-2 small font-monospace bg-white p-3 rounded border text-muted">
               <div class="col-sm-6">Provider: <strong class="text-dark"><%= settings.defaultSms.provider %></strong></div>
-              <div class="col-sm-6">Sender ID: <strong class="text-dark"><%= settings.defaultSms.senderId %></strong></div>
+              <div class="col-sm-6">Sender ID: <strong class="text-dark"><%= settings.defaultSms.senderId || 'PhilSMS' %></strong></div>
+              <div class="col-12 text-truncate">API Endpoint: <strong class="text-dark"><%= settings.defaultSms.apiEndpoint || 'https://dashboard.philsms.com/api/v3/' %></strong></div>
             </div>
           </div>
         </div>
@@ -713,14 +718,30 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-semibold">Sender ID (Alpha Tag)</label>
-                <input type="text" id="modal_custom_sms_sender_id" class="form-control form-control-sm font-monospace" placeholder="e.g. BRGY_CENTRAL" value="<%= settings.customSms.senderId %>">
+                <input type="text" id="modal_custom_sms_sender_id" class="form-control form-control-sm font-monospace" placeholder="e.g. PhilSMS or BRGY_CENTRAL" value="<%= settings.customSms.senderId %>">
               </div>
               <div class="col-12">
-                <label class="form-label small fw-semibold">API Key / Auth Token</label>
+                <label class="form-label small fw-semibold">API Endpoint URL</label>
+                <input type="text" id="modal_custom_sms_api_endpoint" class="form-control form-control-sm font-monospace" placeholder="https://dashboard.philsms.com/api/v3/" value="<%= settings.customSms.apiEndpoint || 'https://dashboard.philsms.com/api/v3/' %>">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">API Key / Bearer Token</label>
                 <input type="password" id="modal_custom_sms_api_key" class="form-control form-control-sm font-monospace" placeholder="••••••••••••••••" value="<%= settings.customSms.apiKey %>">
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Live SMS Connection & Balance Check Panel -->
+        <div class="border rounded-3 p-3 bg-light mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-bold">Live PhilSMS Gateway Status & Balance Check</span>
+            <button type="button" id="btnCheckSmsBalance" class="btn btn-sm btn-outline-primary rounded-pill">
+              <span id="spinnerCheckSms" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+              <i class="bi bi-wallet2 me-1"></i> Check Balance & Connection
+            </button>
+          </div>
+          <div id="smsBalanceAlert" class="alert d-none py-2 px-3 small mb-0" role="alert"></div>
         </div>
       </div>
       <div class="modal-footer bg-light">
@@ -860,10 +881,57 @@
     document.getElementById('masterSettingsForm').submit();
   });
 
+  // Check SMS Balance Button inside Modal
+  document.getElementById('btnCheckSmsBalance')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btnCheckSmsBalance');
+    const spinner = document.getElementById('spinnerCheckSms');
+    const alertBox = document.getElementById('smsBalanceAlert');
+
+    const source = document.querySelector('input[name="sms_source_radio"]:checked').value;
+    const payload = { source };
+
+    if (source === 'custom') {
+      payload.provider = document.getElementById('modal_custom_sms_provider').value;
+      payload.apiEndpoint = document.getElementById('modal_custom_sms_api_endpoint').value;
+      payload.apiKey = document.getElementById('modal_custom_sms_api_key').value;
+      payload.senderId = document.getElementById('modal_custom_sms_sender_id').value;
+    }
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    alertBox.className = 'alert alert-info py-2 px-3 small mb-0';
+    alertBox.textContent = 'Connecting to SMS Gateway API...';
+    alertBox.classList.remove('d-none');
+
+    try {
+      const res = await fetch('/admin/settings/check-sms-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alertBox.className = 'alert alert-success py-2 px-3 small mb-0';
+        alertBox.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> <strong>' + data.message + '</strong><br><small class="text-muted">Expiry: ' + (data.expiredOn || 'N/A') + ' &bull; Account: ' + (data.accountName || '') + '</small>';
+      } else {
+        alertBox.className = 'alert alert-danger py-2 px-3 small mb-0';
+        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + (data.message || data.error || 'Connection failed.');
+      }
+    } catch (err) {
+      alertBox.className = 'alert alert-danger py-2 px-3 small mb-0';
+      alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Network error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    }
+  });
+
   document.getElementById('btnApplySmsModal')?.addEventListener('click', () => {
     const source = document.querySelector('input[name="sms_source_radio"]:checked').value;
     document.getElementById('sms_config_source_hidden').value = source;
     document.getElementById('custom_sms_provider_hidden').value = document.getElementById('modal_custom_sms_provider').value;
+    document.getElementById('custom_sms_api_endpoint_hidden').value = document.getElementById('modal_custom_sms_api_endpoint').value;
     document.getElementById('custom_sms_api_key_hidden').value = document.getElementById('modal_custom_sms_api_key').value;
     document.getElementById('custom_sms_sender_id_hidden').value = document.getElementById('modal_custom_sms_sender_id').value;
     document.getElementById('masterSettingsForm').submit();
