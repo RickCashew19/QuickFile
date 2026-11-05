@@ -179,8 +179,14 @@ class CitizenController {
   // POST: Process password reset (CIT-IAM-04)
   static async handleResetPassword(req, res) {
     try {
-      const { token, newPassword } = req.body;
-      const result = await CitizenService.resetPassword(token, newPassword);
+      const { token, newPassword, password, confirmPassword } = req.body;
+      const targetPassword = (newPassword || password || '').trim();
+
+      if (confirmPassword && targetPassword !== confirmPassword.trim()) {
+        throw new Error('New password and confirmation password do not match.');
+      }
+
+      const result = await CitizenService.resetPassword(token, targetPassword);
 
       if (req.xhr || req.headers.accept?.includes('application/json')) {
         return res.json({ success: true, ...result });
