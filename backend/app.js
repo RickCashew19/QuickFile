@@ -19,6 +19,7 @@ const requestRoutes = require('./src/modules/request/request.routes');
 const staffRoutes = require('./src/modules/staff/staff.routes');
 const verifyRoutes = require('./src/modules/verify/verify.routes');
 const fileRoutes = require('./src/modules/file/file.routes');
+const adminRoutes = require('./src/modules/admin/admin.routes');
 
 const app = express();
 
@@ -91,6 +92,7 @@ app.use(`${API_PREFIX}/staff`, staffRoutes);
 app.use(`${API_PREFIX}/files`, fileRoutes);
 app.use(`${API_PREFIX}/admin/document-types`, documentTypesRoutes);
 app.use(`${API_PREFIX}/admin/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/admin`, adminRoutes);
 app.use(`${API_PREFIX}/public`, publicRoutes);
 
 // ==============================================================================

@@ -266,6 +266,7 @@ async function generateReportData({
 
 module.exports = {
   generateReportData,
+  getStructuredReportData: generateReportData,
   validateDateRange,
   validateDocumentTypeId,
 };

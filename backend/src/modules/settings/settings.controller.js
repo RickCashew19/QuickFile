@@ -54,7 +54,47 @@ const updateSettings = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Update system toggles
+ * PATCH /api/v1/admin/settings/toggles
+ */
+const updateToggles = asyncHandler(async (req, res) => {
+  const result = await settingsService.updateToggles({
+    updates: req.body,
+    actorUser: req.user,
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Feature toggles updated successfully.',
+    data: result,
+  });
+});
+
+/**
+ * Update general barangay information and signatories
+ * PATCH /api/v1/admin/settings/general
+ */
+const updateGeneralSettings = asyncHandler(async (req, res) => {
+  const result = await settingsService.updateGeneralSettings({
+    updates: req.body,
+    actorUser: req.user,
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'General settings updated successfully.',
+    data: result,
+  });
+});
+
 module.exports = {
   getSettings,
   updateSettings,
+  updateToggles,
+  updateGeneralSettings,
 };

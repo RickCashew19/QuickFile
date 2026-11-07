@@ -11,5 +11,7 @@ router.use(authenticate, requireRole([ROLES.ADMIN]), userApiLimiter);
 
 router.get('/', settingsController.getSettings);
 router.patch('/', suKeyLimiter, settingsController.updateSettings);
+router.patch('/toggles', settingsController.updateToggles);
+router.patch('/general', settingsController.updateGeneralSettings);
 
 module.exports = router;
