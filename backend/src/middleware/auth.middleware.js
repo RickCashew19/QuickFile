@@ -66,6 +66,19 @@ async function authenticate(req, res, next) {
       });
     }
 
+    // Fix 6: Reject tokens issued before the last password change
+    if (user.password_changed_at && decoded.iat) {
+      const passwordChangedSeconds = Math.floor(user.password_changed_at.getTime() / 1000);
+      if (decoded.iat < passwordChangedSeconds) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication token is no longer valid due to a recent password change. Please log in again.',
+          code: 'TOKEN_INVALIDATED',
+          data: null,
+        });
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {

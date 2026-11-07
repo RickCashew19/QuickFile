@@ -20,6 +20,47 @@ const getProfile = asyncHandler(async (req, res) => {
  * PUT /api/v1/citizen/profile
  */
 const updateProfile = asyncHandler(async (req, res) => {
+  // Fix 4: Validate field types if present
+  if (req.body.birthdate && isNaN(new Date(req.body.birthdate).getTime())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: birthdate must be a valid date.',
+      data: null,
+    });
+  }
+
+  const stringFields = [
+    'first_name',
+    'middle_name',
+    'last_name',
+    'suffix',
+    'gender',
+    'civil_status',
+    'contact_number',
+    'purok_zone',
+    'street_address',
+    'barangay',
+    'city',
+    'province',
+    'occupation',
+    'voter_status',
+    'emergency_contact_name',
+    'emergency_contact_number',
+    'valid_id_type',
+    'valid_id_number',
+    'proof_of_residency_type',
+  ];
+
+  for (const field of stringFields) {
+    if (req.body[field] !== undefined && typeof req.body[field] !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${field} must be a string.`,
+        data: null,
+      });
+    }
+  }
+
   const result = await citizenService.updateCitizenProfile(
     req.user._id,
     req.body,
@@ -68,3 +109,4 @@ module.exports = {
   getReuseData,
   getCatalog,
 };
+

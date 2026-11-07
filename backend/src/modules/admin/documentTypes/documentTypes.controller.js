@@ -34,6 +34,15 @@ const getById = asyncHandler(async (req, res) => {
  * POST /api/v1/admin/document-types
  */
 const create = asyncHandler(async (req, res) => {
+  const { name, code } = req.body;
+  if (!name || !code || typeof name !== 'string' || typeof code !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Document name and code must be non-empty strings.',
+      data: null,
+    });
+  }
+
   const result = await documentTypesService.createDocumentType(
     req.body,
     req.user,
@@ -94,3 +103,4 @@ module.exports = {
   update,
   remove,
 };
+

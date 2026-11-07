@@ -15,18 +15,22 @@ const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/cons
 async function seedDatabase() {
   console.log('[Seeder] Starting database seeding process...');
 
-  // Requirement 1: Validate SU_ADMIN_KEY is present; stop with clear error if missing
+  // Requirement 1 & Fix 1: Validate configuration invariants & passwords
   validateConfig();
 
-  // Requirement 5: Ensure default passwords are provided via .env
-  if (
-    !config.seed.adminPassword ||
-    !config.seed.staffPassword ||
-    !config.seed.citizenPassword
-  ) {
-    throw new Error(
-      '[Seeder] Fatal Error: Default passwords (DEFAULT_ADMIN_PASSWORD, DEFAULT_STAFF_PASSWORD, DEFAULT_CITIZEN_PASSWORD) must be set in .env.'
-    );
+  const seedPasswords = [
+    { role: 'Admin', key: 'DEFAULT_ADMIN_PASSWORD', pass: config.seed.adminPassword },
+    { role: 'Staff', key: 'DEFAULT_STAFF_PASSWORD', pass: config.seed.staffPassword },
+    { role: 'Citizen', key: 'DEFAULT_CITIZEN_PASSWORD', pass: config.seed.citizenPassword },
+  ];
+
+  for (const { role, key, pass } of seedPasswords) {
+    if (!pass || pass.trim().length < 8) {
+      throw new Error(`[Seeder] Refusing to seed: ${key} is empty or shorter than 8 characters.`);
+    }
+    if (config.isProduction && pass.trim().toLowerCase().startsWith('change_me')) {
+      throw new Error(`[Seeder] Refusing to seed in production: ${key} cannot use placeholder value starting with "change_me".`);
+    }
   }
 
   // 1. Initialize Super Admin Lockout state

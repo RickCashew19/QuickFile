@@ -15,9 +15,6 @@ function notFoundHandler(req, res, next) {
  * For status 500+, sends generic message to client while logging real message & stack on server.
  */
 function errorHandler(err, req, res, next) {
-  // Always log full error and stack trace on the server terminal
-  console.error(`[Error] ${req.method} ${req.originalUrl}:`, err);
-
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || null;
@@ -61,14 +58,19 @@ function errorHandler(err, req, res, next) {
     statusCode = 400;
     if (err.code === 'LIMIT_FILE_SIZE') {
       message = 'Uploaded file exceeds the maximum allowed size (5MB).';
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      message = 'Uploaded files exceed the maximum allowed count (3 files).';
     } else {
       message = `File upload error: ${err.message}`;
     }
   }
 
-  // Section D.6: Hide internal error messages for 500+ errors from the client
+  // Fix 8: Full stack trace strictly for status 500+; one-line warning for 4xx
   if (statusCode >= 500) {
+    console.error(`[Error] ${req.method} ${req.originalUrl} (${statusCode}):`, err);
     message = 'Internal Server Error. Please contact the administrator.';
+  } else {
+    console.warn(`[Warn] ${req.method} ${req.originalUrl} (${statusCode}): ${message}`);
   }
 
   // JSON response: stack trace is strictly excluded

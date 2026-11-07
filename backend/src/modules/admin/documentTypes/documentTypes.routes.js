@@ -14,3 +14,4 @@ router.put('/:id', documentTypesController.update);
 router.delete('/:id', documentTypesController.remove);
 
 module.exports = router;
+

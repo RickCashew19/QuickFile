@@ -14,3 +14,4 @@ router.delete('/:id', notificationController.deleteOne);
 router.delete('/', notificationController.deleteAll);
 
 module.exports = router;
+

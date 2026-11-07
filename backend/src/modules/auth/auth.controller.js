@@ -9,10 +9,25 @@ const asyncHandler = require('../../utils/asyncHandler');
 const register = asyncHandler(async (req, res) => {
   const { email, password, first_name, last_name, birthdate, gender, recaptcha_token } = req.body;
 
-  if (!email || !password || !first_name || !last_name || !birthdate || !gender) {
+  if (
+    !email || typeof email !== 'string' ||
+    !password || typeof password !== 'string' ||
+    !first_name || typeof first_name !== 'string' ||
+    !last_name || typeof last_name !== 'string' ||
+    !birthdate ||
+    !gender || typeof gender !== 'string'
+  ) {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: email, password, first_name, last_name, birthdate, and gender are required.',
+      message: 'Validation error: email, password, first_name, last_name, birthdate, and gender are required valid strings.',
+      data: null,
+    });
+  }
+
+  if (isNaN(new Date(birthdate).getTime())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: birthdate must be a valid date.',
       data: null,
     });
   }
@@ -48,10 +63,10 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { email, password, recaptcha_token } = req.body;
 
-  if (!email || !password) {
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Email and password are required.',
+      message: 'Validation error: Email and password must be valid strings.',
       data: null,
     });
   }
@@ -80,10 +95,10 @@ const login = asyncHandler(async (req, res) => {
 const googleLogin = asyncHandler(async (req, res) => {
   const idToken = req.body.id_token || req.body.credential;
 
-  if (!idToken) {
+  if (!idToken || typeof idToken !== 'string') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Google ID token (id_token) is required.',
+      message: 'Validation error: Google ID token (id_token) must be a non-empty string.',
       data: null,
     });
   }
@@ -108,10 +123,10 @@ const googleLogin = asyncHandler(async (req, res) => {
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email, recaptcha_token } = req.body;
 
-  if (!email) {
+  if (!email || typeof email !== 'string') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Email is required.',
+      message: 'Validation error: Email must be a valid string.',
       data: null,
     });
   }
@@ -140,10 +155,10 @@ const resetPassword = asyncHandler(async (req, res) => {
   const token = req.body.token;
   const newPassword = req.body.new_password || req.body.password;
 
-  if (!token || !newPassword) {
+  if (!token || !newPassword || typeof token !== 'string' || typeof newPassword !== 'string') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Reset token and new password are required.',
+      message: 'Validation error: Reset token and new password must be valid strings.',
       data: null,
     });
   }

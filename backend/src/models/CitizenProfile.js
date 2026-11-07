@@ -32,12 +32,17 @@ const citizenProfileSchema = new mongoose.Schema(
     },
     birthdate: {
       type: Date,
-      required: true,
+      default: null,
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
-      required: true,
+      enum: ['male', 'female', 'other', ''],
+      default: '',
+    },
+    profile_complete: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     civil_status: {
       type: String,

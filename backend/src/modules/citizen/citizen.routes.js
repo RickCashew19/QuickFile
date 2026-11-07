@@ -13,3 +13,4 @@ router.put('/profile', authenticate, authorize(ROLES.CITIZEN), citizenController
 router.get('/profile/reuse', authenticate, authorize(ROLES.CITIZEN), citizenController.getReuseData);
 
 module.exports = router;
+

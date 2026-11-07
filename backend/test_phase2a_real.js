@@ -72,6 +72,7 @@ const {
 const { API_PREFIX, ROLES } = require('./src/config/constants');
 const { verifyRecaptcha } = require('./src/utils/recaptcha');
 const notificationService = require('./src/modules/notification/notification.service');
+const authService = require('./src/modules/auth/auth.service');
 
 function makeRequest(server, options, body = null) {
   return new Promise((resolve, reject) => {
@@ -401,6 +402,14 @@ async function runTests() {
 
     // 6b: Enabled - verifies token, returns our JWT, no tokens in URLs
     await AppSetting.updateOne({ key: 'enable_google_login' }, { value: true });
+    authService.setGoogleTokenVerifier(async () => ({
+      sub: 'google-sub-mock-12345',
+      email: 'mock.google.user@example.com',
+      email_verified: true,
+      name: 'Mock Google Citizen',
+      given_name: 'Mock Google',
+      family_name: 'Citizen',
+    }));
     try {
       const googleSuccessRes = await makeRequest(
         server,
@@ -412,6 +421,7 @@ async function runTests() {
       assert(googleSuccessRes.data?.data?.user?.google_id === 'google-sub-mock-12345', 'Google ID linked');
       console.log('PASS: Google login successfully verified ID token and issued JWT.');
     } finally {
+      authService.setGoogleTokenVerifier(null);
       await AppSetting.updateOne({ key: 'enable_google_login' }, { value: false });
     }
     console.log('--------------------------------------------------------------------\n');

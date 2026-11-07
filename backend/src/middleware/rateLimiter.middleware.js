@@ -13,12 +13,18 @@ const rateLimitHandler = (message) => (req, res) => {
 };
 
 /**
+ * Helper to identify request by authenticated user ID if available, otherwise by IP
+ */
+const userOrIpKey = (req) => (req.user && req.user._id ? req.user._id.toString() : req.ip || 'unknown');
+
+/**
  * Rate limiter for sensitive authentication endpoints (Login, Register, Password Reset)
  * 15 requests per 15 minutes per IP
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
+  validate: { trustProxy: false },
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many authentication attempts. Please try again after 15 minutes.'),
@@ -26,19 +32,17 @@ const authLimiter = rateLimit({
 
 /**
  * Rate limiter for Super Admin Key verification & settings save
- * Section D.3: max 15 (higher than the 5-attempt DB lockout so DB lockout triggers first)
- * and skipSuccessfulRequests: true so successful saves do not consume attempts
+ * 15 requests per 15 minutes per IP, skipping successful requests
  */
 const suKeyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
+  validate: { trustProxy: false },
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many Super Admin Key verification attempts. Please try again after 15 minutes.'),
 });
-
-const pinLimiter = suKeyLimiter;
 
 /**
  * Rate limiter for public endpoints (Public QR verification, etc.)
@@ -47,27 +51,44 @@ const pinLimiter = suKeyLimiter;
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
+  validate: { trustProxy: false },
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many requests. Please slow down.'),
 });
 
 /**
- * General API limiter for all /api endpoints
- * 200 requests per 15 minutes per IP
+ * General API limiter for authenticated & general routes
+ * 600 requests per 15 minutes per authenticated user (or per IP for unauthenticated)
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 600,
+  validate: { trustProxy: false },
+  keyGenerator: userOrIpKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Rate limit exceeded. Please try again later.'),
 });
 
+/**
+ * High-frequency limiter for live status polling endpoints (8-second citizen polling)
+ * 1200 requests per 15 minutes per user
+ */
+const pollingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1200,
+  validate: { trustProxy: false },
+  keyGenerator: userOrIpKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many status polling requests. Please reduce polling frequency.'),
+});
+
 module.exports = {
   authLimiter,
   suKeyLimiter,
-  pinLimiter,
   publicLimiter,
   apiLimiter,
+  pollingLimiter,
 };

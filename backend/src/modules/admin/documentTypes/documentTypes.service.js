@@ -168,3 +168,4 @@ module.exports = {
   updateDocumentType,
   deleteDocumentType,
 };
+

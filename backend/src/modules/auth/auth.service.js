@@ -15,6 +15,35 @@ const {
 const { sendMail } = require('../../utils/mailer');
 
 /**
+ * Dependency-injected Google Token Verifier (allows clean test mocking without environment backdoors)
+ */
+let googleTokenVerifier = null;
+
+function setGoogleTokenVerifier(verifier) {
+  googleTokenVerifier = verifier;
+}
+
+async function verifyGoogleIdToken(idToken) {
+  if (typeof googleTokenVerifier === 'function') {
+    return googleTokenVerifier(idToken);
+  }
+
+  const clientId = config.google.resolveClientId().value;
+  if (!clientId) {
+    const error = new Error('Google Client ID is not configured on the server.');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const client = new OAuth2Client(clientId);
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: clientId,
+  });
+  return ticket.getPayload();
+}
+
+/**
  * Signs a standard JWT access token for an authenticated user
  */
 function generateToken(user) {
@@ -84,7 +113,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     is_active: true,
   });
 
-  // 2. Create Citizen Profile (default jurisdiction from config)
+  // 2. Create Citizen Profile (standard registration includes birthdate & gender)
   const profile = await CitizenProfile.create({
     user_id: newUser._id,
     first_name: first_name.trim(),
@@ -103,6 +132,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     occupation: (occupation || '').trim(),
     emergency_contact_name: (emergency_contact_name || '').trim(),
     emergency_contact_number: (emergency_contact_number || '').trim(),
+    profile_complete: true,
   });
 
   // 3. Issue Token
@@ -193,7 +223,7 @@ async function loginUser(email, password, ipAddress, userAgent) {
 
 /**
  * Google OAuth ID Token verification and Citizen login
- * POST ID token only; no token in redirect URLs
+ * Only permits citizen accounts, requires email_verified, leaves birthdate/gender empty
  */
 async function loginWithGoogle(idToken, ipAddress, userAgent) {
   const setting = await AppSetting.findOne({ key: 'enable_google_login' });
@@ -205,41 +235,23 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
     throw error;
   }
 
-  if (!idToken) {
+  if (!idToken || typeof idToken !== 'string') {
     const error = new Error('Google ID token is required.');
     error.statusCode = 400;
     throw error;
   }
 
-  let payload;
-
-  // In test environment, allow mock Google ID token
-  if (config.nodeEnv === 'test' && idToken.startsWith('mock-google-id-token')) {
-    payload = {
-      sub: 'google-sub-mock-12345',
-      email: 'mock.google.user@example.com',
-      name: 'Mock Google Citizen',
-      given_name: 'Mock Google',
-      family_name: 'Citizen',
-    };
-  } else {
-    const clientId = config.google.resolveClientId().value;
-    if (!clientId) {
-      const error = new Error('Google Client ID is not configured on the server.');
-      error.statusCode = 500;
-      throw error;
-    }
-
-    const client = new OAuth2Client(clientId);
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: clientId,
-    });
-    payload = ticket.getPayload();
-  }
+  const payload = await verifyGoogleIdToken(idToken);
 
   if (!payload || !payload.email) {
     const error = new Error('Invalid Google ID token payload.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Fix 2: Require email to be verified by Google
+  if (payload.email_verified !== true) {
+    const error = new Error('Google email address must be verified to log in.');
     error.statusCode = 400;
     throw error;
   }
@@ -252,6 +264,13 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
   let profile = null;
 
   if (user) {
+    // Fix 2: Never log in or link staff/admin accounts through Google OAuth
+    if (user.role !== ROLES.CITIZEN) {
+      const error = new Error('Google OAuth is only permitted for citizen accounts. Staff and Admin must log in with email and password.');
+      error.statusCode = 403;
+      throw error;
+    }
+
     if (!user.is_active) {
       const error = new Error('Your account is deactivated. Please contact the administrator.');
       error.statusCode = 403;
@@ -282,12 +301,14 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
       last_login_at: new Date(),
     });
 
+    // Fix 2: Do NOT invent birthdate or gender; mark profile_complete: false
     profile = await CitizenProfile.create({
       user_id: user._id,
       first_name: firstName,
       last_name: lastName,
-      birthdate: new Date('2000-01-01'),
-      gender: 'other',
+      birthdate: null,
+      gender: '',
+      profile_complete: false,
       barangay: config.jurisdiction.barangayName(),
       city: config.jurisdiction.cityMunicipality(),
       province: config.jurisdiction.province(),
@@ -318,7 +339,7 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
 
 /**
  * Sends a password reset email with a single-use token hash
- * Prevents email enumeration by returning a generic message
+ * Prevents timing attacks and account enumeration by not awaiting the email send
  */
 async function requestPasswordReset(email, ipAddress, userAgent) {
   const normalizedEmail = (email || '').toLowerCase().trim();
@@ -344,12 +365,14 @@ async function requestPasswordReset(email, ipAddress, userAgent) {
     // 4. Construct reset link using FRONTEND_URL from .env
     const resetUrl = `${config.frontendUrl}/reset-password?token=${rawToken}`;
 
-    // 5. Send reset email
-    await sendMail({
+    // Fix 7: Do not await email sending so response timing does not leak user existence
+    sendMail({
       to: user.email,
       subject: 'QuickFile - Password Reset Request',
       text: `Hello ${user.full_name},\n\nYou requested a password reset. Click the link below to set a new password:\n${resetUrl}\n\nThis link will expire in 15 minutes.\nIf you did not request this, please ignore this email.`,
       html: `<p>Hello <strong>${user.full_name}</strong>,</p><p>You requested a password reset. Click the button below to set a new password:</p><p><a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a></p><p>Or copy this link: ${resetUrl}</p><p>This link will expire in 15 minutes.</p>`,
+    }).catch((err) => {
+      console.warn(`[Mailer] Warning: Failed to send password reset email to ${user.email}:`, err.message);
     });
 
     await AuditLog.create({
@@ -372,11 +395,17 @@ async function requestPasswordReset(email, ipAddress, userAgent) {
 }
 
 /**
- * Resets user password using verified raw token and updates password hash
+ * Resets user password using verified raw token, updates password hash and password_changed_at
  */
 async function resetPasswordWithToken(token, newPassword, ipAddress, userAgent) {
   if (!token || !newPassword) {
     const error = new Error('Reset token and new password are required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (typeof token !== 'string' || typeof newPassword !== 'string') {
+    const error = new Error('Validation error: Token and password must be strings.');
     error.statusCode = 400;
     throw error;
   }
@@ -411,8 +440,9 @@ async function resetPasswordWithToken(token, newPassword, ipAddress, userAgent) 
     throw error;
   }
 
-  // 4. Update password
+  // 4. Update password and record password_changed_at (Fix 6)
   user.password_hash = await User.hashPassword(newPassword);
+  user.password_changed_at = new Date();
   await user.save();
 
   // 5. Invalidate token
@@ -482,6 +512,7 @@ async function getUserProfile(user) {
 }
 
 module.exports = {
+  setGoogleTokenVerifier,
   registerCitizen,
   loginUser,
   loginWithGoogle,

@@ -100,6 +100,11 @@ async function updateCitizenProfile(userId, updateData, ipAddress, userAgent) {
     }
   }
 
+  // Mark profile complete once required birthdate & gender are provided
+  if (profile.birthdate && profile.gender) {
+    profile.profile_complete = true;
+  }
+
   await profile.save();
 
   // Sync with User model: full_name and phone
@@ -189,3 +194,4 @@ module.exports = {
   getProfileReuseData,
   getActiveCatalog,
 };
+

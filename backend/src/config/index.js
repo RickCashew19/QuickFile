@@ -40,12 +40,29 @@ function validateConfig() {
       throw new Error(`[Config] Fatal Error: ${key} (${label}) is missing in .env.`);
     }
   }
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const jwtSecret = process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : '';
+
+  if (isProduction) {
+    if (jwtSecret.length < 32) {
+      throw new Error('[Config] Fatal Error: In production, JWT_SECRET must be at least 32 characters long.');
+    }
+
+    for (const { key, label } of requiredVars) {
+      const val = process.env[key] ? process.env[key].trim() : '';
+      if (val.toLowerCase().startsWith('change_me')) {
+        throw new Error(`[Config] Fatal Error: In production, ${key} (${label}) cannot use placeholder value starting with "change_me".`);
+      }
+    }
+  }
 }
 
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
+  trustProxy: process.env.TRUST_PROXY === 'true' ? true : (process.env.TRUST_PROXY || false),
 
   // Database (strictly from .env; no hardcoded fallback)
   mongoUri: process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '',
