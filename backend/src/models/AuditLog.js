@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Requirement 4: Snapshot fields actor_name and target_type; append-only enforcement
 const auditLogSchema = new mongoose.Schema(
   {
     user_id: {
@@ -7,6 +8,11 @@ const auditLogSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
       index: true,
+    },
+    actor_name: {
+      type: String,
+      trim: true,
+      default: 'System',
     },
     action: {
       type: String,
@@ -21,6 +27,11 @@ const auditLogSchema = new mongoose.Schema(
       index: true,
     },
     target_id: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    target_type: {
       type: String,
       trim: true,
       default: '',
@@ -45,7 +56,7 @@ const auditLogSchema = new mongoose.Schema(
 
 auditLogSchema.index({ created_at: -1 });
 
-// Enforce append-only immutability: block all mutation operations
+// Immutability: Block all mutation and deletion operations
 auditLogSchema.pre('save', function (next) {
   if (!this.isNew) {
     return next(new Error('[AuditLog] Immutability violation: Audit logs cannot be modified after creation.'));

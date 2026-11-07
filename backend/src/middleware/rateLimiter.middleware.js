@@ -24,16 +24,19 @@ const authLimiter = rateLimit({
 });
 
 /**
- * Rate limiter for Super Admin PIN verification
+ * Rate limiter for Super Admin Key verification
  * 5 attempts per 15 minutes per IP
  */
-const pinLimiter = rateLimit({
+const suKeyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: rateLimitHandler('Too many PIN verification attempts. Please try again after 15 minutes.'),
+  handler: rateLimitHandler('Too many Super Admin Key verification attempts. Please try again after 15 minutes.'),
 });
+
+const pinLimiter = suKeyLimiter;
+
 
 /**
  * Rate limiter for public endpoints (Public QR verification, etc.)
@@ -61,6 +64,7 @@ const apiLimiter = rateLimit({
 
 module.exports = {
   authLimiter,
+  suKeyLimiter,
   pinLimiter,
   publicLimiter,
   apiLimiter,

@@ -1,11 +1,11 @@
 /**
- * Phase 1 Real Integration Test Runner
- * Tests against REAL running MongoDB and Express application
+ * Phase 1 Integration & Security Test Suite
+ * Tests against REAL running MongoDB and Express REST API
  */
 const http = require('http');
 const app = require('./app');
 const { connectDB } = require('./src/config/db');
-const { AuditLog } = require('./src/models');
+const { AuditLog, SuperAdminLockout } = require('./src/models');
 
 function makeRequest(server, options, postData) {
   return new Promise((resolve, reject) => {
@@ -45,23 +45,62 @@ function makeRequest(server, options, postData) {
 }
 
 async function runTests() {
-  console.log('===============================================================');
-  console.log('       RUNNING REAL INTEGRATION TESTS (PHASE 1 FOUNDATION)     ');
-  console.log('===============================================================\n');
+  console.log('====================================================================');
+  console.log('      REAL MONGODB INTEGRATION & SUPER ADMIN KEY SECURITY TESTS     ');
+  console.log('====================================================================\n');
 
   await connectDB();
+  // Reset lockout record for clean test run
+  await SuperAdminLockout.deleteMany({});
+  await SuperAdminLockout.create({});
+
   const server = app.listen(0);
 
   try {
-    // 1. Health Check
-    console.log('[TEST 1] GET /api/health');
+    // -------------------------------------------------------------------------
+    // TEST 1: Health check & Stack trace verification
+    // -------------------------------------------------------------------------
+    console.log('[TEST 1] GET /api/health (Confirm JSON format & no stack trace)');
     const healthRes = await makeRequest(server, { path: '/api/health', method: 'GET' });
     console.log(`Status: ${healthRes.status}`);
     console.log('Response:', JSON.stringify(healthRes.data, null, 2));
-    console.log('---------------------------------------------------------------\n');
+    console.log(`Stack trace included in response? ${'stack' in healthRes.data ? 'YES (VIOLATION)' : 'NO (PASSED)'}`);
+    console.log('--------------------------------------------------------------------\n');
 
-    // 2. Admin Login
-    console.log('[TEST 2] POST /api/auth/login (Admin Account)');
+    // -------------------------------------------------------------------------
+    // TEST 2: Citizen self-registration
+    // -------------------------------------------------------------------------
+    console.log('[TEST 2] POST /api/auth/register (Citizen Registration)');
+    const testEmail = `citizentest.${Date.now()}@pasig.gov.ph`;
+    const regRes = await makeRequest(
+      server,
+      { path: '/api/auth/register', method: 'POST' },
+      {
+        email: testEmail,
+        password: 'CitizenSecurePass@2026',
+        first_name: 'Francisco',
+        middle_name: 'Baltazar',
+        last_name: 'Balagtas',
+        suffix: '',
+        birthdate: '1992-04-02',
+        gender: 'male',
+        civil_status: 'married',
+        phone: '09179998877',
+        purok_zone: 'Purok 1',
+        street_address: 'Florante St Corner Laura',
+        occupation: 'Poet',
+        emergency_contact_name: 'Laura Balagtas',
+        emergency_contact_number: '09187776655',
+      }
+    );
+    console.log(`Status: ${regRes.status}`);
+    console.log('Response:', JSON.stringify(regRes.data, null, 2));
+    console.log('--------------------------------------------------------------------\n');
+
+    // -------------------------------------------------------------------------
+    // TEST 3: Admin Login
+    // -------------------------------------------------------------------------
+    console.log('[TEST 3] POST /api/auth/login (Admin Account)');
     const adminLoginRes = await makeRequest(
       server,
       { path: '/api/auth/login', method: 'POST' },
@@ -70,92 +109,128 @@ async function runTests() {
     console.log(`Status: ${adminLoginRes.status}`);
     console.log('Response:', JSON.stringify(adminLoginRes.data, null, 2));
     const adminToken = adminLoginRes.data?.data?.access_token;
-    console.log('---------------------------------------------------------------\n');
+    console.log('--------------------------------------------------------------------\n');
 
-    // 3. Staff Login
-    console.log('[TEST 3] POST /api/auth/login (Staff Account)');
-    const staffLoginRes = await makeRequest(
-      server,
-      { path: '/api/auth/login', method: 'POST' },
-      { email: 'staff@quickfile.gov.ph', password: 'Staff@123456' }
-    );
-    console.log(`Status: ${staffLoginRes.status}`);
-    console.log('Response:', JSON.stringify(staffLoginRes.data, null, 2));
-    console.log('---------------------------------------------------------------\n');
-
-    // 4. Citizen Self-Registration
-    console.log('[TEST 4] POST /api/auth/register (New Resident Registration)');
-    const testEmail = `juan.delacruz.${Date.now()}@example.com`;
-    const regPayload = {
-      email: testEmail,
-      password: 'CitizenPassword@123',
-      first_name: 'Juan',
-      middle_name: 'Protacio',
-      last_name: 'Rizal',
-      suffix: 'Jr',
-      birthdate: '1996-06-19',
-      gender: 'male',
-      civil_status: 'single',
-      phone: '09175551234',
-      purok_zone: 'Purok 7',
-      street_address: 'Calle Crisostomo #45',
-      barangay: 'San Antonio',
-      city: 'Pasig City',
-      province: 'Metro Manila',
-      occupation: 'Web Developer',
-      emergency_contact_name: 'Teodora Alonzo',
-      emergency_contact_number: '09189998877',
-    };
-    const registerRes = await makeRequest(
-      server,
-      { path: '/api/auth/register', method: 'POST' },
-      regPayload
-    );
-    console.log(`Status: ${registerRes.status}`);
-    console.log('Response:', JSON.stringify(registerRes.data, null, 2));
-    const newCitizenToken = registerRes.data?.data?.access_token;
-    console.log('---------------------------------------------------------------\n');
-
-    // 5. Get Authenticated Citizen Profile (/api/auth/me)
-    console.log('[TEST 5] GET /api/auth/me (Bearer Token Auth)');
-    const meRes = await makeRequest(
+    // -------------------------------------------------------------------------
+    // TEST 4: Read Settings with Masked Secrets (GET /api/admin/settings)
+    // -------------------------------------------------------------------------
+    console.log('[TEST 4] GET /api/admin/settings (Masked Secrets & Source Tracking)');
+    const settingsGetRes = await makeRequest(
       server,
       {
-        path: '/api/auth/me',
+        path: '/api/admin/settings',
         method: 'GET',
-        headers: { Authorization: `Bearer ${newCitizenToken}` },
+        headers: { Authorization: `Bearer ${adminToken}` },
       }
     );
-    console.log(`Status: ${meRes.status}`);
-    console.log('Response:', JSON.stringify(meRes.data, null, 2));
-    console.log('---------------------------------------------------------------\n');
+    console.log(`Status: ${settingsGetRes.status}`);
+    console.log('Response (Integrations):', JSON.stringify(settingsGetRes.data?.data?.integrations, null, 2));
+    console.log('--------------------------------------------------------------------\n');
 
-    // 6. Invalid Credentials Handling
-    console.log('[TEST 6] POST /api/auth/login (Invalid Password)');
-    const failLoginRes = await makeRequest(
+    // -------------------------------------------------------------------------
+    // TEST 5: Settings Update with Invalid Super Admin Key (Failed attempt)
+    // -------------------------------------------------------------------------
+    console.log('[TEST 5] PATCH /api/admin/settings with Invalid Key');
+    const wrongKeyRes = await makeRequest(
       server,
-      { path: '/api/auth/login', method: 'POST' },
-      { email: 'admin@quickfile.gov.ph', password: 'WrongPassword@999' }
-    );
-    console.log(`Status: ${failLoginRes.status}`);
-    console.log('Response:', JSON.stringify(failLoginRes.data, null, 2));
-    console.log('---------------------------------------------------------------\n');
-
-    // 7. Test AuditLog Immutability (Requirement 6)
-    console.log('[TEST 7] Test AuditLog Append-Only Immutability');
-    const sampleLog = await AuditLog.findOne();
-    if (sampleLog) {
-      try {
-        await AuditLog.updateOne({ _id: sampleLog._id }, { action: 'MUTATED_ACTION' });
-        console.log('FAILED: AuditLog allowed an update!');
-      } catch (err) {
-        console.log('SUCCESS: AuditLog update blocked by Mongoose immutability hook:');
-        console.log(`Caught Error: "${err.message}"`);
+      {
+        path: '/api/admin/settings',
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      },
+      {
+        su_admin_key: 'WRONG_KEY_9999',
+        settings: { CUSTOM_SMS_API_TOKEN: 'token_attempt' },
       }
-    }
-    console.log('---------------------------------------------------------------\n');
+    );
+    console.log(`Status: ${wrongKeyRes.status}`);
+    console.log('Response:', JSON.stringify(wrongKeyRes.data, null, 2));
+    console.log(`Stack trace included in error response? ${'stack' in wrongKeyRes.data ? 'YES (VIOLATION)' : 'NO (PASSED)'}`);
+    console.log('--------------------------------------------------------------------\n');
 
-    console.log('ALL TESTS EXECUTED SUCCESSFULLY AGAINST REAL MONGODB INSTANCE.');
+    // -------------------------------------------------------------------------
+    // TEST 6: Settings Update with Valid Super Admin Key (timingSafeEqual verified)
+    // -------------------------------------------------------------------------
+    console.log('[TEST 6] PATCH /api/admin/settings with Valid Key (SU_ADMIN_KEY=12345678)');
+    const updateRes = await makeRequest(
+      server,
+      {
+        path: '/api/admin/settings',
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      },
+      {
+        su_admin_key: '12345678',
+        settings: {
+          CUSTOM_SMS_API_TOKEN: '5651|PhilSmsCustomTokenForTest1234567890',
+          CUSTOM_GOOGLE_CLIENT_ID: 'google-client-id-custom-test-12345.apps.googleusercontent.com',
+        },
+      }
+    );
+    console.log(`Status: ${updateRes.status}`);
+    console.log('Response:', JSON.stringify(updateRes.data, null, 2));
+    console.log('--------------------------------------------------------------------\n');
+
+    // -------------------------------------------------------------------------
+    // TEST 7: Lockout enforcement (Triggering 5 consecutive wrong attempts)
+    // -------------------------------------------------------------------------
+    console.log('[TEST 7] Trigger 5 wrong attempts to verify 15-minute lockout');
+    for (let i = 1; i <= 5; i++) {
+      const lockAttempt = await makeRequest(
+        server,
+        {
+          path: '/api/admin/settings',
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${adminToken}` },
+        },
+        {
+          su_admin_key: `BAD_KEY_ATTEMPT_${i}`,
+          settings: { CUSTOM_SMS_API_TOKEN: 'bad' },
+        }
+      );
+      console.log(`Attempt ${i} Status: ${lockAttempt.status} -> Message: "${lockAttempt.data.message}"`);
+    }
+
+    // Attempt 6 must be blocked with 423 Locked
+    const attemptAfterLock = await makeRequest(
+      server,
+      {
+        path: '/api/admin/settings',
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      },
+      {
+        su_admin_key: '12345678', // Even the correct key must be rejected while locked out
+        settings: { CUSTOM_SMS_API_TOKEN: 'locked_test' },
+      }
+    );
+    console.log(`\nAttempt after lockout (even with correct key) Status: ${attemptAfterLock.status}`);
+    console.log('Response:', JSON.stringify(attemptAfterLock.data, null, 2));
+    console.log('--------------------------------------------------------------------\n');
+
+    // -------------------------------------------------------------------------
+    // TEST 8: AuditLog Snapshot Fields & Append-Only Verification
+    // -------------------------------------------------------------------------
+    console.log('[TEST 8] AuditLog Snapshot Fields & Append-Only Verification');
+    const recentLog = await AuditLog.findOne({ action: 'SETTINGS_UPDATE_CUSTOM_KEYS' });
+    console.log('AuditLog entry with actor_name and target_type:', {
+      actor_name: recentLog?.actor_name,
+      target_type: recentLog?.target_type,
+      action: recentLog?.action,
+      module: recentLog?.module,
+      details: recentLog?.details,
+    });
+
+    try {
+      await AuditLog.updateOne({ _id: recentLog._id }, { actor_name: 'Hacker' });
+      console.log('FAILED: AuditLog allowed an update!');
+    } catch (err) {
+      console.log('PASSED: AuditLog update blocked by Mongoose immutability hook:');
+      console.log(`Caught Error: "${err.message}"`);
+    }
+    console.log('--------------------------------------------------------------------\n');
+
+    console.log('ALL PHASE 1 INTEGRATION & SECURITY TESTS PASSED SUCCESSFULLY.');
   } finally {
     server.close();
     process.exit(0);

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const config = require('../../config');
+const { config } = require('../../config');
 const { ROLES } = require('../../config/constants');
 const {
   User,
@@ -72,7 +72,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     is_active: true,
   });
 
-  // 2. Create Citizen Profile
+  // 2. Create Citizen Profile (Requirement 5: default jurisdiction from config)
   const profile = await CitizenProfile.create({
     user_id: newUser._id,
     first_name: first_name.trim(),
@@ -85,9 +85,9 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     contact_number: primaryPhone,
     purok_zone: (purok_zone || '').trim(),
     street_address: (street_address || '').trim(),
-    barangay: (barangay || 'San Antonio').trim(),
-    city: (city || 'Pasig City').trim(),
-    province: (province || 'Metro Manila').trim(),
+    barangay: (barangay || config.jurisdiction.barangayName()).trim(),
+    city: (city || config.jurisdiction.cityMunicipality()).trim(),
+    province: (province || config.jurisdiction.province()).trim(),
     occupation: (occupation || '').trim(),
     emergency_contact_name: (emergency_contact_name || '').trim(),
     emergency_contact_number: (emergency_contact_number || '').trim(),
@@ -96,12 +96,14 @@ async function registerCitizen(payload, ipAddress, userAgent) {
   // 3. Issue Token
   const token = generateToken(newUser);
 
-  // 4. Append-Only Audit Log
+  // 4. Append-Only Audit Log (Requirement 4: actor_name and target_type)
   await AuditLog.create({
     user_id: newUser._id,
+    actor_name: fullName,
     action: 'CITIZEN_REGISTER',
     module: 'AUTH',
     target_id: newUser._id.toString(),
+    target_type: 'CitizenProfile',
     details: { email: newUser.email, full_name: fullName },
     ip_address: ipAddress || '',
     user_agent: userAgent || '',
@@ -156,11 +158,14 @@ async function loginUser(email, password, ipAddress, userAgent) {
 
   const token = generateToken(user);
 
+  // Requirement 4: actor_name & target_type in AuditLog
   await AuditLog.create({
     user_id: user._id,
+    actor_name: user.full_name,
     action: 'USER_LOGIN',
     module: 'AUTH',
     target_id: user._id.toString(),
+    target_type: 'User',
     details: { role: user.role, email: user.email },
     ip_address: ipAddress || '',
     user_agent: userAgent || '',

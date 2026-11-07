@@ -9,7 +9,7 @@ const IssuedDocument = require('./IssuedDocument');
 const Notification = require('./Notification');
 const AuditLog = require('./AuditLog');
 const AppSetting = require('./AppSetting');
-const SuperAdminPin = require('./SuperAdminPin');
+const SuperAdminLockout = require('./SuperAdminLockout');
 
 module.exports = {
   User,
@@ -23,6 +23,5 @@ module.exports = {
   Notification,
   AuditLog,
   AppSetting,
-  SuperAdminPin,
+  SuperAdminLockout,
 };
-

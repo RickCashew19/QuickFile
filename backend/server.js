@@ -1,5 +1,5 @@
 const app = require('./app');
-const config = require('./src/config');
+const { config, validateConfig } = require('./src/config');
 const { connectDB, disconnectDB } = require('./src/config/db');
 const { seedDatabase } = require('./src/utils/seeder');
 
@@ -7,10 +7,13 @@ async function startServer() {
   try {
     console.log('[Server] Initializing QuickFile Backend...');
 
+    // Requirement 1: Validate SU_ADMIN_KEY on startup. Halt if missing.
+    validateConfig();
+
     // 1. Connect to MongoDB
     await connectDB();
 
-    // 2. Run initial seeder (ensures default PIN, admin, staff, citizen, and types exist)
+    // 2. Run initial seeder
     await seedDatabase();
 
     // 3. Start listening for HTTP requests
@@ -19,7 +22,6 @@ async function startServer() {
       console.log(`[Server] Health check: http://localhost:${config.port}/api/health`);
     });
 
-    // Graceful shutdown handling
     const shutdown = async (signal) => {
       console.log(`\n[Server] Received ${signal}. Initiating graceful shutdown...`);
       server.close(async () => {
@@ -28,7 +30,6 @@ async function startServer() {
         process.exit(0);
       });
 
-      // Force close if graceful shutdown takes too long
       setTimeout(() => {
         console.error('[Server] Could not close connections in time, forcefully shutting down');
         process.exit(1);
@@ -38,10 +39,9 @@ async function startServer() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {
-    console.error('[Server] Failed to start server:', error);
+    console.error('[Server] Failed to start server:', error.message);
     process.exit(1);
   }
 }
 
 startServer();
-

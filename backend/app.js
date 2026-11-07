@@ -2,12 +2,13 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
-const config = require('./src/config');
+const { config } = require('./src/config');
 const { notFoundHandler, errorHandler } = require('./src/middleware/error.middleware');
 const { apiLimiter } = require('./src/middleware/rateLimiter.middleware');
 
 // Route imports
 const authRoutes = require('./src/modules/auth/auth.routes');
+const settingsRoutes = require('./src/modules/settings/settings.routes');
 
 const app = express();
 
@@ -15,13 +16,10 @@ const app = express();
 // 1. Security & Core Middleware
 // ==============================================================================
 
-// Set secure HTTP headers
 app.use(helmet());
 
-// CORS configuration (Strict allowlist from FRONTEND_URL per architecture requirements)
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Postman in development)
     if (!origin) return callback(null, true);
 
     const allowedOrigins = [
@@ -42,20 +40,17 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// HTTP Request Logger
 if (config.nodeEnv !== 'test') {
   app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 }
 
-// Body parsers (JSON only, no session/cookie overhead)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Apply general API rate limiter to all /api routes
 app.use('/api', apiLimiter);
 
 // ==============================================================================
-// 2. Health Check & Core Routes
+// 2. Health Check & API Routes
 // ==============================================================================
 
 app.get('/api/health', (req, res) => {
@@ -64,21 +59,19 @@ app.get('/api/health', (req, res) => {
     message: 'QuickFile REST API is healthy and operational.',
     environment: config.nodeEnv,
     timestamp: new Date().toISOString(),
+    data: null,
   });
 });
 
-// Mount modules
+// Mounted modules
 app.use('/api/auth', authRoutes);
+app.use('/api/admin/settings', settingsRoutes);
 
 // ==============================================================================
 // 3. Error Handling
 // ==============================================================================
 
-// 404 handler for unmatched routes
 app.use(notFoundHandler);
-
-// Central JSON error handler
 app.use(errorHandler);
 
 module.exports = app;
-

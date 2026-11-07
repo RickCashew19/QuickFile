@@ -25,7 +25,6 @@ const citizenProfileSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    // Requirement 4: suffix
     suffix: {
       type: String,
       trim: true,
@@ -50,7 +49,6 @@ const citizenProfileSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    // Requirement 4: purok_zone and street_address
     purok_zone: {
       type: String,
       trim: true,
@@ -61,22 +59,22 @@ const citizenProfileSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Requirement 5: Removed hardcoded jurisdiction defaults
     barangay: {
       type: String,
       trim: true,
-      default: 'San Antonio',
+      default: '',
     },
     city: {
       type: String,
       trim: true,
-      default: 'Pasig City',
+      default: '',
     },
     province: {
       type: String,
       trim: true,
-      default: 'Metro Manila',
+      default: '',
     },
-    // Requirement 4: occupation and voter_status
     occupation: {
       type: String,
       trim: true,
@@ -87,7 +85,6 @@ const citizenProfileSchema = new mongoose.Schema(
       enum: Object.values(VOTER_STATUSES),
       default: VOTER_STATUSES.REGISTERED,
     },
-    // Requirement 4: emergency contact fields
     emergency_contact_name: {
       type: String,
       trim: true,
@@ -98,7 +95,6 @@ const citizenProfileSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    // Supporting ID extras
     valid_id_type: {
       type: String,
       trim: true,

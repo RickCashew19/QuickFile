@@ -9,7 +9,6 @@ const ROLES = Object.freeze({
   CITIZEN: 'citizen',
 });
 
-// Requirement 1: Updated request statuses (removed 'processing' and 'completed')
 const REQUEST_STATUSES = Object.freeze({
   PENDING: 'pending',
   UNDER_REVIEW: 'under_review',
@@ -22,17 +21,18 @@ const REQUEST_STATUSES = Object.freeze({
   CANCELLED: 'cancelled',
 });
 
-// Requirement 6: Issued document validity statuses
 const VALIDITY_STATUSES = Object.freeze({
   VALID: 'valid',
   EXPIRED: 'expired',
   REVOKED: 'revoked',
 });
 
+// Requirement 6: Added 'waived' payment status
 const PAYMENT_STATUSES = Object.freeze({
   FREE: 'free',
   UNPAID: 'unpaid',
   PAID: 'paid',
+  WAIVED: 'waived',
 });
 
 const VERIFICATION_STATUSES = Object.freeze({
@@ -52,7 +52,6 @@ const NOTIFICATION_CHANNELS = Object.freeze({
   SMS: 'sms',
 });
 
-// Requirement 2: Cleaned staff permissions (settings are admin-only)
 const STAFF_PERMISSIONS = Object.freeze([
   'can_review_requests',
   'can_prepare_documents',
@@ -63,15 +62,15 @@ const STAFF_PERMISSIONS = Object.freeze([
   'can_archive_records',
 ]);
 
-const SUPER_ADMIN_PIN = Object.freeze({
-  MIN_LENGTH: 6,
-  MAX_LENGTH: 8,
+// Requirement 1: Super Admin Key lockout limits
+const SUPER_ADMIN_LOCKOUT = Object.freeze({
   MAX_ATTEMPTS: 5,
   LOCKOUT_MINUTES: 15,
 });
 
-// Allowlisted .env keys for Super Admin PIN update endpoint
-const ALLOWED_ENV_SETTING_KEYS = Object.freeze([
+// Requirement 1: Strictly allowlisted CUSTOM_* variables writable to .env
+// SU_ADMIN_KEY and DEFAULT_* keys are strictly forbidden from modification via API
+const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
   'CUSTOM_GOOGLE_CLIENT_ID',
   'CUSTOM_GOOGLE_CLIENT_SECRET',
   'CUSTOM_SMS_GATEWAY_URL',
@@ -98,6 +97,6 @@ module.exports = {
   VOTER_STATUSES,
   NOTIFICATION_CHANNELS,
   STAFF_PERMISSIONS,
-  SUPER_ADMIN_PIN,
-  ALLOWED_ENV_SETTING_KEYS,
+  SUPER_ADMIN_LOCKOUT,
+  ALLOWED_CUSTOM_ENV_KEYS,
 };

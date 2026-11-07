@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const config = require('../config');
+const { config, validateConfig } = require('../config');
 const { connectDB } = require('../config/db');
 const {
   User,
@@ -8,32 +8,37 @@ const {
   StaffPermission,
   DocumentType,
   AppSetting,
-  SuperAdminPin,
+  SuperAdminLockout,
 } = require('../models');
 const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
 
 async function seedDatabase() {
   console.log('[Seeder] Starting database seeding process...');
 
-  // Requirement 8: No hardcoded fallback PIN. Stop with a clear error if missing in .env
-  const rawPin = process.env.SUPER_ADMIN_PIN;
-  if (!rawPin || !rawPin.trim()) {
+  // Requirement 1: Validate SU_ADMIN_KEY is present; stop with clear error if missing
+  validateConfig();
+
+  // Requirement 5: Ensure default passwords are provided via .env
+  if (
+    !config.seed.adminPassword ||
+    !config.seed.staffPassword ||
+    !config.seed.citizenPassword
+  ) {
     throw new Error(
-      '[Seeder] Error: SUPER_ADMIN_PIN is missing in .env. Please configure SUPER_ADMIN_PIN in .env before running the seeder.'
+      '[Seeder] Fatal Error: Default passwords (DEFAULT_ADMIN_PASSWORD, DEFAULT_STAFF_PASSWORD, DEFAULT_CITIZEN_PASSWORD) must be set in .env.'
     );
   }
 
-  // 1. Seed Super Admin PIN (Never print the PIN)
-  const existingPin = await SuperAdminPin.findOne();
-  if (!existingPin) {
-    const hashedPin = await SuperAdminPin.hashPin(rawPin.trim());
-    await SuperAdminPin.create({ pin_hash: hashedPin });
-    console.log('[Seeder] Seeded Super Admin PIN successfully.');
+  // 1. Initialize Super Admin Lockout state
+  let lockout = await SuperAdminLockout.findOne();
+  if (!lockout) {
+    await SuperAdminLockout.create({});
+    console.log('[Seeder] Initialized Super Admin lockout state.');
   } else {
-    console.log('[Seeder] Super Admin PIN already configured. Skipping.');
+    console.log('[Seeder] Super Admin lockout record already exists.');
   }
 
-  // 2. Seed Default Admin Account (Never print passwords)
+  // 2. Seed Default Admin Account (never print passwords or keys)
   let admin = await User.findOne({ email: config.seed.adminEmail });
   if (!admin) {
     const passwordHash = await User.hashPassword(config.seed.adminPassword);
@@ -50,7 +55,7 @@ async function seedDatabase() {
     console.log(`[Seeder] Admin user already exists: ${config.seed.adminEmail}`);
   }
 
-  // 3. Seed Default Staff Account
+  // 3. Seed Default Staff Account (Requirement 7: No duplicate name in StaffDetail)
   let staff = await User.findOne({ email: config.seed.staffEmail });
   if (!staff) {
     const passwordHash = await User.hashPassword(config.seed.staffPassword);
@@ -65,15 +70,12 @@ async function seedDatabase() {
 
     await StaffDetail.create({
       user_id: staff._id,
-      first_name: 'Juan',
-      last_name: 'Dela Cruz',
       employee_id: 'BRGY-STAFF-001',
       position: 'Document Processing Officer',
       department: 'Records & Documentation',
       contact_number: '09171234567',
     });
 
-    // Requirement 2: Cleaned staff permissions
     await StaffPermission.create({
       user_id: staff._id,
       can_review_requests: true,
@@ -90,7 +92,7 @@ async function seedDatabase() {
     console.log(`[Seeder] Staff user already exists: ${config.seed.staffEmail}`);
   }
 
-  // 4. Seed Default Citizen Account
+  // 4. Seed Default Citizen Account (Requirement 5: Read jurisdiction from .env/config)
   let citizen = await User.findOne({ email: config.seed.citizenEmail });
   if (!citizen) {
     const passwordHash = await User.hashPassword(config.seed.citizenPassword);
@@ -103,7 +105,6 @@ async function seedDatabase() {
       is_active: true,
     });
 
-    // Requirement 4: Restored CitizenProfile fields
     await CitizenProfile.create({
       user_id: citizen._id,
       first_name: 'Maria',
@@ -116,9 +117,9 @@ async function seedDatabase() {
       contact_number: '09187654321',
       purok_zone: 'Zone 4',
       street_address: '123 Rizal Street',
-      barangay: 'San Antonio',
-      city: 'Pasig City',
-      province: 'Metro Manila',
+      barangay: config.jurisdiction.barangayName(),
+      city: config.jurisdiction.cityMunicipality(),
+      province: config.jurisdiction.province(),
       occupation: 'Office Clerk',
       voter_status: VOTER_STATUSES.REGISTERED,
       emergency_contact_name: 'Jose Clara',
@@ -180,12 +181,12 @@ async function seedDatabase() {
     }
   }
 
-  // 6. Seed App Settings (Toggles only; secret keys stay in .env)
+  // 6. Seed App Settings (Toggles & Metadata only; secret keys stay in .env)
   const defaultSettings = [
     { key: 'system_name', value: 'QuickFile Barangay Portal', category: 'general', description: 'Application display name' },
-    { key: 'barangay_name', value: 'Barangay San Antonio', category: 'general', description: 'Name of the barangay' },
-    { key: 'city_municipality', value: 'Pasig City', category: 'general', description: 'City or Municipality' },
-    { key: 'province', value: 'Metro Manila', category: 'general', description: 'Province or Region' },
+    { key: 'barangay_name', value: config.jurisdiction.barangayName(), category: 'general', description: 'Name of the barangay' },
+    { key: 'city_municipality', value: config.jurisdiction.cityMunicipality(), category: 'general', description: 'City or Municipality' },
+    { key: 'province', value: config.jurisdiction.province(), category: 'general', description: 'Province or Region' },
     { key: 'contact_email', value: 'info@quickfile.gov.ph', category: 'general', description: 'Public contact email' },
     { key: 'contact_phone', value: '+63 912 345 6789', category: 'general', description: 'Public contact phone' },
     { key: 'enable_sms_notifications', value: false, category: 'notifications', description: 'Toggle PhilSMS notifications' },
@@ -201,6 +202,7 @@ async function seedDatabase() {
       await AppSetting.create(s);
     }
   }
+
   console.log('[Seeder] Default application settings verified.');
   console.log('[Seeder] Database seeding completed successfully.');
 }

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Requirement 7: Removed duplicated name fields (uses User.full_name)
 const staffDetailSchema = new mongoose.Schema(
   {
     user_id: {
@@ -8,16 +9,6 @@ const staffDetailSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-    },
-    first_name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    last_name: {
-      type: String,
-      required: true,
-      trim: true,
     },
     employee_id: {
       type: String,
@@ -44,12 +35,5 @@ const staffDetailSchema = new mongoose.Schema(
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
   }
 );
-
-staffDetailSchema.virtual('full_name').get(function () {
-  return `${this.first_name} ${this.last_name}`.trim();
-});
-
-staffDetailSchema.set('toJSON', { virtuals: true });
-staffDetailSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('StaffDetail', staffDetailSchema);

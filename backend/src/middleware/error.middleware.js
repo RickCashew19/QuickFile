@@ -5,22 +5,24 @@ function notFoundHandler(req, res, next) {
   res.status(404).json({
     success: false,
     message: `Resource not found: ${req.method} ${req.originalUrl}`,
+    data: null,
   });
 }
 
 /**
  * Central Error Handler Middleware
- * Guarantees every error returns JSON: { success: false, message, errors }
- * Never renders HTML, never leaks stack traces in production.
+ * Guarantees every error returns JSON: { success: false, message, errors, data: null }
+ * Requirement 2: Never include the stack trace in the JSON response. Log it on the server only.
  */
 function errorHandler(err, req, res, next) {
+  // Server-side logging only (with stack trace for developers)
   console.error(`[Error] ${req.method} ${req.originalUrl}:`, err);
 
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || null;
 
-  // Handle Mongoose Validation Error (e.g. required fields, enum mismatch)
+  // Handle Mongoose Validation Error
   if (err.name === 'ValidationError') {
     statusCode = 400;
     message = 'Validation failed. Please verify your input.';
@@ -30,7 +32,7 @@ function errorHandler(err, req, res, next) {
     }
   }
 
-  // Handle Mongoose CastError (e.g. invalid MongoDB ObjectId format)
+  // Handle Mongoose CastError (e.g. invalid ObjectId)
   if (err.name === 'CastError') {
     statusCode = 400;
     message = `Invalid format for field '${err.path}': ${err.value}`;
@@ -64,11 +66,12 @@ function errorHandler(err, req, res, next) {
     }
   }
 
+  // JSON response: stack trace is strictly excluded
   res.status(statusCode).json({
     success: false,
     message,
     ...(errors && { errors }),
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    data: null,
   });
 }
 
@@ -76,4 +79,3 @@ module.exports = {
   notFoundHandler,
   errorHandler,
 };
-

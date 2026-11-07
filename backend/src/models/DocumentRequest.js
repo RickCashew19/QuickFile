@@ -47,7 +47,6 @@ const documentRequestSchema = new mongoose.Schema(
       min: 1,
       max: 10,
     },
-    // Requirement 1: Updated request statuses
     status: {
       type: String,
       enum: Object.values(REQUEST_STATUSES),
@@ -59,6 +58,7 @@ const documentRequestSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Requirement 6: Includes 'waived' in PAYMENT_STATUSES (free, unpaid, paid, waived)
     payment_status: {
       type: String,
       enum: Object.values(PAYMENT_STATUSES),
@@ -73,7 +73,6 @@ const documentRequestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    // Requirement 5: attachment path and name
     attachment_name: {
       type: String,
       default: '',
@@ -86,7 +85,6 @@ const documentRequestSchema = new mongoose.Schema(
       type: [attachmentSchema],
       default: [],
     },
-    // Requirement 5: Workflow tracking and audit fields
     rejection_reason: {
       type: String,
       default: '',

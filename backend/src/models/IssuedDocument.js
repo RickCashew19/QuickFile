@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { VALIDITY_STATUSES } = require('../config/constants');
 
-// Requirement 6: Certificate number, validity_status, expires_at, revoked_at, revoked_reason
+// Requirement 3: Restored snapshot fields (document_name, issued_to_name, qr_data)
 const issuedDocumentSchema = new mongoose.Schema(
   {
     request_id: {
@@ -19,6 +19,17 @@ const issuedDocumentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    // Snapshot fields so verification works even if parent request or user is deleted
+    document_name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    issued_to_name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     verification_code: {
       type: String,
       required: true,
@@ -26,6 +37,10 @@ const issuedDocumentSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
       index: true,
+    },
+    qr_data: {
+      type: String,
+      required: true,
     },
     qr_code_image: {
       type: String,
