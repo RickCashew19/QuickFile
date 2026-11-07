@@ -1,7 +1,13 @@
 const rateLimit = require('express-rate-limit');
 const {
   RATE_LIMIT_WINDOW_MS,
+  ONE_HOUR_MS,
   AUTH_LIMIT_MAX,
+  REGISTER_LIMIT_MAX,
+  FORGOT_PASSWORD_IP_LIMIT_MAX,
+  FORGOT_PASSWORD_EMAIL_LIMIT_MAX,
+  RESET_PASSWORD_LIMIT_MAX,
+  SU_KEY_LIMIT_MAX,
   POLLING_LIMIT_MAX,
   USER_API_LIMIT_MAX,
   EXPORT_LIMIT_MAX,
@@ -37,14 +43,25 @@ const emailKeyGenerator = (req) => {
 };
 
 /**
- * Rate limiter for sensitive authentication endpoints (Register, Login, Google, Password Reset)
+ * Key generator by email and IP composite so an external attacker cannot lock the owner out
+ */
+const loginEmailIpKeyGenerator = (req) => {
+  const email =
+    req.body && typeof req.body.email === 'string' && req.body.email.trim()
+      ? req.body.email.toLowerCase().trim()
+      : 'unknown';
+  const ip = req.ip || 'unknown';
+  return `${email}|${ip}`;
+};
+
+/**
+ * Rate limiter for sensitive authentication endpoints (Login, Google login)
  * 15 failed requests per 15 minutes per IP (16th failed attempt returns 429)
  * Successful requests do NOT count against the limit.
  */
 const authLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: AUTH_LIMIT_MAX,
-  validate: { trustProxy: false },
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
@@ -52,15 +69,15 @@ const authLimiter = rateLimit({
 });
 
 /**
- * Second login rate limiter keyed by submitted email address
- * 15 failed requests per 15 minutes per email account
+ * Login rate limiter keyed by submitted email AND IP composite
+ * 15 failed requests per 15 minutes per `${email}|${ip}`
+ * Prevents account lockout by third parties while blocking targeted brute force.
  * Successful logins do NOT count against the limit.
  */
 const loginEmailLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: AUTH_LIMIT_MAX,
-  validate: { trustProxy: false },
-  keyGenerator: emailKeyGenerator,
+  keyGenerator: loginEmailIpKeyGenerator,
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
@@ -70,13 +87,57 @@ const loginEmailLimiter = rateLimit({
 });
 
 /**
+ * Registration rate limiter: counts EVERY request (5 per hour per IP)
+ */
+const registerLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: REGISTER_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many registration requests. Please try again after an hour.'),
+});
+
+/**
+ * Forgot password IP limiter: counts EVERY request (5 per hour per IP)
+ */
+const forgotPasswordIpLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: FORGOT_PASSWORD_IP_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many password reset requests from this IP. Please try again after an hour.'),
+});
+
+/**
+ * Forgot password email limiter: counts EVERY request (3 per hour per email)
+ */
+const forgotPasswordEmailLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: FORGOT_PASSWORD_EMAIL_LIMIT_MAX,
+  keyGenerator: emailKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many password reset requests for this email address. Please try again after an hour.'),
+});
+
+/**
+ * Password reset execution limiter: counts EVERY request (10 per hour per IP)
+ */
+const resetPasswordLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: RESET_PASSWORD_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many password reset execution attempts. Please try again after an hour.'),
+});
+
+/**
  * Rate limiter for Super Admin Key verification & settings save
  * 15 failed requests per 15 minutes per IP, skipping successful requests
  */
 const suKeyLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
-  max: 15,
-  validate: { trustProxy: false },
+  max: SU_KEY_LIMIT_MAX,
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
@@ -92,7 +153,6 @@ const suKeyLimiter = rateLimit({
 const publicLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: PUBLIC_LIMIT_MAX,
-  validate: { trustProxy: false },
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many requests. Please slow down.'),
@@ -106,7 +166,6 @@ const publicLimiter = rateLimit({
 const pollingLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: POLLING_LIMIT_MAX,
-  validate: { trustProxy: false },
   keyGenerator: userKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
@@ -120,7 +179,6 @@ const pollingLimiter = rateLimit({
 const userApiLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: USER_API_LIMIT_MAX,
-  validate: { trustProxy: false },
   keyGenerator: userKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
@@ -134,32 +192,22 @@ const userApiLimiter = rateLimit({
 const exportLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: EXPORT_LIMIT_MAX,
-  validate: { trustProxy: false },
   keyGenerator: userKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many report export requests. Maximum 10 exports per 15 minutes.'),
 });
 
-/**
- * Fallback IP limiter for legacy / unauthenticated routers
- */
-const apiLimiter = rateLimit({
-  windowMs: RATE_LIMIT_WINDOW_MS,
-  max: 100,
-  validate: { trustProxy: false },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: rateLimitHandler('Rate limit exceeded. Please try again later.'),
-});
-
 module.exports = {
   authLimiter,
   loginEmailLimiter,
+  registerLimiter,
+  forgotPasswordIpLimiter,
+  forgotPasswordEmailLimiter,
+  resetPasswordLimiter,
   suKeyLimiter,
   publicLimiter,
   pollingLimiter,
   userApiLimiter,
   exportLimiter,
-  apiLimiter,
 };

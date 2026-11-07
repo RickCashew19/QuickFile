@@ -108,27 +108,33 @@ async function updateToggles({ updates, actorUser, ipAddress, userAgent }) {
   }
 
   // 2. Reject enabling when underlying credentials are missing
-  if (updates.enable_google_login === true && !config.google.clientId) {
+  if (updates.enable_google_login === true && !config.google.resolveClientId().value) {
     const err = new Error('Cannot enable Google login: GOOGLE_CLIENT_ID is not configured.');
     err.statusCode = 400;
     throw err;
   }
-  if (updates.enable_recaptcha === true && (!config.recaptcha.secretKey || !config.recaptcha.siteKey)) {
+  if (
+    updates.enable_recaptcha === true &&
+    (!config.recaptcha.resolveSiteKey().value || !config.recaptcha.resolveSecretKey().value)
+  ) {
     const err = new Error('Cannot enable reCAPTCHA: RECAPTCHA credentials are not configured.');
     err.statusCode = 400;
     throw err;
   }
-  if (updates.enable_sms_notifications === true && !config.sms.apiToken) {
+  if (updates.enable_sms_notifications === true && !config.sms.resolveApiToken().value) {
     const err = new Error('Cannot enable SMS notifications: SMS_API_TOKEN is not configured.');
     err.statusCode = 400;
     throw err;
   }
-  if (updates.enable_email_notifications === true && (!config.smtp.user || !config.smtp.pass)) {
+  if (
+    updates.enable_email_notifications === true &&
+    (!config.smtp.resolveUser().value || !config.smtp.resolveHost().value || !config.smtp.resolvePass().value)
+  ) {
     const err = new Error('Cannot enable email notifications: SMTP credentials are not configured.');
     err.statusCode = 400;
     throw err;
   }
-  if (updates.enable_rest_api_gateway === true && !config.restApi.secretKey) {
+  if (updates.enable_rest_api_gateway === true && !config.restApi.resolveSecretKey().value) {
     const err = new Error('Cannot enable REST API Gateway: REST_API_SECRET_KEY is not configured.');
     err.statusCode = 400;
     throw err;

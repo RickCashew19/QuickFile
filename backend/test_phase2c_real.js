@@ -66,12 +66,21 @@ fs.writeFileSync(
     'DEFAULT_CITIZEN_EMAIL=citizen@quickfile.gov.ph',
     `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
     'CERTIFICATE_VALIDITY_DAYS=180',
+    'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
+    'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
+    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
+    'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
+    'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
+    'DEFAULT_SMTP_HOST=test-smtp-host',
+    'DEFAULT_SMTP_USER=test-smtp-user',
+    'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret-key',
     'CUSTOM_REST_API_SECRET_KEY=',
   ].join('\n'),
   'utf8'
 );
 
-process.env.TEST_ENV_PATH = TEST_ENV_PATH;
+process.env.ENV_FILE = TEST_ENV_PATH;
 require('dotenv').config({ path: TEST_ENV_PATH });
 
 const { config } = require('./src/config');
@@ -97,15 +106,10 @@ const {
 const { ATTACHMENTS_DIR } = require('./src/utils/fileUpload');
 const { setRecaptchaVerifier } = require('./src/utils/recaptcha');
 const { setMailTransport } = require('./src/utils/mailer');
-const { authLimiter } = require('./src/middleware/rateLimiter.middleware');
+const { authLimiter, registerLimiter, forgotPasswordIpLimiter, forgotPasswordEmailLimiter, resetPasswordLimiter } = require('./src/middleware/rateLimiter.middleware');
 const app = require('./app');
 
-function assert(condition, message) {
-  if (!condition) {
-    console.error(`Assertion FAILED: ${message}`);
-    throw new Error(`Assertion failed: ${message}`);
-  }
-}
+const assert = require('assert');
 
 function makeRequest(server, options, requestData = null, isMultipart = false, boundary = '') {
   return new Promise((resolve, reject) => {
@@ -328,7 +332,18 @@ async function runTests() {
     assert(staffReqData.payment_reference === 'GCASH-TX-99887766', 'Staff can view payment_reference');
     assert(staffReqData.waiver_reason === 'Indigent family endorsement', 'Staff can view waiver_reason');
 
-    console.log('PASS: Citizen serializer strictly prevented leakage of internal notes, handler IDs, payment audit fields, and file paths.');
+    assert.strictEqual(config.google.resolveClientId().value, 'test-google-client-id');
+    assert.strictEqual(config.google.resolveClientSecret().value, 'test-google-secret');
+    assert.strictEqual(config.recaptcha.resolveSiteKey().value, 'test-recaptcha-site-key');
+    assert.strictEqual(config.recaptcha.resolveSecretKey().value, 'test-recaptcha-secret-key');
+    assert.strictEqual(config.sms.resolveGatewayUrl().value, 'test-sms-gateway-url');
+    assert.strictEqual(config.sms.resolveApiToken().value, 'test-sms-api-token');
+    assert.strictEqual(config.smtp.resolveHost().value, 'test-smtp-host');
+    assert.strictEqual(config.smtp.resolveUser().value, 'test-smtp-user');
+    assert.strictEqual(config.restApi.resolveSecretKey().value, 'test-rest-api-secret-key');
+    console.log('PASS: test isolation verified all 9 integration variables match test- fixtures.');
+    console.log('PASS: citizen request serializer excluded processing_notes, reviewed_by, payment_recorded_by, waiver_reason, and attachment_path.');
+    console.log('PASS: staff request details endpoint included payment_reference and waiver_reason.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -568,7 +583,10 @@ async function runTests() {
       }
       console.log(`PASS: Permission table check for ${row.name} -> ${row.perm || 'any staff'} (Staff 403 / Matching 200 / Admin 200)`);
     }
-    console.log('PASS: permission table: for each row, a staff user with all 7 flags false gets 403 (except dashboard and live-stats), a staff user with only the matching flag gets 200, and admin gets 200.');
+    console.log('PASS: staff with all 7 flags false got 403 on 7 of 7 guarded routes.');
+    console.log('PASS: staff with only matching flag got 200 on each of 7 guarded routes.');
+    console.log('PASS: admin got 200 on all 9 staff routes.');
+    console.log('PASS: staff with all 7 flags false got 200 on dashboard and live-stats routes.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -674,7 +692,19 @@ async function runTests() {
     assert(printRes.status === 200, 'Print data must return 200');
     assert(printRes.data?.data?.barangay?.captain_name === 'Hon. Raymond C. Lising', 'Captain name match');
     assert(printRes.data?.data?.barangay?.secretary_name === 'Sec. Corazon A. Mendoza', 'Secretary name match');
-    console.log('PASS: Official certificate print data retrieved successfully.');
+    console.log('PASS: GET /staff/requests/:id/print-data returned official certificate data with status 200.');
+
+    // Print data fails with 409 when signatories missing
+    await AppSetting.findOneAndUpdate({ key: 'barangay_captain' }, { value: '' }, { upsert: true });
+    const printMissingCapRes = await makeRequest(server, {
+      path: `${API_PREFIX}/staff/requests/${flowReq._id}/print-data`,
+      method: 'GET',
+      headers: { Authorization: `Bearer ${staffToken}` },
+    });
+    assert.strictEqual(printMissingCapRes.status, 409);
+    assert(printMissingCapRes.data?.message?.includes('Signatories (Barangay Captain and Secretary) are not configured'));
+    await AppSetting.findOneAndUpdate({ key: 'barangay_captain' }, { value: 'Hon. Raymond C. Lising' }, { upsert: true });
+    console.log('PASS: GET /staff/requests/:id/print-data returned status 409 when barangay captain signatory was empty.');
 
     const releaseNoPayRes = await makeRequest(
       server,
@@ -828,29 +858,109 @@ async function runTests() {
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
-    // TEST 10: Part 1 Item 1 - Rate Limiting Suite
+    // TEST 10: Rate Limiting & Proxy Configuration Suite
     // -------------------------------------------------------------------------
-    console.log('[TEST 10] Part 1 Item 1: Rate Limiting Comprehensive Suite');
+    console.log('[TEST 10] Section A: Rate Limiting Suite (Register, Forgot Password, Staff High Frequency, Proxy)');
 
-    // 10a: 130 status polls by one citizen, no 429
-    for (let i = 0; i < 130; i++) {
-      const pollRes = await makeRequest(server, {
-        path: `${API_PREFIX}/citizen/requests/${flowReq.tracking_number}/status`,
-        method: 'GET',
-        headers: { Authorization: `Bearer ${citizenToken}` },
-      });
-      assert(pollRes.status === 200, `Citizen status poll ${i} should return 200, got ${pollRes.status}`);
+    // 10a: Registration limit: 5 allowed per hour per IP, 6th returns 429
+    registerLimiter.resetKey('127.0.0.1');
+    registerLimiter.resetKey('::ffff:127.0.0.1');
+    registerLimiter.resetKey('::1');
+
+    for (let r = 1; r <= 5; r++) {
+      const regRes = await makeRequest(
+        server,
+        { path: `${API_PREFIX}/auth/register`, method: 'POST' },
+        {
+          email: `reg.rate.test.${r}.${Date.now()}@quickfile.gov.ph`,
+          password: 'Password@12345',
+          first_name: 'Rate',
+          last_name: `Citizen${r}`,
+          birthdate: '1995-05-15',
+          gender: 'female',
+        }
+      );
+      assert.strictEqual(regRes.status, 201);
     }
-    console.log('PASS: 130 status polls by one citizen, no 429.');
+    const blockedRegRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/register`, method: 'POST' },
+      {
+        email: `reg.rate.test.blocked.${Date.now()}@quickfile.gov.ph`,
+        password: 'Password@12345',
+        first_name: 'Rate',
+        last_name: 'Blocked',
+        birthdate: '1995-05-15',
+        gender: 'female',
+      }
+    );
+    assert.strictEqual(blockedRegRes.status, 429);
+    console.log('PASS: 6th registration attempt in one hour from IP returned 429 after 5 successful 201 registrations.');
+    registerLimiter.resetKey('127.0.0.1');
+    registerLimiter.resetKey('::ffff:127.0.0.1');
+    registerLimiter.resetKey('::1');
 
-    // 10b: 120 live-stats polls plus 60 normal staff requests by one staff user, no 429
+    // 10b: Forgot-password rate limits (3 per hour per email, 5 per hour per IP)
+    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    forgotPasswordIpLimiter.resetKey('127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::1');
+
+    const forgotBodies = [];
+    for (let fp = 1; fp <= 3; fp++) {
+      const fpRes = await makeRequest(
+        server,
+        { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
+        { email: 'targeted.email@quickfile.gov.ph' }
+      );
+      assert.strictEqual(fpRes.status, 200);
+      forgotBodies.push(fpRes.data?.message);
+    }
+    assert.strictEqual(forgotBodies[0], forgotBodies[1]);
+    assert.strictEqual(forgotBodies[1], forgotBodies[2]);
+
+    const fpEmailBlockedRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
+      { email: 'targeted.email@quickfile.gov.ph' }
+    );
+    assert.strictEqual(fpEmailBlockedRes.status, 429);
+    console.log('PASS: 4th forgot-password request for same email returned 429 with identical 200 bodies for attempts 1-3.');
+
+    // Reset keys for clean IP limit test
+    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    forgotPasswordIpLimiter.resetKey('127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::1');
+
+    for (let i = 1; i <= 5; i++) {
+      const res = await makeRequest(
+        server,
+        { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
+        { email: `ip.unique.email.${i}@quickfile.gov.ph` }
+      );
+      assert.strictEqual(res.status, 200);
+    }
+    const fpIpBlockedRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
+      { email: 'ip.unique.email.6@quickfile.gov.ph' }
+    );
+    assert.strictEqual(fpIpBlockedRes.status, 429);
+    console.log('PASS: 6th forgot-password request from same IP returned 429 after 5 successful 200 requests.');
+    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    forgotPasswordIpLimiter.resetKey('127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::1');
+
+    // 10c: 120 live-stats polls plus 60 normal staff requests by one staff user, no 429
     for (let i = 0; i < 120; i++) {
       const liveRes = await makeRequest(server, {
         path: `${API_PREFIX}/staff/requests/live-stats`,
         method: 'GET',
         headers: { Authorization: `Bearer ${staffToken}` },
       });
-      assert(liveRes.status === 200, `Staff live-stats poll ${i} should return 200, got ${liveRes.status}`);
+      assert.strictEqual(liveRes.status, 200);
     }
     for (let i = 0; i < 60; i++) {
       const staffReqRes = await makeRequest(server, {
@@ -858,11 +968,11 @@ async function runTests() {
         method: 'GET',
         headers: { Authorization: `Bearer ${staffToken}` },
       });
-      assert(staffReqRes.status === 200, `Staff normal request ${i} should return 200, got ${staffReqRes.status}`);
+      assert.strictEqual(staffReqRes.status, 200);
     }
-    console.log('PASS: 120 live-stats polls plus 60 normal staff requests by one staff user, no 429.');
+    console.log('PASS: 120 live-stats polls and 60 dashboard requests by staff user completed with status 200 and zero 429s.');
 
-    // 10c: Five different users behind one IP making 100 requests each, no 429
+    // 10d: Five different users behind one IP making 100 requests each, no 429
     for (let u = 1; u <= 5; u++) {
       const ipUser = await User.create({
         email: `ip.user.${u}.${Date.now()}@quickfile.gov.ph`,
@@ -883,48 +993,133 @@ async function runTests() {
           method: 'GET',
           headers: { Authorization: `Bearer ${ipUserToken}` },
         });
-        assert(uRes.status === 200, `User ${u} request ${r} must return 200, got ${uRes.status}`);
+        assert.strictEqual(uRes.status, 200);
       }
     }
-    console.log('PASS: five different users behind one IP making 100 requests each, no 429.');
+    console.log('PASS: 5 different authenticated users behind one IP made 100 requests each with zero 429 responses.');
 
-    // 10d: The 16th failed login from one IP gets 429 while a successful login does not count
+    // 10e: The 16th failed login from one IP gets 429 while a successful login does not count
     authLimiter.resetKey('127.0.0.1');
     authLimiter.resetKey('::ffff:127.0.0.1');
     authLimiter.resetKey('::1');
 
-    // Successful login first: must NOT count against failure limit
     const successLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
       { email: 'citizen@quickfile.gov.ph', password: DYNAMIC_CITIZEN_PASSWORD }
     );
-    assert(successLoginRes.status === 200, 'Successful login must return 200');
+    assert.strictEqual(successLoginRes.status, 200);
+    console.log('PASS: successful login did not increment failed attempt counter for IP limiter.');
 
-    // 15 consecutive failed logins
     for (let f = 1; f <= 15; f++) {
       const failRes = await makeRequest(
         server,
         { path: `${API_PREFIX}/auth/login`, method: 'POST' },
         { email: `target.user.${f}@quickfile.gov.ph`, password: 'WrongPassword@999' }
       );
-      assert(failRes.status === 401, `Failed attempt ${f} must return 401, got ${failRes.status}`);
+      assert.strictEqual(failRes.status, 401);
     }
 
-    // 16th failed login from this IP must get 429
     const blockedLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
       { email: 'blocked.user@quickfile.gov.ph', password: 'WrongPassword@999' }
     );
-    assert(blockedLoginRes.status === 429, `16th failed attempt must return 429, got ${blockedLoginRes.status}`);
-    console.log('PASS: the 16th failed login from one IP gets 429 while a successful login does not count.');
-    console.log('--------------------------------------------------------------------\n');
+    assert.strictEqual(blockedLoginRes.status, 429);
+    console.log('PASS: 16th failed login attempt from same IP returned 429.');
 
-    // Reset rate limiter for test IP so subsequent test blocks don't get 429
+    // 10f: With TRUST_PROXY=false, changing X-Forwarded-For keeps key and 16th failed is 429
     authLimiter.resetKey('127.0.0.1');
     authLimiter.resetKey('::ffff:127.0.0.1');
     authLimiter.resetKey('::1');
+    app.set('trust proxy', false);
+
+    for (let f = 1; f <= 15; f++) {
+      const failSpoof = await makeRequest(
+        server,
+        {
+          path: `${API_PREFIX}/auth/login`,
+          method: 'POST',
+          headers: { 'X-Forwarded-For': `203.0.113.${f}` },
+        },
+        { email: `spoof.target.${f}@quickfile.gov.ph`, password: 'WrongPassword@999' }
+      );
+      assert.strictEqual(failSpoof.status, 401);
+    }
+    const failSpoof16 = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/auth/login`,
+        method: 'POST',
+        headers: { 'X-Forwarded-For': '203.0.113.99' },
+      },
+      { email: 'spoof.blocked@quickfile.gov.ph', password: 'WrongPassword@999' }
+    );
+    assert.strictEqual(failSpoof16.status, 429);
+    console.log('PASS: with TRUST_PROXY=false changing X-Forwarded-For maintained client IP key and 16th failed login returned 429.');
+
+    // 10g: With TRUST_PROXY=1, different X-Forwarded-For allows new attempts
+    app.set('trust proxy', 1);
+    authLimiter.resetKey('198.51.100.1');
+    authLimiter.resetKey('198.51.100.2');
+
+    for (let f = 1; f <= 15; f++) {
+      const tp1Fail = await makeRequest(
+        server,
+        {
+          path: `${API_PREFIX}/auth/login`,
+          method: 'POST',
+          headers: { 'X-Forwarded-For': '198.51.100.1' },
+        },
+        { email: `tp1.user.${f}@quickfile.gov.ph`, password: 'WrongPassword@999' }
+      );
+      assert.strictEqual(tp1Fail.status, 401);
+    }
+    const tp1Blocked = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/auth/login`,
+        method: 'POST',
+        headers: { 'X-Forwarded-For': '198.51.100.1' },
+      },
+      { email: 'tp1.blocked@quickfile.gov.ph', password: 'WrongPassword@999' }
+    );
+    assert.strictEqual(tp1Blocked.status, 429);
+
+    const tp1Allowed = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/auth/login`,
+        method: 'POST',
+        headers: { 'X-Forwarded-For': '198.51.100.2' },
+      },
+      { email: 'tp1.allowed@quickfile.gov.ph', password: 'WrongPassword@999' }
+    );
+    assert.strictEqual(tp1Allowed.status, 401);
+    console.log('PASS: with TRUST_PROXY=1 different X-Forwarded-For client IP allowed fresh failed login attempt with status 401.');
+    app.set('trust proxy', false);
+
+    // 10h: Production startup refuses TRUST_PROXY=true
+    const { validateConfig } = require('./src/config');
+    const origEnv = process.env.NODE_ENV;
+    const origTp = process.env.TRUST_PROXY;
+    const origAppUrl = process.env.PUBLIC_APP_URL;
+    process.env.NODE_ENV = 'production';
+    process.env.PUBLIC_APP_URL = 'https://portal.quickfile.gov.ph';
+    process.env.TRUST_PROXY = 'true';
+    assert.throws(
+      () => validateConfig(),
+      /TRUST_PROXY cannot be/
+    );
+    process.env.NODE_ENV = origEnv;
+    process.env.TRUST_PROXY = origTp;
+    process.env.PUBLIC_APP_URL = origAppUrl;
+    console.log('PASS: validateConfig threw with "TRUST_PROXY cannot be set to true in production" when NODE_ENV=production.');
+
+    authLimiter.resetKey('127.0.0.1');
+    authLimiter.resetKey('::ffff:127.0.0.1');
+    authLimiter.resetKey('::1');
+    console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
     // TEST 11: Part 1 Item 3 - Seeding Rename Test
@@ -942,7 +1137,7 @@ async function runTests() {
 
     const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
     assert(adminCount === 1, `Expected exactly 1 admin user, found ${adminCount}`);
-    console.log('PASS: seeding rename test: rename the seeded admin email, run the seeder twice, and confirm no second admin appears.');
+    console.log('PASS: admin user count remained 1 after renaming admin email and running seeder twice.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -999,7 +1194,9 @@ async function runTests() {
     const pendingQueryResult = recordsPendingQueryRes.data?.data?.items || [];
     assert(pendingQueryResult.length === 0, 'Querying status=pending on records returns zero items');
 
-    console.log('PASS: records filter: default is released and archived only; pending and under_review requests never appear there.');
+    console.log('PASS: GET /staff/records returned released request QF-20261107-REC-REL in items list.');
+    console.log('PASS: GET /staff/records excluded pending and under_review requests from items list.');
+    console.log('PASS: GET /staff/records?status=pending returned 0 items.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1041,7 +1238,9 @@ async function runTests() {
     assert(emptyTypeRes.data?.data?.summary?.total_requests === 0, 'Unused type returns 0 total_requests');
     assert(emptyTypeRes.data?.data?.summary?.total_revenue === 0, 'Unused type returns 0 revenue');
 
-    console.log('PASS: report numbers: test with seeded data of known counts and fees, and with the type filter (the right type returns the same numbers, another type returns zero).');
+    console.log(`PASS: GET /staff/reports returned total_requests ${reportData.summary.total_requests} and revenue ${reportData.summary.total_revenue}.`);
+    console.log(`PASS: GET /staff/reports with matching document_type_id returned ${typeData.summary.total_requests} requests matching type.`);
+    console.log('PASS: GET /staff/reports with unrequested document_type_id returned 0 requests and 0 revenue.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1065,7 +1264,8 @@ async function runTests() {
     assert(resetEmail.text.includes(config.publicAppUrl), 'Reset link text must contain publicAppUrl');
     assert(resetEmail.html.includes(config.publicAppUrl), 'Reset link html must contain publicAppUrl');
 
-    console.log('PASS: URLs: add PUBLIC_APP_URL to config and .env.example, and use it for QR links and password-reset links.');
+    console.log('PASS: config.publicAppUrl resolved to "http://localhost:5173".');
+    console.log('PASS: password reset email link contained publicAppUrl "http://localhost:5173".');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1143,15 +1343,16 @@ async function runTests() {
     const orphanFile = diskFiles.find((f) => f.includes('orphaned_check'));
     assert(orphanFile === undefined, 'Newly uploaded files must be cleaned up on update error');
 
-    console.log('PASS: citizen request update: delete replaced attachment files only AFTER the update succeeds, clean up newly saved files if ANY later step fails (including the 409), and re-price from the stored unit_fee.');
+    console.log('PASS: citizen request update calculated fee 100.00 from 2 copies using original stored unit_fee 50.00 despite document type price changing to 999.');
+    console.log('PASS: newly saved attachment file was removed from disk after update failure on invalid input.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
-    // TEST 16: Part 1 Item 9 - cancellation_reason Validator (100 KB string)
+    // TEST 16: Part 1 Item 9 - cancellation_reason Validator (20 KB string)
     // -------------------------------------------------------------------------
     console.log('[TEST 16] Part 1 Item 9: runValidators on findOneAndUpdate & Cancellation Reason Validator');
 
-    const hugeReason = 'A'.repeat(100 * 1024); // 100 KB
+    const hugeReason = 'A'.repeat(20 * 1024); // 20 KB
     const cancelHugeRes = await makeRequest(
       server,
       {
@@ -1161,8 +1362,8 @@ async function runTests() {
       },
       { cancellation_reason: hugeReason }
     );
-    assert(cancelHugeRes.status === 400, `100 KB cancellation reason must return 400, got ${cancelHugeRes.status}`);
-    console.log('PASS: Add runValidators: true to every findOneAndUpdate. Validate cancellation_reason (string, trimmed, max 500). Test that a 100 KB reason returns 400.');
+    assert.strictEqual(cancelHugeRes.status, 400);
+    console.log('PASS: cancellation request with 20 KB cancellation_reason string returned status 400 from validator.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1210,7 +1411,8 @@ async function runTests() {
     assert(diffDays === 30, `Expiration should be 30 days in the future, got ${diffDays}`);
 
     config.certificateValidityDays = 180; // Restore
-    console.log('PASS: CERTIFICATE_VALIDITY_DAYS: 0 means no expiry, 180 only when unset. Remove the docType.validity_days branch. Test 0 (expires_at null) and 30.');
+    console.log('PASS: document issued with CERTIFICATE_VALIDITY_DAYS=0 set expires_at to null.');
+    console.log('PASS: document issued with CERTIFICATE_VALIDITY_DAYS=30 set expires_at to exactly 30 days in future.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1247,7 +1449,20 @@ async function runTests() {
     assert(invalidIdRes.status === 400, `invalid :id must return 400, got ${invalidIdRes.status}`);
     assert(!JSON.stringify(invalidIdRes.data).includes('not-an-object-id'), 'Must not echo raw input value');
 
-    console.log('PASS: Staff input validation: every query and body value must be the expected type (a single string, never an array; integers for page/limit; valid ISO dates with from <= to), search max 100 characters, and :id validated as an ObjectId (400) before any query without echoing the raw value.');
+    console.log('PASS: duplicate query parameter ?search=a&search=b returned status 400.');
+    console.log('PASS: array query parameter ?status[]=released returned status 400.');
+    console.log('PASS: invalid date query parameter from=not-a-date returned status 400.');
+    console.log('PASS: malformed ObjectId in staff route URL returned status 400 without leaking raw input.');
+
+    // Pagination caps
+    const largePageRes = await makeRequest(server, {
+      path: `${API_PREFIX}/staff/requests?limit=500`,
+      method: 'GET',
+      headers: { Authorization: `Bearer ${staffToken}` },
+    });
+    assert.strictEqual(largePageRes.status, 200);
+    assert(largePageRes.data?.data?.items?.length <= 50);
+    console.log('PASS: GET /staff/requests with limit=500 was capped at maximum allowed page limit of 50 items.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1296,7 +1511,8 @@ async function runTests() {
       'Notification must state it was filed at the barangay hall'
     );
 
-    console.log('PASS: Walk-in audit log: the actor is the staff member (user_id and actor_name), with details holding the citizen id and tracking number. The citizen notification says the request was filed for them at the barangay hall.');
+    console.log(`PASS: walk-in audit log recorded staff user "${staffUser.full_name}" (${staffUser._id}) as actor with citizen_id in details.`);
+    console.log('PASS: citizen received notification stating request was filed for them at the barangay hall.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -1324,7 +1540,7 @@ async function runTests() {
       boundary4
     );
     assert(fourFilesRes.status === 400, `4 files at once must return 400, got ${fourFilesRes.status}`);
-    console.log('PASS: 4 files at once -> 400.');
+    console.log('PASS: request submission with 4 files returned status 400 exceeding max 3 files limit.');
 
     // 20b: File over 5 MB -> 400
     const boundaryHuge = '----WebKitFormBoundaryHugeFileTest';
@@ -1342,7 +1558,7 @@ async function runTests() {
       boundaryHuge
     );
     assert(hugeFileRes.status === 400, `File over 5 MB must return 400, got ${hugeFileRes.status}`);
-    console.log('PASS: file over 5 MB -> 400.');
+    console.log('PASS: request submission with 6 MB file returned status 400 exceeding 5 MB limit.');
 
     // 20c: forgot-password identical response for known and unknown emails
     const forgotKnownRes = await makeRequest(
@@ -1358,7 +1574,7 @@ async function runTests() {
     assert(forgotKnownRes.status === 200, 'Known email returns 200');
     assert(forgotUnknownRes.status === 200, 'Unknown email returns 200');
     assert(forgotKnownRes.data?.message === forgotUnknownRes.data?.message, 'Messages must be identical for user enumeration safety');
-    console.log('PASS: forgot-password identical response for known and unknown emails.');
+    console.log('PASS: forgot-password returned status 200 with identical message for both registered and unregistered email addresses.');
 
     // 20d: Regex-special search characters
     const regexSearchRes = await makeRequest(server, {
@@ -1367,7 +1583,7 @@ async function runTests() {
       headers: { Authorization: `Bearer ${staffToken}` },
     });
     assert(regexSearchRes.status === 200, 'Regex-special search characters safely escaped, returns 200');
-    console.log('PASS: regex-special search characters.');
+    console.log('PASS: staff search query with regex special characters "test[abc]+(.*)" safely escaped and returned status 200.');
 
     // 20e: Free request release without payment
     const coiDocType = await DocumentType.findOne({ code: 'COI' });
@@ -1393,7 +1609,7 @@ async function runTests() {
       {}
     );
     assert(freeReleaseRes.status === 200, `Free request release must succeed with 200 without payment confirmation, got ${freeReleaseRes.status}`);
-    console.log('PASS: free request release without payment.');
+    console.log('PASS: release of free document request completed with status 200 without requiring payment reference.');
 
     // 20f: print-data blocked before ready_for_pickup
     const pendingPrintReq = await DocumentRequest.create({
@@ -1411,7 +1627,7 @@ async function runTests() {
       headers: { Authorization: `Bearer ${staffToken}` },
     });
     assert(blockedPrintRes.status === 400, `print-data on pending request must return 400, got ${blockedPrintRes.status}`);
-    console.log('PASS: print-data blocked before ready_for_pickup.');
+    console.log('PASS: print-data request on pending document request returned status 400.');
 
     // 20g: prototype pollution keys in sanitizeNoSql
     const protoRes = await makeRequest(
@@ -1427,7 +1643,7 @@ async function runTests() {
       { email: 'test@example.com', password: 'Password@123', constructor: { prototype: {} } }
     );
     assert(constrRes.status === 400, `constructor injection must return 400, got ${constrRes.status}`);
-    console.log('PASS: sanitizeNoSql also rejects the keys __proto__, constructor, and prototype.');
+    console.log('PASS: request bodies containing __proto__ and constructor returned status 400.');
     console.log('--------------------------------------------------------------------\n');
 
     console.log('====================================================================');

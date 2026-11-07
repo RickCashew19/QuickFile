@@ -102,9 +102,15 @@ const SUPER_ADMIN_LOCKOUT = Object.freeze({
   LOCKOUT_MINUTES: 15,
 });
 
-// Section: Centrally Configured Rate Limit Constants (15-minute window)
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+// Section: Centrally Configured Rate Limit Constants
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour
 const AUTH_LIMIT_MAX = 15; // Failed authentication attempts before 429
+const REGISTER_LIMIT_MAX = 5; // 5 registrations per hour per IP (counts every request)
+const FORGOT_PASSWORD_IP_LIMIT_MAX = 5; // 5 forgot password requests per hour per IP
+const FORGOT_PASSWORD_EMAIL_LIMIT_MAX = 3; // 3 forgot password requests per hour per email
+const RESET_PASSWORD_LIMIT_MAX = 10; // 10 reset password requests per hour per IP
+const SU_KEY_LIMIT_MAX = 15; // 15 Super Admin Key verification attempts per 15 min per IP
 const POLLING_LIMIT_MAX = 600; // Lightweight status polling per user (40 polls/min)
 const USER_API_LIMIT_MAX = 300; // General authenticated requests per user
 const EXPORT_LIMIT_MAX = 10; // Report export operations per user
@@ -143,7 +149,13 @@ module.exports = {
   SUPER_ADMIN_LOCKOUT,
   ALLOWED_CUSTOM_ENV_KEYS,
   RATE_LIMIT_WINDOW_MS,
+  ONE_HOUR_MS,
   AUTH_LIMIT_MAX,
+  REGISTER_LIMIT_MAX,
+  FORGOT_PASSWORD_IP_LIMIT_MAX,
+  FORGOT_PASSWORD_EMAIL_LIMIT_MAX,
+  RESET_PASSWORD_LIMIT_MAX,
+  SU_KEY_LIMIT_MAX,
   POLLING_LIMIT_MAX,
   USER_API_LIMIT_MAX,
   EXPORT_LIMIT_MAX,

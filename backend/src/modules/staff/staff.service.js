@@ -806,6 +806,7 @@ module.exports = {
   getLiveStats,
   listStaffRequests,
   getStaffRequestDetails,
+  getRequestDetails: getStaffRequestDetails,
   appendStaffNotes,
   reviewRequest,
   approveRequest,

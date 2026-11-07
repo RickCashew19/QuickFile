@@ -27,9 +27,14 @@ async function seedDatabase() {
 
   const seedPasswords = [
     { role: 'Admin', key: 'DEFAULT_ADMIN_PASSWORD', pass: config.seed.adminPassword },
-    { role: 'Staff', key: 'DEFAULT_STAFF_PASSWORD', pass: config.seed.staffPassword },
-    { role: 'Citizen', key: 'DEFAULT_CITIZEN_PASSWORD', pass: config.seed.citizenPassword },
   ];
+
+  if (!config.isProduction) {
+    seedPasswords.push(
+      { role: 'Staff', key: 'DEFAULT_STAFF_PASSWORD', pass: config.seed.staffPassword },
+      { role: 'Citizen', key: 'DEFAULT_CITIZEN_PASSWORD', pass: config.seed.citizenPassword }
+    );
+  }
 
   for (const { role, key, pass } of seedPasswords) {
     if (!pass || pass.trim().length < 8) {
@@ -70,86 +75,91 @@ async function seedDatabase() {
     console.log(`[Seeder] Admin user role already exists. Skipping admin creation.`);
   }
 
-  // 3. Seed Default Staff Account (Only when no user with role staff exists at all)
-  const existingStaffCount = await User.countDocuments({ role: ROLES.STAFF });
-  if (existingStaffCount === 0) {
-    const passwordHash = await User.hashPassword(config.seed.staffPassword);
-    const staff = await User.create({
-      email: config.seed.staffEmail,
-      password_hash: passwordHash,
-      full_name: 'Juan Dela Cruz',
-      phone: '09171234567',
-      role: ROLES.STAFF,
-      is_active: true,
-    });
+  // 3 & 4. Demo accounts and fake ID data are seeded ONLY when NODE_ENV is not production
+  if (!config.isProduction) {
+    // Seed Default Staff Account (Only when no user with role staff exists at all)
+    const existingStaffCount = await User.countDocuments({ role: ROLES.STAFF });
+    if (existingStaffCount === 0) {
+      const passwordHash = await User.hashPassword(config.seed.staffPassword);
+      const staff = await User.create({
+        email: config.seed.staffEmail,
+        password_hash: passwordHash,
+        full_name: 'Juan Dela Cruz',
+        phone: '09171234567',
+        role: ROLES.STAFF,
+        is_active: true,
+      });
 
-    await StaffDetail.create({
-      user_id: staff._id,
-      employee_id: 'BRGY-STAFF-001',
-      position: 'Document Processing Officer',
-      department: 'Records & Documentation',
-      contact_number: '09171234567',
-    });
+      await StaffDetail.create({
+        user_id: staff._id,
+        employee_id: 'BRGY-STAFF-001',
+        position: 'Document Processing Officer',
+        department: 'Records & Documentation',
+        contact_number: '09171234567',
+      });
 
-    await StaffPermission.create({
-      user_id: staff._id,
-      can_review_requests: true,
-      can_prepare_documents: true,
-      can_print_documents: true,
-      can_release_documents: true,
-      can_verify_qr: true,
-      can_view_reports: true,
-      can_archive_records: true,
-    });
+      await StaffPermission.create({
+        user_id: staff._id,
+        can_review_requests: true,
+        can_prepare_documents: true,
+        can_print_documents: true,
+        can_release_documents: true,
+        can_verify_qr: true,
+        can_view_reports: true,
+        can_archive_records: true,
+      });
 
-    console.log(`[Seeder] Seeded default staff user: ${config.seed.staffEmail}`);
+      console.log(`[Seeder] Seeded default staff user: ${config.seed.staffEmail}`);
+    } else {
+      console.log(`[Seeder] Staff user role already exists. Skipping staff creation.`);
+    }
+
+    // Seed Default Citizen Account (Only when no user with role citizen exists at all)
+    const existingCitizenCount = await User.countDocuments({ role: ROLES.CITIZEN });
+    if (existingCitizenCount === 0) {
+      const passwordHash = await User.hashPassword(config.seed.citizenPassword);
+      const citizen = await User.create({
+        email: config.seed.citizenEmail,
+        password_hash: passwordHash,
+        full_name: 'Maria Santos Clara',
+        phone: '09187654321',
+        role: ROLES.CITIZEN,
+        is_active: true,
+      });
+
+      await CitizenProfile.create({
+        user_id: citizen._id,
+        first_name: 'Maria',
+        middle_name: 'Santos',
+        last_name: 'Clara',
+        suffix: '',
+        birthdate: new Date('1995-06-15'),
+        gender: 'female',
+        civil_status: 'single',
+        contact_number: '09187654321',
+        purok_zone: 'Zone 4',
+        street_address: '123 Rizal Street',
+        barangay: config.jurisdiction.barangayName(),
+        city: config.jurisdiction.cityMunicipality(),
+        province: config.jurisdiction.province(),
+        occupation: 'Office Clerk',
+        voter_status: VOTER_STATUSES.REGISTERED,
+        emergency_contact_name: 'Jose Clara',
+        emergency_contact_number: '09191112233',
+        valid_id_type: 'Passport',
+        valid_id_number: 'P1234567A',
+        proof_of_residency_type: 'Utility Bill',
+        verification_status: VERIFICATION_STATUSES.VERIFIED,
+        verified_at: new Date(),
+        verified_by: admin ? admin._id : null,
+      });
+
+      console.log(`[Seeder] Seeded default citizen user: ${config.seed.citizenEmail}`);
+    } else {
+      console.log(`[Seeder] Citizen user role already exists. Skipping citizen creation.`);
+    }
   } else {
-    console.log(`[Seeder] Staff user role already exists. Skipping staff creation.`);
-  }
-
-  // 4. Seed Default Citizen Account (Only when no user with role citizen exists at all)
-  const existingCitizenCount = await User.countDocuments({ role: ROLES.CITIZEN });
-  if (existingCitizenCount === 0) {
-    const passwordHash = await User.hashPassword(config.seed.citizenPassword);
-    const citizen = await User.create({
-      email: config.seed.citizenEmail,
-      password_hash: passwordHash,
-      full_name: 'Maria Santos Clara',
-      phone: '09187654321',
-      role: ROLES.CITIZEN,
-      is_active: true,
-    });
-
-    await CitizenProfile.create({
-      user_id: citizen._id,
-      first_name: 'Maria',
-      middle_name: 'Santos',
-      last_name: 'Clara',
-      suffix: '',
-      birthdate: new Date('1995-06-15'),
-      gender: 'female',
-      civil_status: 'single',
-      contact_number: '09187654321',
-      purok_zone: 'Zone 4',
-      street_address: '123 Rizal Street',
-      barangay: config.jurisdiction.barangayName(),
-      city: config.jurisdiction.cityMunicipality(),
-      province: config.jurisdiction.province(),
-      occupation: 'Office Clerk',
-      voter_status: VOTER_STATUSES.REGISTERED,
-      emergency_contact_name: 'Jose Clara',
-      emergency_contact_number: '09191112233',
-      valid_id_type: 'Passport',
-      valid_id_number: 'P1234567A',
-      proof_of_residency_type: 'Utility Bill',
-      verification_status: VERIFICATION_STATUSES.VERIFIED,
-      verified_at: new Date(),
-      verified_by: admin ? admin._id : null,
-    });
-
-    console.log(`[Seeder] Seeded default citizen user: ${config.seed.citizenEmail}`);
-  } else {
-    console.log(`[Seeder] Citizen user role already exists. Skipping citizen creation.`);
+    console.log('[Seeder] Production mode: skipping demo staff and demo citizen creation.');
   }
 
   // 5. Seed Document Types

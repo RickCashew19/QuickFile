@@ -315,10 +315,16 @@ async function updateCitizenRequest({
   try {
     const updateFields = {};
 
-    // Recalculate fee if copies are modified (Item 8: from stored unit_fee, never today's docType fee)
+    // Recalculate fee if copies are modified (from stored unit_fee; derive fee/copies if unit_fee is missing or 0)
     if (copies !== undefined) {
       const copiesCount = validateCopies(copies);
-      const unitFee = Number((existing.unit_fee ?? 0).toFixed(2));
+      let unitFee = Number(existing.unit_fee ?? 0);
+      if ((!unitFee || unitFee === 0) && existing.fee && existing.fee > 0) {
+        const existingCopies = existing.copies && existing.copies > 0 ? existing.copies : 1;
+        unitFee = Number((existing.fee / existingCopies).toFixed(2));
+      } else {
+        unitFee = Number(unitFee.toFixed(2));
+      }
       const fee = Number((unitFee * copiesCount).toFixed(2));
       updateFields.unit_fee = unitFee;
       updateFields.copies = copiesCount;
@@ -416,6 +422,23 @@ async function cancelCitizenRequest({
   ipAddress,
   userAgent,
 }) {
+  const validReason =
+    cancellationReason !== undefined && cancellationReason !== null
+      ? String(cancellationReason).trim()
+      : 'Cancelled by applicant';
+
+  if (!validReason) {
+    const error = new Error('Cancellation reason cannot be empty.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (validReason.length > 500) {
+    const error = new Error('Cancellation reason cannot exceed 500 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const existing = await DocumentRequest.findOne({
     tracking_number: trackingNumber.trim(),
     citizen_id: citizenId,
@@ -431,23 +454,6 @@ async function cancelCitizenRequest({
     const error = new Error(
       `Request cannot be cancelled because its current status is "${existing.status}". Only pending requests can be cancelled.`
     );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const validReason =
-    cancellationReason !== undefined && cancellationReason !== null
-      ? String(cancellationReason).trim()
-      : 'Cancelled by applicant';
-
-  if (!validReason) {
-    const error = new Error('Cancellation reason cannot be empty.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (validReason.length > 500) {
-    const error = new Error('Cancellation reason cannot exceed 500 characters.');
     error.statusCode = 400;
     throw error;
   }

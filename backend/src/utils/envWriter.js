@@ -4,10 +4,10 @@ const dotenv = require('dotenv');
 const { ALLOWED_CUSTOM_ENV_KEYS } = require('../config/constants');
 
 /**
- * Resolves current .env file path (supports test override via TEST_ENV_PATH)
+ * Resolves current .env file path (supports ENV_FILE when set, else backend/.env)
  */
 function getEnvPath() {
-  return process.env.TEST_ENV_PATH || path.resolve(__dirname, '../../.env');
+  return process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.resolve(__dirname, '../../.env');
 }
 
 /**

@@ -54,6 +54,12 @@ function errorHandler(err, req, res, next) {
     }
   }
 
+  // Handle Body-Parser Payload Too Large Error (413)
+  if (err.type === 'entity.too.large' || statusCode === 413) {
+    statusCode = 413;
+    message = 'Payload too large. Request body exceeds maximum allowed size of 100kb.';
+  }
+
   // Full stack trace strictly for status 500+; one-line warning for 4xx
   if (statusCode >= 500) {
     console.error(`[Error] ${req.method} ${req.originalUrl} (${statusCode}):`, err);

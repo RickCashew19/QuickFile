@@ -21,7 +21,7 @@ const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/quickfile_test_2e';
 
 process.env.NODE_ENV = 'test';
 process.env.MONGO_URI = TEST_MONGO_URI;
-process.env.TEST_ENV_PATH = TEST_ENV_PATH;
+process.env.ENV_FILE = TEST_ENV_PATH;
 process.env.SU_ADMIN_KEY = DYNAMIC_SU_ADMIN_KEY;
 process.env.JWT_SECRET = 'quickfile_test_isolated_secret_key_2026_at_least_32_chars';
 process.env.FRONTEND_URL = 'http://localhost:5173,https://portal.quickfile.gov.ph';
@@ -45,15 +45,17 @@ fs.writeFileSync(
     'BARANGAY_NAME=Barangay 11',
     'CITY_MUNICIPALITY=Malaybalay',
     'PROVINCE=Bukidnon',
-    'DEFAULT_GOOGLE_CLIENT_ID=test-google-id.apps.googleusercontent.com',
+    'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
     'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
-    'DEFAULT_SMTP_HOST=smtp.gmail.com',
+    'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
+    'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
+    'DEFAULT_SMTP_HOST=test-smtp-host',
     'DEFAULT_SMTP_PORT=587',
-    'DEFAULT_SMTP_USER=test@gmail.com',
-    'DEFAULT_SMTP_PASS=testpass',
-    'DEFAULT_REST_API_KEY=test-rest-key',
+    'DEFAULT_SMTP_USER=test-smtp-user',
+    'DEFAULT_SMTP_PASS=test-smtp-pass',
+    'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret-key',
     `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
     `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
     `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
@@ -448,7 +450,8 @@ async function runTests() {
     }
   });
   assert(excelTotalFound, 'Excel Summary sheet contains Total Requests Submitted');
-  console.log('PASS: Numbers in all three files match the report service structured data identically.');
+  console.log('PASS: total_requests count in PDF, Word, and Excel exports matched report service summary.');
+  console.log('PASS: total_revenue amount in PDF, Word, and Excel exports matched report service summary.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -477,7 +480,8 @@ async function runTests() {
   assert(foundKnownTx, 'Known payment reference +63917000xxxx found with prepended quote');
   assert(foundNeutralizedHyperlink, 'Citizen full name =HYPERLINK("http://x","click") neutralized with prepended quote');
   assert(foundNeutralizedCmd, 'Formula injection characters (=, +, -, @) safely neutralized with prepended quote');
-  console.log('PASS: Known transaction data asserted and CSV/Formula injection strictly neutralized with prepended apostrophe.');
+  console.log('PASS: formula injection payload "=1+1" in purpose field was neutralized with prepended apostrophe.');
+  console.log('PASS: export transaction list contained known seed request tracking numbers.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -494,7 +498,8 @@ async function runTests() {
   // Verify staff export has no staff workload sheet while admin export has it
   assert(!staffWorkbook.getWorksheet('Staff Workload'), 'Staff export has NO Staff Workload sheet');
   assert(Boolean(adminWorkbook.getWorksheet('Staff Workload')), 'Admin export HAS Staff Workload sheet');
-  console.log('PASS: Staff workload includes staff and admin actors, strictly excludes citizen cancellations, and respects scope separation.');
+  console.log('PASS: staff workload table included staff and admin actions and excluded citizen cancellations.');
+  console.log('PASS: staff export excluded staff workload section while admin export included it.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -535,7 +540,12 @@ async function runTests() {
     Authorization: `Bearer ${staffToken}`,
   });
   assert(resStaffOnAdmin.status === 403, 'Staff on admin export route must receive 403');
-  console.log('PASS: Permission table verified: staff without permission gets 403, staff with permission gets 200, admin gets 200, citizen gets 403, unauthenticated gets 401, and staff on admin route gets 403.');
+  console.log('PASS: GET /staff/reports/export without can_view_reports returned status 403.');
+  console.log('PASS: GET /staff/reports/export with can_view_reports returned status 200.');
+  console.log('PASS: admin request to /admin/reports/export returned status 200.');
+  console.log('PASS: citizen request to report export returned status 403.');
+  console.log('PASS: unauthenticated request to report export returned status 401.');
+  console.log('PASS: staff request to /admin/reports/export returned status 403.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -602,7 +612,8 @@ async function runTests() {
   assert(tzTrackingNumbers.includes('QF-TZ-INSIDE-LAST'), 'Request at 23:30 local on last day MUST be included');
   assert(!tzTrackingNumbers.includes('QF-TZ-OUTSIDE-BEFORE'), 'Request outside before boundary MUST be excluded');
   assert(!tzTrackingNumbers.includes('QF-TZ-OUTSIDE-AFTER'), 'Request outside after boundary MUST be excluded');
-  console.log('PASS: Timezone boundaries verified: 00:30 local on start day and 23:30 local on end day included; requests outside excluded.');
+  console.log('PASS: requests created at 00:30 and 23:30 local time within date range were included in export.');
+  console.log('PASS: requests created outside local date boundaries were excluded from export.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -651,7 +662,8 @@ async function runTests() {
     config.exportDocMaxRows = originalDocMax;
     config.exportMaxRows = originalMax;
   }
-  console.log('PASS: Truncation behavior verified: lowered caps produce "Showing first N of M", X-Export-Truncated: true, and limited row counts.');
+  console.log('PASS: export with row limit exceeded set header X-Export-Truncated to "true".');
+  console.log('PASS: export document contained warning text showing first N of M total records.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -669,7 +681,9 @@ async function runTests() {
     headerRes.headers['content-disposition'] === 'attachment; filename="quickfile-report-staff-2026-06-01-to-2026-06-02.pdf"',
     `Content-Disposition filename matches pattern: ${headerRes.headers['content-disposition']}`
   );
-  console.log('PASS: Security headers (nosniff, no-store), Content-Type, Content-Disposition, and validated filename pattern confirmed.');
+  console.log('PASS: export response included X-Content-Type-Options: nosniff.');
+  console.log('PASS: export response included Cache-Control: no-store.');
+  console.log('PASS: export response Content-Disposition header formatted attachment filename matching pattern.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------
@@ -707,7 +721,9 @@ async function runTests() {
     Authorization: `Bearer ${staffToken}`,
   });
   assert(resExceeded.status === 429, `11th export attempt must return 429, got ${resExceeded.status}`);
-  console.log('PASS: Audit log recorded without file contents; rate limit strictly enforces 10 exports per 15 minutes; forbidden request does not consume quota.');
+  console.log('PASS: REPORT_EXPORT audit log recorded export format without storing file contents.');
+  console.log('PASS: 11th export request within 15 minutes returned status 429.');
+  console.log('PASS: rejected 403 export request did not consume rate limit quota.');
   console.log('--------------------------------------------------------------------\n');
 
   // ------------------------------------------------------------------

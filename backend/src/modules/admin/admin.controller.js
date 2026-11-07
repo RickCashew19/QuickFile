@@ -160,7 +160,7 @@ const listRecords = asyncHandler(async (req, res) => {
 });
 
 const getRequestDetails = asyncHandler(async (req, res) => {
-  const data = await staffService.getRequestDetails(req.params.id);
+  const data = await staffService.getStaffRequestDetails(req.params.id);
   return res.status(200).json({
     success: true,
     message: 'Request details retrieved successfully.',

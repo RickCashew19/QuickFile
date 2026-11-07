@@ -21,7 +21,7 @@ const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/quickfile_test';
 
 process.env.NODE_ENV = 'test';
 process.env.MONGO_URI = TEST_MONGO_URI;
-process.env.TEST_ENV_PATH = TEST_ENV_PATH;
+process.env.ENV_FILE = TEST_ENV_PATH;
 process.env.SU_ADMIN_KEY = DYNAMIC_SU_ADMIN_KEY;
 process.env.JWT_SECRET = 'quickfile_test_isolated_secret_key_2026_at_least_32_chars';
 process.env.FRONTEND_URL = 'http://localhost:5173,https://portal.quickfile.gov.ph';
@@ -31,7 +31,7 @@ process.env.PROVINCE = 'Bukidnon';
 process.env.DEFAULT_ADMIN_PASSWORD = DYNAMIC_ADMIN_PASSWORD;
 process.env.DEFAULT_STAFF_PASSWORD = DYNAMIC_STAFF_PASSWORD;
 process.env.DEFAULT_CITIZEN_PASSWORD = DYNAMIC_CITIZEN_PASSWORD;
-process.env.TRUST_PROXY = 'true';
+process.env.TRUST_PROXY = 'false';
 
 // Write initial temporary env file for tests
 fs.writeFileSync(
@@ -39,7 +39,7 @@ fs.writeFileSync(
   [
     'PORT=5000',
     'NODE_ENV=test',
-    'TRUST_PROXY=true',
+    'TRUST_PROXY=false',
     `MONGO_URI=${TEST_MONGO_URI}`,
     'JWT_SECRET=quickfile_test_isolated_secret_key_2026_at_least_32_chars',
     'FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph',
@@ -47,18 +47,18 @@ fs.writeFileSync(
     'BARANGAY_NAME=Barangay 11',
     'CITY_MUNICIPALITY=Malaybalay',
     'PROVINCE=Bukidnon',
-    'DEFAULT_GOOGLE_CLIENT_ID=test-google-id.apps.googleusercontent.com',
+    'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
     'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
-    'DEFAULT_SMS_GATEWAY_URL=https://dashboard.philsms.com/api/v3/',
-    `DEFAULT_SMS_API_TOKEN=test-sms-token-rand`,
+    'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
+    'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
     `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
     `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
     `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
-    'DEFAULT_SMTP_HOST=smtp.gmail.com',
-    'DEFAULT_SMTP_USER=test@gmail.com',
-    'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret',
+    'DEFAULT_SMTP_HOST=test-smtp-host',
+    'DEFAULT_SMTP_USER=test-smtp-user',
+    'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret-key',
     'CUSTOM_GOOGLE_CLIENT_ID=',
     'CUSTOM_GOOGLE_CLIENT_SECRET=',
     'CUSTOM_SMS_API_TOKEN=',
@@ -164,12 +164,7 @@ function buildMultipartBody(fields, files = [], boundary) {
   return Buffer.concat(chunks);
 }
 
-function assert(condition, message) {
-  if (!condition) {
-    console.error(`Assertion FAILED: ${message}`);
-    throw new Error(message);
-  }
-}
+const assert = require('assert');
 
 async function runTests() {
   console.log('====================================================================');
@@ -858,10 +853,107 @@ async function runTests() {
       `No orphan files should remain after failed request! Before: ${beforeFiles.length}, After: ${afterFiles.length}`
     );
     console.log('PASS: File cleanup verified: no orphaned files left after request failure.');
+
+    // -------------------------------------------------------------------------
+    // TEST 11: Body Limit (Section C) - 20 KB Validator Rejection & 150 KB 413
+    // -------------------------------------------------------------------------
+    console.log('[TEST 11] Section C: Body Limit (20 KB cancellation_reason & 150 KB Payload)');
+
+    const cancelTestReq = await DocumentRequest.create({
+      tracking_number: 'QF-20261107-CANCEL-TEST',
+      citizen_id: citizenUser._id,
+      document_type_id: dummyDocType._id,
+      purpose: 'Testing cancellation validator length check',
+      copies: 1,
+      unit_fee: 50.0,
+      fee: 50.0,
+      payment_status: 'unpaid',
+      status: REQUEST_STATUSES.PENDING,
+    });
+
+    const reason20kb = 'C'.repeat(20 * 1024);
+    const cancel20kbRes = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/citizen/requests/${cancelTestReq.tracking_number}/cancel`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${activeCitizenToken}` },
+      },
+      { cancellation_reason: reason20kb }
+    );
+    assert.strictEqual(cancel20kbRes.status, 400);
+    assert(cancel20kbRes.data?.message?.includes('500 characters'), `Expected 500 characters error, got: ${cancel20kbRes.data?.message}`);
+    console.log('PASS: 20 KB cancellation_reason string accepted by body parser and rejected by validator with status 400.');
+
+    const huge150kbBody = { dummy: 'X'.repeat(150 * 1024) };
+    const payload150kbRes = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/citizen/requests/${cancelTestReq.tracking_number}/cancel`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${activeCitizenToken}` },
+      },
+      huge150kbBody
+    );
+    assert.strictEqual(payload150kbRes.status, 413);
+    assert.strictEqual(payload150kbRes.data?.success, false);
+    assert(!('stack' in (payload150kbRes.data || {})));
+    console.log('PASS: 150 KB request body rejected by body parser with status 413 and no stack trace in response.');
+    console.log('--------------------------------------------------------------------\n');
+
+    // -------------------------------------------------------------------------
+    // TEST 12: Citizen Request Edit - Derive Missing unit_fee (Section D.2)
+    // -------------------------------------------------------------------------
+    console.log('[TEST 12] Section D.2: Request Edit Derives Missing unit_fee from fee / copies');
+    const legacyReq = await DocumentRequest.create({
+      tracking_number: 'QF-20261107-DERIVE-FEE',
+      citizen_id: citizenUser._id,
+      document_type_id: dummyDocType._id,
+      purpose: 'Legacy fee derivation test',
+      copies: 2,
+      unit_fee: 0,
+      fee: 100.0,
+      payment_status: 'unpaid',
+      status: REQUEST_STATUSES.PENDING,
+    });
+
+    const editLegacyRes = await makeRequest(
+      server,
+      {
+        path: `${API_PREFIX}/citizen/requests/${legacyReq.tracking_number}`,
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${activeCitizenToken}` },
+      },
+      { copies: 4 }
+    );
+    assert.strictEqual(editLegacyRes.status, 200);
+    assert.strictEqual(editLegacyRes.data?.data?.unit_fee, 50.0);
+    assert.strictEqual(editLegacyRes.data?.data?.fee, 200.0);
+    console.log('PASS: request edit derived unit_fee 50.00 from fee 100.00 and copies 2 when stored unit_fee was 0.');
+    console.log('--------------------------------------------------------------------\n');
+
+    // -------------------------------------------------------------------------
+    // TEST 13: High-Frequency Polling (Section G.4) - 130 Citizen Status Polls
+    // -------------------------------------------------------------------------
+    console.log('[TEST 13] Section G.4: High-Frequency Polling (130 Citizen Status Polls with no 429)');
+    let pollFailures = 0;
+    for (let p = 1; p <= 130; p++) {
+      const pollRes = await makeRequest(server, {
+        path: `${API_PREFIX}/citizen/requests/${trackingNumber}/status`,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${activeCitizenToken}` },
+      });
+      if (pollRes.status !== 200) {
+        pollFailures++;
+      }
+    }
+    assert.strictEqual(pollFailures, 0);
+    console.log('PASS: 130 consecutive citizen status polling requests completed with status 200 and zero 429s.');
+    console.log('--------------------------------------------------------------------\n');
     console.log('--------------------------------------------------------------------\n');
 
     console.log('====================================================================');
-    console.log('ALL 10 STEP 2B & FIXES INTEGRATION TESTS PASSED SUCCESSFULLY.');
+    console.log('ALL 13 STEP 2B & FIXES INTEGRATION TESTS PASSED SUCCESSFULLY.');
     console.log('====================================================================');
   } finally {
     server.close();
@@ -887,7 +979,7 @@ async function runTests() {
       console.log('[Cleanup] Removed temporary test_2b.env.tmp file.');
     }
 
-    process.exit(0);
+    // process.exit(0);
   }
 }
 

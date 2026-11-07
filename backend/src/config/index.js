@@ -2,8 +2,12 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { maskSecret } = require('../utils/masker');
 
-// Load environment variables from backend root .env file
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+function getEnvFilePath() {
+  return process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.resolve(__dirname, '../../.env');
+}
+
+// Load environment variables from ENV_FILE if set, otherwise backend/.env
+dotenv.config({ path: getEnvFilePath() });
 
 /**
  * Universal config resolver
@@ -54,6 +58,11 @@ function validateConfig() {
       if (val.toLowerCase().startsWith('change_me')) {
         throw new Error(`[Config] Fatal Error: In production, ${key} (${label}) cannot use placeholder value starting with "change_me".`);
       }
+    }
+
+    const rawTrustProxy = process.env.TRUST_PROXY ? process.env.TRUST_PROXY.trim().toLowerCase() : '';
+    if (rawTrustProxy === 'true') {
+      throw new Error('[Config] Fatal Error: In production, TRUST_PROXY cannot be "true". A specific hop count (e.g. 1) or "false" is required.');
     }
 
     const publicUrl = process.env.PUBLIC_APP_URL ? process.env.PUBLIC_APP_URL.trim() : '';
@@ -219,4 +228,5 @@ module.exports = {
   config,
   validateConfig,
   resolveSetting,
+  getEnvFilePath,
 };

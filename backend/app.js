@@ -23,10 +23,8 @@ const adminRoutes = require('./src/modules/admin/admin.routes');
 
 const app = express();
 
-// Trust Proxy Configuration (accepts true, false, or hop count)
-if (config.trustProxy !== false) {
-  app.set('trust proxy', config.trustProxy);
-}
+// Trust Proxy Configuration (accepts boolean or integer hop count)
+app.set('trust proxy', config.trustProxy);
 
 // ==============================================================================
 // 1. Security & Core Middleware
@@ -61,9 +59,9 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 }
 
-// Strict payload limits to prevent memory exhaustion (allows 100 KB test payload to reach validator)
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Strict payload limits to prevent memory exhaustion (100kb limit)
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // NoSQL injection protection on body, query, params
 app.use(sanitizeNoSql);
