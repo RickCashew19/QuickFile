@@ -80,6 +80,24 @@ const documentRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Item 5: Explicit payment auditing fields
+    payment_reference: {
+      type: String,
+      default: '',
+      maxlength: 50,
+      trim: true,
+    },
+    waiver_reason: {
+      type: String,
+      default: '',
+      maxlength: 200,
+      trim: true,
+    },
+    payment_recorded_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     form_data: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -100,11 +118,13 @@ const documentRequestSchema = new mongoose.Schema(
       type: String,
       default: '',
       maxlength: 500,
+      trim: true,
     },
     cancellation_reason: {
       type: String,
       default: '',
       maxlength: 500,
+      trim: true,
     },
     processing_notes: {
       type: String,

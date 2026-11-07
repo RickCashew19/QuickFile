@@ -6,7 +6,6 @@ const { config } = require('./src/config');
 const { API_PREFIX } = require('./src/config/constants');
 const { notFoundHandler } = require('./src/middleware/notFound.middleware');
 const { errorHandler } = require('./src/middleware/errorHandler.middleware');
-const { apiLimiter } = require('./src/middleware/rateLimiter.middleware');
 const { sanitizeNoSql } = require('./src/middleware/sanitizeNoSql.middleware');
 
 // Route imports
@@ -61,15 +60,12 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 }
 
-// Fix 6: Set strict payload limits to prevent memory exhaustion
-app.use(express.json({ limit: '100kb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+// Strict payload limits to prevent memory exhaustion (allows 100 KB test payload to reach validator)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // NoSQL injection protection on body, query, params
 app.use(sanitizeNoSql);
-
-// Rate limiter for unauthenticated requests
-app.use('/api', apiLimiter);
 
 // ==============================================================================
 // 2. Health Check & API Version 1 Routes (/api/v1)

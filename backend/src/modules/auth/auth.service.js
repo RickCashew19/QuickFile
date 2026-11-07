@@ -362,8 +362,8 @@ async function requestPasswordReset(email, ipAddress, userAgent) {
       used: false,
     });
 
-    // 4. Construct reset link using FRONTEND_URL from .env
-    const resetUrl = `${config.frontendUrl}/reset-password?token=${rawToken}`;
+    // 4. Construct reset link using PUBLIC_APP_URL from config
+    const resetUrl = `${config.publicAppUrl}/reset-password?token=${rawToken}`;
 
     // Fix 7: Do not await email sending so response timing does not leak user existence
     sendMail({

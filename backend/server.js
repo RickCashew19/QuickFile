@@ -1,21 +1,26 @@
 const app = require('./app');
 const { config, validateConfig } = require('./src/config');
-const { API_PREFIX } = require('./src/config/constants');
+const { API_PREFIX, ROLES } = require('./src/config/constants');
 const { connectDB, disconnectDB } = require('./src/config/db');
-const { seedDatabase } = require('./src/utils/seeder');
+const { User } = require('./src/models');
 
 async function startServer() {
   try {
     console.log('[Server] Initializing QuickFile Backend...');
 
-    // Requirement 1: Validate SU_ADMIN_KEY on startup. Halt if missing.
+    // Validate environment invariants on startup. Halt if missing.
     validateConfig();
 
     // 1. Connect to MongoDB
     await connectDB();
 
-    // 2. Run initial seeder
-    await seedDatabase();
+    // 2. Check for administrative accounts (server does NOT seed accounts at startup)
+    const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
+    if (adminCount === 0) {
+      console.warn(
+        '[Server] Warning: No administrator account exists in database. Run "npm run seed" to initialize default administrative accounts.'
+      );
+    }
 
     // 3. Start listening for HTTP requests
     const server = app.listen(config.port, () => {

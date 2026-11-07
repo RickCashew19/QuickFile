@@ -29,9 +29,12 @@ async function generateTrackingNumber() {
 }
 
 /**
- * Validates copies is an integer between 1 and 10 (Fix 6)
+ * Validates copies is an integer between 1 and 10. Defaults to 1 when omitted.
  */
 function validateCopies(copies) {
+  if (copies === undefined || copies === null || copies === '') {
+    return 1;
+  }
   const copiesNum = Number(copies);
   if (!Number.isInteger(copiesNum) || copiesNum < 1 || copiesNum > 10) {
     const error = new Error('Number of copies must be an integer between 1 and 10.');
@@ -71,6 +74,7 @@ async function createRequest({
   formData = {},
   files = [],
   created_by_staff_id = null,
+  actorUser = null,
   ipAddress,
   userAgent,
 }) {
@@ -96,7 +100,7 @@ async function createRequest({
   const fee = Number((unitFee * copiesCount).toFixed(2));
   const paymentStatus = fee === 0 ? PAYMENT_STATUSES.FREE : PAYMENT_STATUSES.UNPAID;
 
-  // 3. Strict form_data validation (Fix 3)
+  // 3. Strict form_data validation
   const parsedFormData = validateAndParseFormData(formData);
 
   // 4. Process and validate file uploads with rollback on error
@@ -146,11 +150,15 @@ async function createRequest({
     throw createErr;
   }
 
-  // 7. In-app notification
+  // 7. In-app notification (Item 12: phrasing differs for walk-in filed by staff)
+  const notificationMessage = created_by_staff_id
+    ? `Your request for ${docType.name} was filed for you at the barangay hall (Tracking #: ${trackingNumber}).`
+    : `Your request for ${docType.name} has been submitted (Tracking #: ${trackingNumber}).`;
+
   await sendNotification({
     user_id: citizenUser._id,
     title: 'Document Request Submitted',
-    message: `Your request for ${docType.name} has been submitted (Tracking #: ${trackingNumber}).`,
+    message: notificationMessage,
     type: 'success',
     metadata: {
       tracking_number: trackingNumber,
@@ -160,16 +168,21 @@ async function createRequest({
     console.warn('[Notification] Failed to send submission notification:', err.message);
   });
 
-  // 8. Audit log entry
+  // 8. Audit log entry (Item 12: For walk-in, the actor is the staff member)
+  const auditActorId = actorUser && actorUser._id ? actorUser._id : citizenUser._id;
+  const auditActorName = actorUser && actorUser.full_name ? actorUser.full_name : citizenUser.full_name;
+
   await AuditLog.create({
-    user_id: citizenUser._id,
-    actor_name: citizenUser.full_name,
-    action: 'DOCUMENT_REQUEST_CREATE',
+    user_id: auditActorId,
+    actor_name: auditActorName,
+    action: created_by_staff_id ? 'DOCUMENT_REQUEST_WALK_IN_CREATE' : 'DOCUMENT_REQUEST_CREATE',
     module: 'REQUEST',
     target_id: newRequest._id.toString(),
     target_type: 'DocumentRequest',
     details: {
       tracking_number: trackingNumber,
+      citizen_id: citizenUser._id.toString(),
+      citizen_name: citizenUser.full_name,
       document_type: docType.name,
       copies: copiesCount,
       fee,
@@ -262,7 +275,8 @@ async function getCitizenRequestStatus(citizenId, trackingNumber) {
 
 /**
  * Update request (allowed strictly while status is PENDING and by owner only)
- * Fix 4: Uses atomic findOneAndUpdate with status: 'pending' in the filter
+ * Item 8: Re-prices from stored unit_fee; deletes replaced files only AFTER update succeeds;
+ * cleans up newly saved files on ANY failure.
  */
 async function updateCitizenRequest({
   citizenId,
@@ -295,40 +309,39 @@ async function updateCitizenRequest({
     throw error;
   }
 
-  const updateFields = {};
+  const newlySaved = [];
+  let oldAttachmentsToDelete = [];
 
-  // Recalculate fee if copies are modified
-  if (copies !== undefined) {
-    const copiesCount = validateCopies(copies);
-    const docType = await DocumentType.findById(existing.document_type_id);
-    const unitFee = Number((docType?.fee || 0).toFixed(2));
-    const fee = Number((unitFee * copiesCount).toFixed(2));
-    updateFields.unit_fee = unitFee;
-    updateFields.copies = copiesCount;
-    updateFields.fee = fee;
-    updateFields.payment_status = fee === 0 ? PAYMENT_STATUSES.FREE : PAYMENT_STATUSES.UNPAID;
-  }
+  try {
+    const updateFields = {};
 
-  if (purpose !== undefined) {
-    updateFields.purpose = validatePurpose(purpose);
-  }
+    // Recalculate fee if copies are modified (Item 8: from stored unit_fee, never today's docType fee)
+    if (copies !== undefined) {
+      const copiesCount = validateCopies(copies);
+      const unitFee = Number((existing.unit_fee ?? 0).toFixed(2));
+      const fee = Number((unitFee * copiesCount).toFixed(2));
+      updateFields.unit_fee = unitFee;
+      updateFields.copies = copiesCount;
+      updateFields.fee = fee;
+      updateFields.payment_status = fee === 0 ? PAYMENT_STATUSES.FREE : PAYMENT_STATUSES.UNPAID;
+    }
 
-  if (formData !== undefined) {
-    updateFields.form_data = validateAndParseFormData(formData);
-  }
+    if (purpose !== undefined) {
+      updateFields.purpose = validatePurpose(purpose);
+    }
 
-  // Process attachments
-  if (files.length > 0 || replaceAttachments) {
-    const newlySaved = [];
-    try {
+    if (formData !== undefined) {
+      updateFields.form_data = validateAndParseFormData(formData);
+    }
+
+    // Process attachments
+    if (files.length > 0 || replaceAttachments) {
       for (const file of files) {
         newlySaved.push(saveValidatedFile(file));
       }
 
       if (replaceAttachments) {
-        for (const oldAtt of existing.attachments) {
-          deleteUploadedFile(oldAtt.stored_filename);
-        }
+        oldAttachmentsToDelete = [...existing.attachments];
         updateFields.attachments = newlySaved;
       } else {
         const totalCount = existing.attachments.length + newlySaved.length;
@@ -345,49 +358,55 @@ async function updateCitizenRequest({
       const primary = (updateFields.attachments || [])[0] || null;
       updateFields.attachment_name = primary ? primary.original_name : '';
       updateFields.attachment_path = primary ? primary.stored_filename : '';
-    } catch (attErr) {
-      for (const att of newlySaved) {
-        deleteUploadedFile(att.stored_filename);
-      }
-      throw attErr;
     }
+
+    // Atomic update conditioned on pending status with runValidators: true
+    const updated = await DocumentRequest.findOneAndUpdate(
+      { _id: existing._id, status: REQUEST_STATUSES.PENDING },
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    ).populate('document_type_id');
+
+    if (!updated) {
+      const error = new Error('Status changed or request was modified by another user. Please refresh.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // Only AFTER update succeeds, delete old replaced attachments from disk
+    for (const oldAtt of oldAttachmentsToDelete) {
+      deleteUploadedFile(oldAtt.stored_filename);
+    }
+
+    await AuditLog.create({
+      user_id: actorUser._id,
+      actor_name: actorUser.full_name,
+      action: 'DOCUMENT_REQUEST_UPDATE',
+      module: 'REQUEST',
+      target_id: updated._id.toString(),
+      target_type: 'DocumentRequest',
+      details: {
+        tracking_number: updated.tracking_number,
+        copies: updated.copies,
+        fee: updated.fee,
+      },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+
+    return updated;
+  } catch (err) {
+    // Clean up newly saved files if ANY step fails (including 409 or validation errors)
+    for (const att of newlySaved) {
+      deleteUploadedFile(att.stored_filename);
+    }
+    throw err;
   }
-
-  // Atomic update conditioned on pending status
-  const updated = await DocumentRequest.findOneAndUpdate(
-    { _id: existing._id, status: REQUEST_STATUSES.PENDING },
-    { $set: updateFields },
-    { new: true }
-  ).populate('document_type_id');
-
-  if (!updated) {
-    const error = new Error('Status changed or request was modified by another user. Please refresh.');
-    error.statusCode = 409;
-    throw error;
-  }
-
-  await AuditLog.create({
-    user_id: actorUser._id,
-    actor_name: actorUser.full_name,
-    action: 'DOCUMENT_REQUEST_UPDATE',
-    module: 'REQUEST',
-    target_id: updated._id.toString(),
-    target_type: 'DocumentRequest',
-    details: {
-      tracking_number: updated.tracking_number,
-      copies: updated.copies,
-      fee: updated.fee,
-    },
-    ip_address: ipAddress || '',
-    user_agent: userAgent || '',
-  });
-
-  return updated;
 }
 
 /**
  * Cancel request (allowed strictly while status is PENDING and by owner only)
- * Fix 4: Uses atomic findOneAndUpdate via transitionRequestStatus
+ * Item 9: Validates cancellation_reason (trimmed, max 500)
  */
 async function cancelCitizenRequest({
   citizenId,
@@ -416,12 +435,29 @@ async function cancelCitizenRequest({
     throw error;
   }
 
+  const validReason =
+    cancellationReason !== undefined && cancellationReason !== null
+      ? String(cancellationReason).trim()
+      : 'Cancelled by applicant';
+
+  if (!validReason) {
+    const error = new Error('Cancellation reason cannot be empty.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (validReason.length > 500) {
+    const error = new Error('Cancellation reason cannot exceed 500 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   return transitionRequestStatus({
     requestId: existing._id,
     expectedStatus: REQUEST_STATUSES.PENDING,
     newStatus: REQUEST_STATUSES.CANCELLED,
     actorUser,
-    rejectionReason: cancellationReason,
+    rejectionReason: validReason,
     ipAddress,
     userAgent,
   });

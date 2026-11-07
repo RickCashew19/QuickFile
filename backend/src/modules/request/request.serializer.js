@@ -64,3 +64,4 @@ function serializeCitizenRequest(doc) {
 module.exports = {
   serializeCitizenRequest,
 };
+

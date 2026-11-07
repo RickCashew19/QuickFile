@@ -1,5 +1,68 @@
 const staffService = require('./staff.service');
+const reportsService = require('../reports/reports.service');
 const asyncHandler = require('../../utils/asyncHandler');
+
+/**
+ * Validates staff query parameters (Item 11)
+ * Rejects unexpected arrays or objects, checks max lengths, integer types, and valid ISO date bounds
+ */
+function validateStaffListQuery(query) {
+  for (const [k, v] of Object.entries(query)) {
+    if (Array.isArray(v) || (typeof v === 'object' && v !== null)) {
+      const error = new Error(`Validation error: Parameter "${k}" must be a single string, not an array or object.`);
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (typeof query.search === 'string' && query.search.length > 100) {
+    const error = new Error('Validation error: Search query cannot exceed 100 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (query.page !== undefined) {
+    const p = Number(query.page);
+    if (!Number.isInteger(p) || p < 1) {
+      const error = new Error('Validation error: "page" must be a positive integer.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (query.limit !== undefined) {
+    const l = Number(query.limit);
+    if (!Number.isInteger(l) || l < 1) {
+      const error = new Error('Validation error: "limit" must be a positive integer.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (query.from || query.to) {
+    if (query.from && isNaN(new Date(query.from).getTime())) {
+      const error = new Error('Validation error: "from" date must be a valid ISO date.');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (query.to && isNaN(new Date(query.to).getTime())) {
+      const error = new Error('Validation error: "to" date must be a valid ISO date.');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (query.from && query.to && new Date(query.from) > new Date(query.to)) {
+      const error = new Error('Validation error: "from" date must be earlier than or equal to "to" date.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (query.document_type_id && !/^[0-9a-fA-F]{24}$/.test(query.document_type_id)) {
+    const error = new Error('Validation error: document_type_id must be a valid 24-character hexadecimal ObjectId.');
+    error.statusCode = 400;
+    throw error;
+  }
+}
 
 const getDashboard = asyncHandler(async (req, res) => {
   const result = await staffService.getDashboardKPIs();
@@ -20,6 +83,7 @@ const getLiveStats = asyncHandler(async (req, res) => {
 });
 
 const listRequests = asyncHandler(async (req, res) => {
+  validateStaffListQuery(req.query);
   const { page, limit, status, document_type_id, from, to, search } = req.query;
   const result = await staffService.listStaffRequests({
     page,
@@ -174,6 +238,7 @@ const archiveRequest = asyncHandler(async (req, res) => {
 });
 
 const listRecords = asyncHandler(async (req, res) => {
+  validateStaffListQuery(req.query);
   const { page, limit, status, document_type_id, from, to, search } = req.query;
   const result = await staffService.listRecords({
     page,
@@ -192,6 +257,13 @@ const listRecords = asyncHandler(async (req, res) => {
 });
 
 const searchResidents = asyncHandler(async (req, res) => {
+  if (Array.isArray(req.query.search) || (typeof req.query.search === 'object' && req.query.search !== null)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: search parameter must be a single string.',
+      data: null,
+    });
+  }
   const { search } = req.query;
   const result = await staffService.searchResidents(search);
   return res.status(200).json({
@@ -222,8 +294,14 @@ const createWalkIn = asyncHandler(async (req, res) => {
 });
 
 const getReports = asyncHandler(async (req, res) => {
-  const { from, to, document_type_id } = req.query;
-  const result = await staffService.getReports({ from, to, document_type_id });
+  const { from, to, document_type_id, page, limit } = req.query;
+  const result = await reportsService.generateReportData({
+    from,
+    to,
+    document_type_id,
+    page,
+    limit,
+  });
   return res.status(200).json({
     success: true,
     message: 'Aggregated reports generated successfully.',

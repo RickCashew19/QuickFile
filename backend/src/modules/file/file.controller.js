@@ -88,8 +88,12 @@ const getAttachment = asyncHandler(async (req, res) => {
   const originalName = attachmentMeta?.original_name || filename;
 
   // 5. Send secure headers (RFC 5987 Unicode filename and ASCII fallback)
+  // RFC 5987 specifically requires percent-encoding single quotes, parentheses, and asterisks
   const asciiFallback = originalName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
-  const encodedName = encodeURIComponent(originalName);
+  const encodedName = encodeURIComponent(originalName).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
 
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');

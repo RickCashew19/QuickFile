@@ -102,6 +102,14 @@ const SUPER_ADMIN_LOCKOUT = Object.freeze({
   LOCKOUT_MINUTES: 15,
 });
 
+// Section: Centrally Configured Rate Limit Constants (15-minute window)
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_LIMIT_MAX = 15; // Failed authentication attempts before 429
+const POLLING_LIMIT_MAX = 600; // Lightweight status polling per user (40 polls/min)
+const USER_API_LIMIT_MAX = 300; // General authenticated requests per user
+const EXPORT_LIMIT_MAX = 10; // Report export operations per user
+const PUBLIC_LIMIT_MAX = 60; // Unauthenticated public requests per IP
+
 // Strictly allowlisted CUSTOM_* variables writable to .env
 const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
   'CUSTOM_GOOGLE_CLIENT_ID',
@@ -134,4 +142,10 @@ module.exports = {
   STAFF_PERMISSIONS,
   SUPER_ADMIN_LOCKOUT,
   ALLOWED_CUSTOM_ENV_KEYS,
+  RATE_LIMIT_WINDOW_MS,
+  AUTH_LIMIT_MAX,
+  POLLING_LIMIT_MAX,
+  USER_API_LIMIT_MAX,
+  EXPORT_LIMIT_MAX,
+  PUBLIC_LIMIT_MAX,
 };

@@ -15,8 +15,15 @@ const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/cons
 async function seedDatabase() {
   console.log('[Seeder] Starting database seeding process...');
 
-  // Requirement 1 & Fix 1: Validate configuration invariants & passwords
+  // Validate configuration invariants & passwords
   validateConfig();
+
+  // Item 3: Refuse default-account seeding in production unless explicitly authorized
+  if (config.isProduction && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error(
+      '[Seeder] Refusing to seed default accounts when NODE_ENV=production unless SEED_ALLOW_PRODUCTION=true.'
+    );
+  }
 
   const seedPasswords = [
     { role: 'Admin', key: 'DEFAULT_ADMIN_PASSWORD', pass: config.seed.adminPassword },
@@ -29,7 +36,9 @@ async function seedDatabase() {
       throw new Error(`[Seeder] Refusing to seed: ${key} is empty or shorter than 8 characters.`);
     }
     if (config.isProduction && pass.trim().toLowerCase().startsWith('change_me')) {
-      throw new Error(`[Seeder] Refusing to seed in production: ${key} cannot use placeholder value starting with "change_me".`);
+      throw new Error(
+        `[Seeder] Refusing to seed in production: ${key} cannot use placeholder value starting with "change_me".`
+      );
     }
   }
 
@@ -42,9 +51,10 @@ async function seedDatabase() {
     console.log('[Seeder] Super Admin lockout record already exists.');
   }
 
-  // 2. Seed Default Admin Account (never print passwords or keys)
-  let admin = await User.findOne({ email: config.seed.adminEmail });
-  if (!admin) {
+  // 2. Seed Default Admin Account (Item 3: Only when no user with role admin exists at all)
+  const existingAdminCount = await User.countDocuments({ role: ROLES.ADMIN });
+  let admin = null;
+  if (existingAdminCount === 0) {
     const passwordHash = await User.hashPassword(config.seed.adminPassword);
     admin = await User.create({
       email: config.seed.adminEmail,
@@ -56,14 +66,15 @@ async function seedDatabase() {
     });
     console.log(`[Seeder] Seeded default admin user: ${config.seed.adminEmail}`);
   } else {
-    console.log(`[Seeder] Admin user already exists: ${config.seed.adminEmail}`);
+    admin = await User.findOne({ role: ROLES.ADMIN });
+    console.log(`[Seeder] Admin user role already exists. Skipping admin creation.`);
   }
 
-  // 3. Seed Default Staff Account (Requirement 7: No duplicate name in StaffDetail)
-  let staff = await User.findOne({ email: config.seed.staffEmail });
-  if (!staff) {
+  // 3. Seed Default Staff Account (Only when no user with role staff exists at all)
+  const existingStaffCount = await User.countDocuments({ role: ROLES.STAFF });
+  if (existingStaffCount === 0) {
     const passwordHash = await User.hashPassword(config.seed.staffPassword);
-    staff = await User.create({
+    const staff = await User.create({
       email: config.seed.staffEmail,
       password_hash: passwordHash,
       full_name: 'Juan Dela Cruz',
@@ -93,14 +104,14 @@ async function seedDatabase() {
 
     console.log(`[Seeder] Seeded default staff user: ${config.seed.staffEmail}`);
   } else {
-    console.log(`[Seeder] Staff user already exists: ${config.seed.staffEmail}`);
+    console.log(`[Seeder] Staff user role already exists. Skipping staff creation.`);
   }
 
-  // 4. Seed Default Citizen Account (Requirement 5: Read jurisdiction from .env/config)
-  let citizen = await User.findOne({ email: config.seed.citizenEmail });
-  if (!citizen) {
+  // 4. Seed Default Citizen Account (Only when no user with role citizen exists at all)
+  const existingCitizenCount = await User.countDocuments({ role: ROLES.CITIZEN });
+  if (existingCitizenCount === 0) {
     const passwordHash = await User.hashPassword(config.seed.citizenPassword);
-    citizen = await User.create({
+    const citizen = await User.create({
       email: config.seed.citizenEmail,
       password_hash: passwordHash,
       full_name: 'Maria Santos Clara',
@@ -133,12 +144,12 @@ async function seedDatabase() {
       proof_of_residency_type: 'Utility Bill',
       verification_status: VERIFICATION_STATUSES.VERIFIED,
       verified_at: new Date(),
-      verified_by: admin._id,
+      verified_by: admin ? admin._id : null,
     });
 
     console.log(`[Seeder] Seeded default citizen user: ${config.seed.citizenEmail}`);
   } else {
-    console.log(`[Seeder] Citizen user already exists: ${config.seed.citizenEmail}`);
+    console.log(`[Seeder] Citizen user role already exists. Skipping citizen creation.`);
   }
 
   // 5. Seed Document Types
@@ -191,6 +202,9 @@ async function seedDatabase() {
     { key: 'barangay_name', value: config.jurisdiction.barangayName(), category: 'general', description: 'Name of the barangay' },
     { key: 'city_municipality', value: config.jurisdiction.cityMunicipality(), category: 'general', description: 'City or Municipality' },
     { key: 'province', value: config.jurisdiction.province(), category: 'general', description: 'Province or Region' },
+    { key: 'office_name', value: process.env.OFFICE_NAME || 'Office of the Barangay Captain', category: 'general', description: 'Office name for issued certificates' },
+    { key: 'barangay_captain', value: process.env.BARANGAY_CAPTAIN_NAME || '', category: 'general', description: 'Name of the Barangay Captain (Punong Barangay)' },
+    { key: 'barangay_secretary', value: process.env.BARANGAY_SECRETARY_NAME || '', category: 'general', description: 'Name of the Barangay Secretary' },
     { key: 'contact_email', value: 'info@quickfile.gov.ph', category: 'general', description: 'Public contact email' },
     { key: 'contact_phone', value: '+63 912 345 6789', category: 'general', description: 'Public contact phone' },
     { key: 'enable_sms_notifications', value: false, category: 'notifications', description: 'Toggle PhilSMS notifications' },

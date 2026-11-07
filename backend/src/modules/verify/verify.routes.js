@@ -7,3 +7,4 @@ const { publicLimiter } = require('../../middleware/rateLimiter.middleware');
 router.get('/:code', publicLimiter, publicVerify);
 
 module.exports = router;
+

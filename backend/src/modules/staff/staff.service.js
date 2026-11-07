@@ -22,28 +22,15 @@ const {
   generateQrCodeDataUrl,
 } = require('../../utils/certificateGenerator');
 const { sendMail } = require('../../utils/mailer');
-
-/**
- * Helper to escape regex special characters
- */
-function escapeRegex(text) {
-  return String(text).replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
-
-/**
- * Returns Start of Day Date object
- */
-function getStartOfDay() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
+const reportsService = require('../reports/reports.service');
 
 /**
  * Get Staff Dashboard KPIs and pending queue
+ * Item 13: Uses shared date util with APP_TIMEZONE_OFFSET_MINUTES
  */
 async function getDashboardKPIs() {
-  const startOfDay = getStartOfDay();
+  const { startOfToday } = getDateRanges();
 
   const [
     pending,
@@ -60,11 +47,11 @@ async function getDashboardKPIs() {
     DocumentRequest.countDocuments({ status: REQUEST_STATUSES.READY_FOR_PICKUP }),
     DocumentRequest.countDocuments({
       status: REQUEST_STATUSES.RELEASED,
-      released_at: { $gte: startOfDay },
+      released_at: { $gte: startOfToday },
     }),
     DocumentRequest.countDocuments({
       status: REQUEST_STATUSES.REJECTED,
-      rejected_at: { $gte: startOfDay },
+      rejected_at: { $gte: startOfToday },
     }),
     DocumentRequest.find({ status: REQUEST_STATUSES.PENDING })
       .sort({ created_at: 1 })
@@ -99,34 +86,11 @@ async function getDashboardKPIs() {
  * Lightweight live stats for polling
  */
 async function getLiveStats() {
-  const startOfDay = getStartOfDay();
-  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-
-  const [
-    pending,
-    under_review,
-    in_preparation,
-    ready_for_pickup,
-    today_released,
-    today_rejected,
-    total_urgent,
-  ] = await Promise.all([
+  const [pending, under_review, in_preparation, ready_for_pickup] = await Promise.all([
     DocumentRequest.countDocuments({ status: REQUEST_STATUSES.PENDING }),
     DocumentRequest.countDocuments({ status: REQUEST_STATUSES.UNDER_REVIEW }),
     DocumentRequest.countDocuments({ status: REQUEST_STATUSES.IN_PREPARATION }),
     DocumentRequest.countDocuments({ status: REQUEST_STATUSES.READY_FOR_PICKUP }),
-    DocumentRequest.countDocuments({
-      status: REQUEST_STATUSES.RELEASED,
-      released_at: { $gte: startOfDay },
-    }),
-    DocumentRequest.countDocuments({
-      status: REQUEST_STATUSES.REJECTED,
-      rejected_at: { $gte: startOfDay },
-    }),
-    DocumentRequest.countDocuments({
-      status: { $in: [REQUEST_STATUSES.PENDING, REQUEST_STATUSES.UNDER_REVIEW] },
-      created_at: { $lte: threeDaysAgo },
-    }),
   ]);
 
   return {
@@ -134,14 +98,13 @@ async function getLiveStats() {
     under_review,
     in_preparation,
     ready_for_pickup,
-    today_released,
-    today_rejected,
-    total_urgent,
+    timestamp: new Date().toISOString(),
   };
 }
 
 /**
- * List requests with filters, search, and pagination
+ * List requests for staff review with filters, search, and pagination
+ * Item 4 & 11: Supports status as single string, comma-separated, or array
  */
 async function listStaffRequests({
   page = 1,
@@ -158,8 +121,21 @@ async function listStaffRequests({
 
   const query = {};
 
-  if (status && Object.values(REQUEST_STATUSES).includes(status)) {
-    query.status = status;
+  if (status) {
+    if (Array.isArray(status)) {
+      const valid = status.filter((s) => Object.values(REQUEST_STATUSES).includes(s));
+      query.status = valid.length > 0 ? { $in: valid } : { $in: ['__none__'] };
+    } else if (typeof status === 'string' && status.includes(',')) {
+      const valid = status
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => Object.values(REQUEST_STATUSES).includes(s));
+      query.status = valid.length > 0 ? { $in: valid } : { $in: ['__none__'] };
+    } else if (typeof status === 'string' && Object.values(REQUEST_STATUSES).includes(status)) {
+      query.status = status;
+    } else if (typeof status === 'object' && status.$in) {
+      query.status = status;
+    }
   }
 
   if (document_type_id) {
@@ -187,10 +163,7 @@ async function listStaffRequests({
 
     const userIds = matchingUsers.map((u) => u._id);
 
-    query.$or = [
-      { tracking_number: regex },
-      { citizen_id: { $in: userIds } },
-    ];
+    query.$or = [{ tracking_number: regex }, { citizen_id: { $in: userIds } }];
   }
 
   const [items, total] = await Promise.all([
@@ -242,7 +215,9 @@ async function getStaffRequestDetails(requestIdOrTracking) {
   }
 
   // Fetch applicant citizen profile
-  const citizenProfile = await CitizenProfile.findOne({ user_id: request.citizen_id._id || request.citizen_id }).lean();
+  const citizenProfile = await CitizenProfile.findOne({
+    user_id: request.citizen_id?._id || request.citizen_id,
+  }).lean();
 
   // Fetch IssuedDocument if already issued
   const issuedDocument = await IssuedDocument.findOne({ request_id: request._id }).lean();
@@ -255,18 +230,18 @@ async function getStaffRequestDetails(requestIdOrTracking) {
 }
 
 /**
- * Append staff note to request processing_notes
+ * Append internal processing note
  */
 async function appendStaffNotes(requestId, noteText, actorUser, ipAddress, userAgent) {
   if (!noteText || typeof noteText !== 'string' || !noteText.trim()) {
-    const error = new Error('Note text is required and cannot be empty.');
+    const error = new Error('Note text is required.');
     error.statusCode = 400;
     throw error;
   }
 
   const trimmed = noteText.trim();
   if (trimmed.length > 500) {
-    const error = new Error('Individual note text cannot exceed 500 characters.');
+    const error = new Error('Note text cannot exceed 500 characters.');
     error.statusCode = 400;
     throw error;
   }
@@ -279,27 +254,38 @@ async function appendStaffNotes(requestId, noteText, actorUser, ipAddress, userA
   }
 
   const timestamp = new Date().toISOString();
-  const noteEntry = `[${timestamp}] ${actorUser.full_name}: ${trimmed}`;
-  const existingNotes = request.processing_notes ? request.processing_notes.trim() : '';
-  const combined = existingNotes ? `${existingNotes}\n${noteEntry}` : noteEntry;
+  const formattedNote = `[${timestamp}] ${actorUser.full_name}: ${trimmed}`;
+  const existingNotes = request.processing_notes ? `${request.processing_notes}\n` : '';
+  const newNotes = `${existingNotes}${formattedNote}`;
 
-  // Ensure total field does not exceed schema maximum (1000 characters)
-  request.processing_notes = combined.length > 1000 ? combined.slice(-1000) : combined;
+  if (newNotes.length > 1000) {
+    const error = new Error('Processing notes exceed the maximum total length of 1000 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  request.processing_notes = newNotes;
   await request.save();
 
   await AuditLog.create({
     user_id: actorUser._id,
     actor_name: actorUser.full_name,
     action: 'REQUEST_NOTE_APPEND',
-    module: 'STAFF',
+    module: 'REQUEST',
     target_id: request._id.toString(),
     target_type: 'DocumentRequest',
-    details: { note: trimmed },
+    details: {
+      tracking_number: request.tracking_number,
+      note_length: trimmed.length,
+    },
     ip_address: ipAddress || '',
     user_agent: userAgent || '',
   });
 
-  return request;
+  return {
+    processing_notes: request.processing_notes,
+    appended_note: formattedNote,
+  };
 }
 
 /**
@@ -331,59 +317,67 @@ async function approveRequest(requestId, actorUser, ipAddress, userAgent) {
 }
 
 /**
- * Transition pending or under_review -> rejected
+ * Transition pending/under_review/approved -> rejected (Item 13)
  */
 async function rejectRequest(requestId, rejectionReason, actorUser, ipAddress, userAgent) {
   if (!rejectionReason || typeof rejectionReason !== 'string') {
-    const error = new Error('Rejection reason is required.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const trimmedReason = rejectionReason.trim();
-  if (trimmedReason.length < 5 || trimmedReason.length > 500) {
     const error = new Error('Rejection reason must be between 5 and 500 characters.');
     error.statusCode = 400;
     throw error;
   }
 
-  const current = await DocumentRequest.findById(requestId).populate('citizen_id');
-  if (!current) {
+  const trimmed = rejectionReason.trim();
+  if (trimmed.length < 5 || trimmed.length > 500) {
+    const error = new Error('Rejection reason must be between 5 and 500 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const request = await DocumentRequest.findById(requestId).populate('citizen_id', 'email full_name');
+  if (!request) {
     const error = new Error('Document request not found.');
     error.statusCode = 404;
     throw error;
   }
 
-  if (current.status !== REQUEST_STATUSES.PENDING && current.status !== REQUEST_STATUSES.UNDER_REVIEW) {
-    const error = new Error(`Request cannot be rejected from status "${current.status}". Only pending or under_review requests can be rejected.`);
+  const rejectableStatuses = [
+    REQUEST_STATUSES.PENDING,
+    REQUEST_STATUSES.UNDER_REVIEW,
+    REQUEST_STATUSES.APPROVED,
+  ];
+
+  if (!rejectableStatuses.includes(request.status)) {
+    const error = new Error(
+      `Request cannot be rejected from status "${request.status}". Only pending, under_review, or approved requests can be rejected.`
+    );
     error.statusCode = 400;
     throw error;
   }
 
   const updated = await transitionRequestStatus({
-    requestId: current._id,
-    expectedStatus: current.status,
+    requestId,
+    expectedStatus: request.status,
     newStatus: REQUEST_STATUSES.REJECTED,
     actorUser,
-    rejectionReason: trimmedReason,
+    rejectionReason: trimmed,
     ipAddress,
     userAgent,
   });
 
-  // Non-blocking email notification to citizen
-  if (current.citizen_id && current.citizen_id.email) {
+  // Non-blocking email notification
+  if (request.citizen_id && request.citizen_id.email) {
     sendMail({
-      to: current.citizen_id.email,
-      subject: `QuickFile: Document Request Update (${current.tracking_number})`,
+      to: request.citizen_id.email,
+      subject: `QuickFile: Document Request Update (${request.tracking_number})`,
       html: `
         <h2>Document Request Rejected</h2>
-        <p>Dear ${current.citizen_id.full_name},</p>
-        <p>Your document request <strong>${current.tracking_number}</strong> was reviewed and could not be approved for the following reason:</p>
-        <blockquote style="background:#f4f4f4;padding:10px;border-left:4px solid #d9534f;">${trimmedReason}</blockquote>
-        <p>You may submit a new request with the required corrections.</p>
+        <p>Dear ${request.citizen_id.full_name},</p>
+        <p>Your document request <strong>${request.tracking_number}</strong> has been rejected.</p>
+        <p><strong>Reason:</strong> ${trimmed}</p>
+        <p>If you have any questions, please contact the Barangay Hall.</p>
       `,
-    }).catch((mailErr) => {
-      console.warn('[Mailer] Non-blocking rejection email failed:', mailErr.message);
+    }).catch((err) => {
+      console.warn('[StaffService] Failed to send rejection email:', err.message);
     });
   }
 
@@ -405,13 +399,15 @@ async function prepareRequest(requestId, actorUser, ipAddress, userAgent) {
 }
 
 /**
- * Transition in_preparation -> ready_for_pickup
- * Generates IssuedDocument record, QR code, unique certificate number
+ * Issue document: in_preparation -> ready_for_pickup
+ * Item 13: Idempotent - if IssuedDocument already exists for this request, reuse it
+ * Item 10: CERTIFICATE_VALIDITY_DAYS 0 means no expiry; remove docType.validity_days branch
+ * Item 7: QR code uses config.publicAppUrl
  */
 async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   const request = await DocumentRequest.findById(requestId)
     .populate('document_type_id')
-    .populate('citizen_id');
+    .populate('citizen_id', 'full_name email');
 
   if (!request) {
     const error = new Error('Document request not found.');
@@ -428,53 +424,51 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   const docType = request.document_type_id;
   const citizen = request.citizen_id;
 
-  // 1. Generate unique certificate number
-  const certificateNumber = await generateUniqueCertificateNumber(docType.code);
+  // Idempotency: reuse existing IssuedDocument if already created
+  let issuedDoc = await IssuedDocument.findOne({ request_id: request._id });
 
-  // 2. Generate random cryptographic verification code (>= 20 chars, independent of tracking number)
-  const verificationCode = generateVerificationCode();
+  if (!issuedDoc) {
+    // 1. Generate unique certificate number
+    const certificateNumber = await generateUniqueCertificateNumber(docType.code);
 
-  // 3. Generate QR code pointing to public verification endpoint
-  const qrData = `${config.frontendUrl}/verify/${verificationCode}`;
-  const qrCodeImage = await generateQrCodeDataUrl(qrData);
+    // 2. Generate random cryptographic verification code (>= 20 chars, independent of tracking number)
+    const verificationCode = generateVerificationCode();
 
-  // 4. Calculate expiration
-  let expiresAt = null;
-  const validityDays = docType.validity_days !== undefined ? docType.validity_days : config.certificateValidityDays;
-  if (validityDays > 0) {
-    expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000);
+    // 3. Generate QR code pointing to public verification endpoint using config.publicAppUrl
+    const qrData = `${config.publicAppUrl}/verify/${verificationCode}`;
+    const qrCodeImage = await generateQrCodeDataUrl(qrData);
+
+    // 4. Calculate expiration (0 = no expiry; remove docType.validity_days branch)
+    let expiresAt = null;
+    if (config.certificateValidityDays > 0) {
+      expiresAt = new Date(Date.now() + config.certificateValidityDays * 24 * 60 * 60 * 1000);
+    }
+
+    // 5. Create IssuedDocument
+    issuedDoc = await IssuedDocument.create({
+      request_id: request._id,
+      certificate_number: certificateNumber,
+      document_name: docType.name,
+      issued_to_name: citizen.full_name,
+      verification_code: verificationCode,
+      qr_data: qrData,
+      qr_code_image: qrCodeImage,
+      issued_by: actorUser._id,
+      issued_at: new Date(),
+      validity_status: VALIDITY_STATUSES.VALID,
+      expires_at: expiresAt,
+    });
   }
-
-  // 5. Create IssuedDocument
-  const issuedDoc = await IssuedDocument.create({
-    request_id: request._id,
-    certificate_number: certificateNumber,
-    document_name: docType.name,
-    issued_to_name: citizen.full_name,
-    verification_code: verificationCode,
-    qr_data: qrData,
-    qr_code_image: qrCodeImage,
-    issued_by: actorUser._id,
-    issued_at: new Date(),
-    validity_status: VALIDITY_STATUSES.VALID,
-    expires_at: expiresAt,
-  });
 
   // 6. Transition request status to ready_for_pickup atomically (with rollback on error)
-  let updatedRequest;
-  try {
-    updatedRequest = await transitionRequestStatus({
-      requestId: request._id,
-      expectedStatus: REQUEST_STATUSES.IN_PREPARATION,
-      newStatus: REQUEST_STATUSES.READY_FOR_PICKUP,
-      actorUser,
-      ipAddress,
-      userAgent,
-    });
-  } catch (transErr) {
-    await IssuedDocument.deleteOne({ _id: issuedDoc._id });
-    throw transErr;
-  }
+  const updatedRequest = await transitionRequestStatus({
+    requestId: request._id,
+    expectedStatus: REQUEST_STATUSES.IN_PREPARATION,
+    newStatus: REQUEST_STATUSES.READY_FOR_PICKUP,
+    actorUser,
+    ipAddress,
+    userAgent,
+  });
 
   // 7. Non-blocking email notification to citizen
   if (citizen && citizen.email) {
@@ -484,12 +478,12 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
       html: `
         <h2>Document Ready for Pickup</h2>
         <p>Dear ${citizen.full_name},</p>
-        <p>Your document (<strong>${docType.name}</strong>, Tracking #: <strong>${request.tracking_number}</strong>) is ready for pickup at the Barangay Hall.</p>
-        <p>Certificate Number: <strong>${certificateNumber}</strong></p>
-        <p>Please present a valid government-issued ID upon pickup.</p>
+        <p>Your requested document <strong>${docType.name}</strong> (Tracking #: ${request.tracking_number}) is now ready for pickup at the Barangay Hall.</p>
+        <p><strong>Certificate No:</strong> ${issuedDoc.certificate_number}</p>
+        <p>Please present a valid ID upon claiming.</p>
       `,
-    }).catch((mailErr) => {
-      console.warn('[Mailer] Non-blocking ready email failed:', mailErr.message);
+    }).catch((err) => {
+      console.warn('[StaffService] Failed to send ready_for_pickup email:', err.message);
     });
   }
 
@@ -502,6 +496,7 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
 /**
  * Retrieve data required for printing official document
  * Only allowed when status is ready_for_pickup or released
+ * Part 2 Item A: Returns 409 if signatories are unconfigured
  */
 async function getPrintData(requestId) {
   const request = await DocumentRequest.findById(requestId)
@@ -543,14 +538,25 @@ async function getPrintData(requestId) {
     settingsMap[s.key] = s.value;
   }
 
+  const captain = (settingsMap.barangay_captain || '').trim();
+  const secretary = (settingsMap.barangay_secretary || '').trim();
+
+  if (!captain || !secretary) {
+    const error = new Error(
+      'Cannot print certificate: Signatories (Barangay Captain and Secretary) are not configured. Please configure them in Settings before printing.'
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
   return {
     barangay: {
       barangay_name: config.jurisdiction.barangayName(),
       city_municipality: config.jurisdiction.cityMunicipality(),
       province: config.jurisdiction.province(),
       office_name: settingsMap.office_name || 'Office of the Barangay Captain',
-      captain_name: settingsMap.barangay_captain || 'Hon. Barangay Captain',
-      secretary_name: settingsMap.barangay_secretary || 'Barangay Secretary',
+      captain_name: captain,
+      secretary_name: secretary,
     },
     citizen: {
       full_name: request.citizen_id.full_name,
@@ -582,10 +588,10 @@ async function getPrintData(requestId) {
 }
 
 /**
- * Transition ready_for_pickup -> released
- * Verifies payment confirmation if fee > 0 and atomically transitions status
+ * Release document request: ready_for_pickup -> released
+ * Item 5: Explicit payment fields on DocumentRequest
  */
-async function releaseRequest(requestId, paymentData = {}, actorUser, ipAddress, userAgent) {
+async function releaseRequest(requestId, paymentData, actorUser, ipAddress, userAgent) {
   const request = await DocumentRequest.findById(requestId);
   if (!request) {
     const error = new Error('Document request not found.');
@@ -593,17 +599,29 @@ async function releaseRequest(requestId, paymentData = {}, actorUser, ipAddress,
     throw error;
   }
 
+  if (request.status !== REQUEST_STATUSES.READY_FOR_PICKUP) {
+    const error = new Error('Status changed or request was modified by another user. Please refresh.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const { payment_status, payment_reference, waiver_reason } = paymentData || {};
   const extraUpdates = {};
 
   if (request.fee > 0) {
-    const { payment_status, payment_reference, waiver_reason } = paymentData;
+    if (!payment_status) {
+      const error = new Error(
+        'Payment confirmation is required for fee-bearing documents. Specify payment_status as "paid" or "waived".'
+      );
+      error.statusCode = 400;
+      throw error;
+    }
 
     if (payment_status === PAYMENT_STATUSES.PAID) {
       extraUpdates.payment_status = PAYMENT_STATUSES.PAID;
       extraUpdates.paid_at = new Date();
-      if (payment_reference) {
-        extraUpdates['form_data.payment_reference'] = payment_reference;
-      }
+      extraUpdates.payment_reference = String(payment_reference || '').trim();
+      extraUpdates.payment_recorded_by = actorUser._id;
     } else if (payment_status === PAYMENT_STATUSES.WAIVED) {
       if (!waiver_reason || !String(waiver_reason).trim()) {
         const error = new Error('A waiver_reason is required when payment is waived.');
@@ -612,7 +630,8 @@ async function releaseRequest(requestId, paymentData = {}, actorUser, ipAddress,
       }
       extraUpdates.payment_status = PAYMENT_STATUSES.WAIVED;
       extraUpdates.paid_at = new Date();
-      extraUpdates['form_data.waiver_reason'] = String(waiver_reason).trim();
+      extraUpdates.waiver_reason = String(waiver_reason).trim();
+      extraUpdates.payment_recorded_by = actorUser._id;
     } else {
       const error = new Error(
         'Payment confirmation is required for fee-bearing documents. Specify payment_status as "paid" or "waived".'
@@ -672,6 +691,7 @@ async function archiveRequest(requestId, actorUser, ipAddress, userAgent) {
 
 /**
  * List released and archived records for record-keeping
+ * Item 4: Default is released and archived only; pending and under_review never appear
  */
 async function listRecords({
   page = 1,
@@ -683,7 +703,25 @@ async function listRecords({
   search,
 }) {
   const allowedStatuses = [REQUEST_STATUSES.RELEASED, REQUEST_STATUSES.ARCHIVED];
-  const filterStatus = status && allowedStatuses.includes(status) ? status : { $in: allowedStatuses };
+  let filterStatus = { $in: allowedStatuses };
+
+  if (status) {
+    let requested = [];
+    if (Array.isArray(status)) {
+      requested = status;
+    } else if (typeof status === 'string' && status.includes(',')) {
+      requested = status.split(',').map((s) => s.trim());
+    } else if (typeof status === 'string') {
+      requested = [status.trim()];
+    }
+
+    const filtered = requested.filter((s) => allowedStatuses.includes(s));
+    if (filtered.length > 0) {
+      filterStatus = filtered.length === 1 ? filtered[0] : { $in: filtered };
+    } else {
+      filterStatus = { $in: ['__none__'] };
+    }
+  }
 
   return listStaffRequests({
     page,
@@ -723,6 +761,7 @@ async function searchResidents(searchQuery) {
 
 /**
  * Create walk-in request on behalf of a citizen
+ * Item 12: Passes actorUser so AuditLog records the staff member as actor
  */
 async function createWalkInRequest({
   citizen_id,
@@ -756,157 +795,10 @@ async function createWalkInRequest({
     formData: form_data,
     files,
     created_by_staff_id: actorUser._id,
+    actorUser,
     ipAddress,
     userAgent,
   });
-}
-
-/**
- * Generate aggregated reports within date range (max 366 days)
- */
-async function getReports({ from, to, document_type_id }) {
-  if (!from || !to) {
-    const error = new Error('Both "from" and "to" date parameters are required.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-  toDate.setHours(23, 59, 59, 999);
-
-  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-    const error = new Error('Invalid date format for "from" or "to". Please use ISO 8601 (YYYY-MM-DD).');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (fromDate > toDate) {
-    const error = new Error('"from" date must be earlier than or equal to "to" date.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const dayDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (dayDiff > 366) {
-    const error = new Error('Date range cannot exceed 366 days.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const matchQuery = {
-    created_at: { $gte: fromDate, $lte: toDate },
-  };
-
-  if (document_type_id) {
-    matchQuery.document_type_id = document_type_id;
-  }
-
-  // Aggregate by Status
-  const statusCounts = await DocumentRequest.aggregate([
-    { $match: matchQuery },
-    { $group: { _id: '$status', count: { $sum: 1 } } },
-  ]);
-
-  // Aggregate by Document Type
-  const docTypeStats = await DocumentRequest.aggregate([
-    { $match: matchQuery },
-    {
-      $group: {
-        _id: '$document_type_id',
-        count: { $sum: 1 },
-        total_fees: { $sum: '$fee' },
-      },
-    },
-    {
-      $lookup: {
-        from: 'documenttypes',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'doc_type',
-      },
-    },
-    { $unwind: { path: '$doc_type', preserveNullAndEmptyArrays: true } },
-    {
-      $project: {
-        document_type_id: '$_id',
-        name: '$doc_type.name',
-        code: '$doc_type.code',
-        count: 1,
-        total_fees: 1,
-      },
-    },
-  ]);
-
-  // Summary figures
-  const total_requests = await DocumentRequest.countDocuments(matchQuery);
-  const released_count = await DocumentRequest.countDocuments({
-    ...matchQuery,
-    status: REQUEST_STATUSES.RELEASED,
-  });
-  const rejected_count = await DocumentRequest.countDocuments({
-    ...matchQuery,
-    status: REQUEST_STATUSES.REJECTED,
-  });
-
-  const totalFeeAggregate = await DocumentRequest.aggregate([
-    { $match: { ...matchQuery, payment_status: PAYMENT_STATUSES.PAID } },
-    { $group: { _id: null, total: { $sum: '$fee' } } },
-  ]);
-  const total_revenue = totalFeeAggregate[0]?.total || 0;
-
-  // Staff Workload Breakdown
-  const staffWorkload = await User.aggregate([
-    { $match: { role: { $in: [ROLES.STAFF, ROLES.ADMIN] } } },
-    {
-      $lookup: {
-        from: 'documentrequests',
-        localField: '_id',
-        foreignField: 'reviewed_by',
-        as: 'reviewed_requests',
-      },
-    },
-    {
-      $lookup: {
-        from: 'documentrequests',
-        localField: '_id',
-        foreignField: 'prepared_by',
-        as: 'prepared_requests',
-      },
-    },
-    {
-      $lookup: {
-        from: 'documentrequests',
-        localField: '_id',
-        foreignField: 'released_by',
-        as: 'released_requests',
-      },
-    },
-    {
-      $project: {
-        staff_id: '$_id',
-        full_name: '$full_name',
-        role: '$role',
-        reviewed_count: { $size: '$reviewed_requests' },
-        prepared_count: { $size: '$prepared_requests' },
-        released_count: { $size: '$released_requests' },
-      },
-    },
-  ]);
-
-  return {
-    summary: {
-      total_requests,
-      released_count,
-      rejected_count,
-      total_revenue,
-      from: fromDate.toISOString(),
-      to: toDate.toISOString(),
-    },
-    by_document_type: docTypeStats,
-    by_status: statusCounts.map((s) => ({ status: s._id, count: s.count })),
-    staff_workload: staffWorkload,
-  };
 }
 
 module.exports = {
@@ -926,5 +818,4 @@ module.exports = {
   listRecords,
   searchResidents,
   createWalkInRequest,
-  getReports,
 };

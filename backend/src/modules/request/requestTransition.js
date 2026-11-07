@@ -95,11 +95,11 @@ async function transitionRequestStatus({
       break;
   }
 
-  // 3. Execute atomic update conditioned on current expected status (Fix 4)
+  // 3. Execute atomic update conditioned on current expected status with runValidators: true
   const updatedRequest = await DocumentRequest.findOneAndUpdate(
     { _id: reqId, status: expectedStatus },
     { $set: updateFields },
-    { new: true }
+    { new: true, runValidators: true }
   );
 
   if (!updatedRequest) {

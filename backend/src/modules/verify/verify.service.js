@@ -101,12 +101,15 @@ async function verifyStaffCode(code, staffUser, ipAddress, userAgent) {
     certificate_number: issuedDoc.certificate_number,
     verification_code: issuedDoc.verification_code,
     validity_status: effectiveStatus,
+    revoked_reason: issuedDoc.revoked_reason || '',
+    revoked_at: issuedDoc.revoked_at || null,
     document_name: issuedDoc.document_name,
     issued_to_name: issuedDoc.issued_to_name,
     issued_at: issuedDoc.issued_at,
     expires_at: issuedDoc.expires_at,
     tracking_number: parentRequest ? parentRequest.tracking_number : null,
     request_id: issuedDoc.request_id ? issuedDoc.request_id._id : null,
+    request_status: parentRequest ? parentRequest.status : null,
     issuing_staff_name: issuingStaff ? issuingStaff.full_name : 'Barangay Staff',
     status_history: {
       created_at: parentRequest?.created_at || null,
@@ -123,3 +126,4 @@ module.exports = {
   verifyPublicCode,
   verifyStaffCode,
 };
+

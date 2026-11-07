@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const authController = require('./auth.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
-const { authLimiter } = require('../../middleware/rateLimiter.middleware');
+const { authLimiter, loginEmailLimiter } = require('../../middleware/rateLimiter.middleware');
 
-// Public auth routes (rate limited)
+// Public auth routes (rate limited by IP, login additionally rate limited by email)
 router.post('/register', authLimiter, authController.register);
-router.post('/login', authLimiter, authController.login);
+router.post('/login', authLimiter, loginEmailLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleLogin);
 router.post('/forgot-password', authLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);

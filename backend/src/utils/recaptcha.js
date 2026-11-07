@@ -35,7 +35,13 @@ async function verifyRecaptcha(token, ipAddress) {
 
   // 3. Delegate to injected verifier if configured (used in automated tests)
   if (typeof customVerifier === 'function') {
-    return await customVerifier(token, ipAddress);
+    const res = await customVerifier(token, ipAddress);
+    if (!res || res.success === false) {
+      const error = new Error('reCAPTCHA verification failed. Please try again.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return res;
   }
 
   // 4. Resolve secret key from environment configuration

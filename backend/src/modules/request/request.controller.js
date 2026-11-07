@@ -32,6 +32,7 @@ const createRequest = asyncHandler(async (req, res) => {
     copies,
     formData: form_data,
     files: req.files || [],
+    actorUser: req.user,
     ipAddress: req.ip,
     userAgent: req.get('User-Agent'),
   });

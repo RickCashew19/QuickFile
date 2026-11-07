@@ -1,8 +1,11 @@
 /**
  * NoSQL Injection Protection Middleware
  * Recursively scans request body, query parameters, and URL params.
- * Strictly rejects any object key starting with "$" (MongoDB operators) or containing "." (path traversal in keys).
+ * Strictly rejects any object key starting with "$" (MongoDB operators), containing "." (path traversal in keys),
+ * or prototype pollution keys (__proto__, constructor, prototype).
  */
+
+const PROTOTYPE_POLLUTION_KEYS = Object.freeze(['__proto__', 'constructor', 'prototype']);
 
 function hasInvalidNoSqlKeys(obj) {
   if (!obj || typeof obj !== 'object') {
@@ -18,8 +21,17 @@ function hasInvalidNoSqlKeys(obj) {
     return false;
   }
 
-  for (const key of Object.keys(obj)) {
-    if (key.startsWith('$') || key.includes('.')) {
+  if (Object.prototype.hasOwnProperty.call(obj, '__proto__')) {
+    return true;
+  }
+
+  for (const key of Object.getOwnPropertyNames(obj)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      key.startsWith('$') ||
+      key.includes('.') ||
+      PROTOTYPE_POLLUTION_KEYS.includes(lowerKey)
+    ) {
       return true;
     }
     if (hasInvalidNoSqlKeys(obj[key])) {
@@ -38,7 +50,7 @@ function sanitizeNoSql(req, res, next) {
   ) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid input: Object keys starting with "$" or containing "." are strictly prohibited.',
+      message: 'Invalid input: Object keys starting with "$", containing ".", or prototype properties are strictly prohibited.',
       data: null,
     });
   }

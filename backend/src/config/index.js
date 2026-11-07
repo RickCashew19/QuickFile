@@ -55,6 +55,11 @@ function validateConfig() {
         throw new Error(`[Config] Fatal Error: In production, ${key} (${label}) cannot use placeholder value starting with "change_me".`);
       }
     }
+
+    const publicUrl = process.env.PUBLIC_APP_URL ? process.env.PUBLIC_APP_URL.trim() : '';
+    if (!publicUrl || publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
+      throw new Error('[Config] Fatal Error: In production, PUBLIC_APP_URL is required and cannot be a localhost address.');
+    }
   }
 }
 
@@ -76,7 +81,13 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
-  certificateValidityDays: parseInt(process.env.CERTIFICATE_VALIDITY_DAYS, 10) || 180,
+  // Item 10: 0 means no expiry (expires_at = null); 180 only when unset/empty
+  certificateValidityDays:
+    process.env.CERTIFICATE_VALIDITY_DAYS !== undefined && process.env.CERTIFICATE_VALIDITY_DAYS !== ''
+      ? parseInt(process.env.CERTIFICATE_VALIDITY_DAYS, 10)
+      : 180,
+  appTimezoneOffsetMinutes: parseInt(process.env.APP_TIMEZONE_OFFSET_MINUTES, 10) || 480,
+  exportMaxRows: parseInt(process.env.EXPORT_MAX_ROWS, 10) || 5000,
 
   // Database (strictly from .env; no hardcoded fallback)
   mongoUri: process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '',
@@ -87,8 +98,13 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 
-  // Frontend URL
+  // Frontend URL (Solely for CORS allowlist)
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+
+  // Public Application URL (Single URL for QR codes & password reset links)
+  publicAppUrl: process.env.PUBLIC_APP_URL
+    ? process.env.PUBLIC_APP_URL.trim()
+    : (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173'),
 
   // Super Admin Key (Strictly from .env; no hardcoded fallback)
   getSuAdminKey: () => (process.env.SU_ADMIN_KEY ? process.env.SU_ADMIN_KEY.trim() : ''),
