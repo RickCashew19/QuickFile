@@ -52,3 +52,4 @@ async function getPublicConfig() {
 module.exports = {
   getPublicConfig,
 };
+

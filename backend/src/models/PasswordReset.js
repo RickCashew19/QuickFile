@@ -14,7 +14,7 @@ const passwordResetSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    token: {
+    token_hash: {
       type: String,
       required: true,
       unique: true,

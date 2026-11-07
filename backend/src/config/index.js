@@ -28,6 +28,7 @@ function validateConfig() {
   const requiredVars = [
     { key: 'SU_ADMIN_KEY', label: 'Super Admin Key' },
     { key: 'JWT_SECRET', label: 'JWT Secret' },
+    { key: 'MONGO_URI', label: 'MongoDB Connection URI' },
     { key: 'BARANGAY_NAME', label: 'Barangay Name' },
     { key: 'CITY_MUNICIPALITY', label: 'City/Municipality' },
     { key: 'PROVINCE', label: 'Province' },
@@ -46,8 +47,8 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
 
-  // Database
-  mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/quickfile',
+  // Database (strictly from .env; no hardcoded fallback)
+  mongoUri: process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '',
 
   // JWT configuration (no fallback secret)
   jwt: {

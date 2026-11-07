@@ -99,7 +99,34 @@ async function optionalAuth(req, res, next) {
   }
 }
 
+/**
+ * Role-based Authorization Middleware
+ * Enforces that req.user.role matches one of the allowed roles
+ */
+function authorize(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required before checking permissions.',
+        data: null,
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: Access restricted to ${allowedRoles.join(', ')} role(s).`,
+        data: null,
+      });
+    }
+
+    next();
+  };
+}
+
 module.exports = {
   authenticate,
   optionalAuth,
+  authorize,
 };

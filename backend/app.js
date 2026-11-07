@@ -11,6 +11,9 @@ const { apiLimiter } = require('./src/middleware/rateLimiter.middleware');
 const authRoutes = require('./src/modules/auth/auth.routes');
 const settingsRoutes = require('./src/modules/settings/settings.routes');
 const publicRoutes = require('./src/modules/public/public.routes');
+const citizenRoutes = require('./src/modules/citizen/citizen.routes');
+const notificationRoutes = require('./src/modules/notification/notification.routes');
+const documentTypesRoutes = require('./src/modules/admin/documentTypes/documentTypes.routes');
 
 const app = express();
 
@@ -22,21 +25,22 @@ app.use(helmet());
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Non-browser or same-origin requests (e.g. mobile apps, curl, server-to-server) have no origin header
     if (!origin) return callback(null, true);
 
-    const allowedOrigins = [
-      config.frontendUrl,
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-    ];
+    const allowedOrigins = (config.frontendUrl || '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS blocked: Origin ${origin} is not allowed.`));
+      const err = new Error(`CORS blocked: Origin ${origin} is not allowed.`);
+      err.statusCode = 403;
+      callback(err);
     }
   },
-  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
 };
@@ -68,6 +72,9 @@ app.get(`${API_PREFIX}/health`, (req, res) => {
 
 // Mounted modules under /api/v1/
 app.use(`${API_PREFIX}/auth`, authRoutes);
+app.use(`${API_PREFIX}/citizen/notifications`, notificationRoutes);
+app.use(`${API_PREFIX}/citizen`, citizenRoutes);
+app.use(`${API_PREFIX}/admin/document-types`, documentTypesRoutes);
 app.use(`${API_PREFIX}/admin/settings`, settingsRoutes);
 app.use(`${API_PREFIX}/public`, publicRoutes);
 

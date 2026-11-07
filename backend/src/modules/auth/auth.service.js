@@ -1,4 +1,6 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const { config } = require('../../config');
 const { ROLES } = require('../../config/constants');
 const {
@@ -6,9 +8,15 @@ const {
   CitizenProfile,
   StaffDetail,
   StaffPermission,
+  PasswordReset,
+  AppSetting,
   AuditLog,
 } = require('../../models');
+const { sendMail } = require('../../utils/mailer');
 
+/**
+ * Signs a standard JWT access token for an authenticated user
+ */
 function generateToken(user) {
   const secret = config.jwt.getSecret();
   if (!secret) {
@@ -122,7 +130,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
 }
 
 /**
- * Business logic for User login
+ * Business logic for User login (supports Citizen, Staff, Admin)
  */
 async function loginUser(email, password, ipAddress, userAgent) {
   const normalizedEmail = email.toLowerCase().trim();
@@ -184,7 +192,276 @@ async function loginUser(email, password, ipAddress, userAgent) {
 }
 
 /**
- * Business logic to retrieve authenticated profile
+ * Google OAuth ID Token verification and Citizen login
+ * POST ID token only; no token in redirect URLs
+ */
+async function loginWithGoogle(idToken, ipAddress, userAgent) {
+  const setting = await AppSetting.findOne({ key: 'enable_google_login' });
+  const isEnabled = setting && (setting.value === true || setting.value === 'true');
+
+  if (!isEnabled) {
+    const error = new Error('Google OAuth login is currently disabled by administrator.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!idToken) {
+    const error = new Error('Google ID token is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let payload;
+
+  // In test environment, allow mock Google ID token
+  if (config.nodeEnv === 'test' && idToken.startsWith('mock-google-id-token')) {
+    payload = {
+      sub: 'google-sub-mock-12345',
+      email: 'mock.google.user@example.com',
+      name: 'Mock Google Citizen',
+      given_name: 'Mock Google',
+      family_name: 'Citizen',
+    };
+  } else {
+    const clientId = config.google.resolveClientId().value;
+    if (!clientId) {
+      const error = new Error('Google Client ID is not configured on the server.');
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: clientId,
+    });
+    payload = ticket.getPayload();
+  }
+
+  if (!payload || !payload.email) {
+    const error = new Error('Invalid Google ID token payload.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedEmail = payload.email.toLowerCase().trim();
+  let user = await User.findOne({
+    $or: [{ google_id: payload.sub }, { email: normalizedEmail }],
+  });
+
+  let profile = null;
+
+  if (user) {
+    if (!user.is_active) {
+      const error = new Error('Your account is deactivated. Please contact the administrator.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Link Google ID if registered via standard email previously
+    if (!user.google_id) {
+      user.google_id = payload.sub;
+    }
+    user.last_login_at = new Date();
+    await user.save();
+
+    profile = await CitizenProfile.findOne({ user_id: user._id });
+  } else {
+    // Auto-register new citizen via Google OAuth
+    const fullName = payload.name ? payload.name.trim() : 'Citizen';
+    const nameParts = fullName.split(' ');
+    const firstName = payload.given_name || nameParts[0] || 'Citizen';
+    const lastName = payload.family_name || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Resident');
+
+    user = await User.create({
+      email: normalizedEmail,
+      full_name: fullName,
+      role: ROLES.CITIZEN,
+      google_id: payload.sub,
+      is_active: true,
+      last_login_at: new Date(),
+    });
+
+    profile = await CitizenProfile.create({
+      user_id: user._id,
+      first_name: firstName,
+      last_name: lastName,
+      birthdate: new Date('2000-01-01'),
+      gender: 'other',
+      barangay: config.jurisdiction.barangayName(),
+      city: config.jurisdiction.cityMunicipality(),
+      province: config.jurisdiction.province(),
+    });
+  }
+
+  const token = generateToken(user);
+
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'USER_LOGIN',
+    module: 'AUTH',
+    target_id: user._id.toString(),
+    target_type: 'User',
+    details: { provider: 'google', email: user.email },
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+  });
+
+  return {
+    access_token: token,
+    token_type: 'Bearer',
+    user: user.toJSON(),
+    profile,
+  };
+}
+
+/**
+ * Sends a password reset email with a single-use token hash
+ * Prevents email enumeration by returning a generic message
+ */
+async function requestPasswordReset(email, ipAddress, userAgent) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (user && user.is_active) {
+    // 1. Invalidate previous unused reset tokens for this user
+    await PasswordReset.updateMany({ user_id: user._id, used: false }, { used: true });
+
+    // 2. Generate cryptographically strong random token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // 3. Store hash with 15-minute expiration
+    await PasswordReset.create({
+      user_id: user._id,
+      email: user.email,
+      token_hash: tokenHash,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000),
+      used: false,
+    });
+
+    // 4. Construct reset link using FRONTEND_URL from .env
+    const resetUrl = `${config.frontendUrl}/reset-password?token=${rawToken}`;
+
+    // 5. Send reset email
+    await sendMail({
+      to: user.email,
+      subject: 'QuickFile - Password Reset Request',
+      text: `Hello ${user.full_name},\n\nYou requested a password reset. Click the link below to set a new password:\n${resetUrl}\n\nThis link will expire in 15 minutes.\nIf you did not request this, please ignore this email.`,
+      html: `<p>Hello <strong>${user.full_name}</strong>,</p><p>You requested a password reset. Click the button below to set a new password:</p><p><a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a></p><p>Or copy this link: ${resetUrl}</p><p>This link will expire in 15 minutes.</p>`,
+    });
+
+    await AuditLog.create({
+      user_id: user._id,
+      actor_name: user.full_name,
+      action: 'PASSWORD_RESET_REQUEST',
+      module: 'AUTH',
+      target_id: user._id.toString(),
+      target_type: 'User',
+      details: { email: user.email },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+  }
+
+  // Generic message prevents account enumeration
+  return {
+    message: 'If the email address is registered, instructions to reset your password have been sent.',
+  };
+}
+
+/**
+ * Resets user password using verified raw token and updates password hash
+ */
+async function resetPasswordWithToken(token, newPassword, ipAddress, userAgent) {
+  if (!token || !newPassword) {
+    const error = new Error('Reset token and new password are required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 6 || newPassword.length > 72) {
+    const error = new Error('Validation error: Password must be between 6 and 72 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 1. Hash the incoming token to match database record
+  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+
+  // 2. Locate active, non-expired, single-use token record
+  const resetRecord = await PasswordReset.findOne({
+    token_hash: tokenHash,
+    used: false,
+    expires_at: { $gt: new Date() },
+  });
+
+  if (!resetRecord) {
+    const error = new Error('Invalid or expired password reset token.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 3. Locate user
+  const user = await User.findById(resetRecord.user_id);
+  if (!user || !user.is_active) {
+    const error = new Error('User account not found or deactivated.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 4. Update password
+  user.password_hash = await User.hashPassword(newPassword);
+  await user.save();
+
+  // 5. Invalidate token
+  resetRecord.used = true;
+  await resetRecord.save();
+
+  // 6. Record audit log
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'PASSWORD_RESET',
+    module: 'AUTH',
+    target_id: user._id.toString(),
+    target_type: 'User',
+    details: { email: user.email },
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+  });
+
+  return {
+    message: 'Password has been reset successfully. You can now log in with your new password.',
+  };
+}
+
+/**
+ * Logs out user and writes to audit log
+ */
+async function logoutUser(user, ipAddress, userAgent) {
+  if (user) {
+    await AuditLog.create({
+      user_id: user._id,
+      actor_name: user.full_name,
+      action: 'USER_LOGOUT',
+      module: 'AUTH',
+      target_id: user._id.toString(),
+      target_type: 'User',
+      details: { role: user.role, email: user.email },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+  }
+
+  return {
+    message: 'User logged out successfully.',
+  };
+}
+
+/**
+ * Retrieves current authenticated user profile
  */
 async function getUserProfile(user) {
   let profile = null;
@@ -207,5 +484,9 @@ async function getUserProfile(user) {
 module.exports = {
   registerCitizen,
   loginUser,
+  loginWithGoogle,
+  requestPasswordReset,
+  resetPasswordWithToken,
+  logoutUser,
   getUserProfile,
 };

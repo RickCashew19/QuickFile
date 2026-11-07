@@ -7,3 +7,4 @@ const { publicLimiter } = require('../../middleware/rateLimiter.middleware');
 router.get('/config', publicLimiter, publicController.getPublicConfig);
 
 module.exports = router;
+

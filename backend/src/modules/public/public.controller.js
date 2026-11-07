@@ -18,3 +18,4 @@ const getPublicConfig = asyncHandler(async (req, res) => {
 module.exports = {
   getPublicConfig,
 };
+
