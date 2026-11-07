@@ -1,12 +1,10 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { User } = require('../models');
-const { USER_STATUSES } = require('../config/constants');
 
 /**
  * Authentication Middleware: Bearer JWT Only
- * Extracts JWT from the Authorization header (Authorization: Bearer <token>).
- * Strictly forbids cookies or server session usage.
+ * Extracts JWT from the Authorization header (Authorization: Bearer <token>)
  */
 async function authenticate(req, res, next) {
   try {
@@ -28,7 +26,6 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // Verify token
     let decoded;
     try {
       decoded = jwt.verify(token, config.jwt.secret);
@@ -47,7 +44,6 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // Find user by ID in MongoDB
     const user = await User.findById(decoded.id).select('-password_hash');
 
     if (!user) {
@@ -57,14 +53,14 @@ async function authenticate(req, res, next) {
       });
     }
 
-    if (user.status !== USER_STATUSES.ACTIVE) {
+    // Requirement 3: Use single active flag (is_active)
+    if (!user.is_active) {
       return res.status(403).json({
         success: false,
-        message: `Your account is currently ${user.status}. Access denied.`,
+        message: 'Your account is deactivated. Access denied.',
       });
     }
 
-    // Attach user to request
     req.user = user;
     next();
   } catch (error) {
@@ -73,7 +69,7 @@ async function authenticate(req, res, next) {
 }
 
 /**
- * Optional Authentication: Attaches req.user if a valid token is present, but does not block if missing
+ * Optional Authentication: Attaches req.user if valid token is provided
  */
 async function optionalAuth(req, res, next) {
   try {
@@ -84,7 +80,7 @@ async function optionalAuth(req, res, next) {
         try {
           const decoded = jwt.verify(token, config.jwt.secret);
           const user = await User.findById(decoded.id).select('-password_hash');
-          if (user && user.status === USER_STATUSES.ACTIVE) {
+          if (user && user.is_active) {
             req.user = user;
           }
         } catch {

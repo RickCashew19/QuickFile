@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Requirement 2: Strictly updated staff permissions (settings are admin-only)
 const staffPermissionSchema = new mongoose.Schema(
   {
     user_id: {
@@ -13,15 +14,19 @@ const staffPermissionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    can_approve_requests: {
+    can_prepare_documents: {
       type: Boolean,
       default: false,
     },
-    can_issue_documents: {
+    can_print_documents: {
       type: Boolean,
       default: false,
     },
-    can_manage_residents: {
+    can_release_documents: {
+      type: Boolean,
+      default: false,
+    },
+    can_verify_qr: {
       type: Boolean,
       default: false,
     },
@@ -29,7 +34,7 @@ const staffPermissionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    can_manage_settings: {
+    can_archive_records: {
       type: Boolean,
       default: false,
     },

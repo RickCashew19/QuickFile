@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
+const { VALIDITY_STATUSES } = require('../config/constants');
 
+// Requirement 6: Certificate number, validity_status, expires_at, revoked_at, revoked_reason
 const issuedDocumentSchema = new mongoose.Schema(
   {
     request_id: {
@@ -9,7 +11,7 @@ const issuedDocumentSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    document_number: {
+    certificate_number: {
       type: String,
       required: true,
       unique: true,
@@ -26,7 +28,7 @@ const issuedDocumentSchema = new mongoose.Schema(
       index: true,
     },
     qr_code_image: {
-      type: String, // Base64 data URI or relative path
+      type: String,
       required: true,
     },
     issued_by: {
@@ -38,28 +40,28 @@ const issuedDocumentSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    expiry_date: {
+    validity_status: {
+      type: String,
+      enum: Object.values(VALIDITY_STATUSES),
+      default: VALIDITY_STATUSES.VALID,
+      index: true,
+    },
+    expires_at: {
       type: Date,
       default: null,
-    },
-    status: {
-      type: String,
-      enum: ['valid', 'revoked', 'expired'],
-      default: 'valid',
-      index: true,
     },
     revoked_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
     },
-    revocation_reason: {
-      type: String,
-      default: '',
-    },
     revoked_at: {
       type: Date,
       default: null,
+    },
+    revoked_reason: {
+      type: String,
+      default: '',
     },
   },
   {

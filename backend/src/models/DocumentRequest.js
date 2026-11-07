@@ -47,29 +47,12 @@ const documentRequestSchema = new mongoose.Schema(
       min: 1,
       max: 10,
     },
+    // Requirement 1: Updated request statuses
     status: {
       type: String,
       enum: Object.values(REQUEST_STATUSES),
       default: REQUEST_STATUSES.PENDING,
       index: true,
-    },
-    remarks: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    rejection_reason: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    attachments: {
-      type: [attachmentSchema],
-      default: [],
-    },
-    form_data: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
     },
     fee: {
       type: Number,
@@ -86,9 +69,48 @@ const documentRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    assigned_staff_id: {
+    form_data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    // Requirement 5: attachment path and name
+    attachment_name: {
+      type: String,
+      default: '',
+    },
+    attachment_path: {
+      type: String,
+      default: '',
+    },
+    attachments: {
+      type: [attachmentSchema],
+      default: [],
+    },
+    // Requirement 5: Workflow tracking and audit fields
+    rejection_reason: {
+      type: String,
+      default: '',
+    },
+    processing_notes: {
+      type: String,
+      default: '',
+    },
+    reviewed_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
+    },
+    reviewed_at: {
+      type: Date,
+      default: null,
+    },
+    prepared_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    prepared_at: {
+      type: Date,
       default: null,
     },
     approved_by: {
@@ -100,20 +122,16 @@ const documentRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    rejected_by: {
+    released_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
     },
-    rejected_at: {
+    released_at: {
       type: Date,
       default: null,
     },
-    ready_at: {
-      type: Date,
-      default: null,
-    },
-    completed_at: {
+    archived_at: {
       type: Date,
       default: null,
     },
@@ -127,7 +145,6 @@ const documentRequestSchema = new mongoose.Schema(
   }
 );
 
-// Virtual for formatted reference
 documentRequestSchema.index({ citizen_id: 1, status: 1 });
 documentRequestSchema.index({ created_at: -1 });
 

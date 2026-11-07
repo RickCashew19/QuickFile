@@ -23,7 +23,7 @@ const passwordResetSchema = new mongoose.Schema(
     expires_at: {
       type: Date,
       required: true,
-      index: { expires: 0 }, // MongoDB TTL index to auto-expire documents
+      index: { expires: 0 },
     },
     used: {
       type: Boolean,

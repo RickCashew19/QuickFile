@@ -35,48 +35,48 @@ const superAdminPinSchema = new mongoose.Schema(
   }
 );
 
-// Method to verify PIN with lockout protection
 superAdminPinSchema.methods.verifyPin = async function (plainPin) {
-  // Check if currently locked out
   if (this.locked_until && new Date() < this.locked_until) {
     const remainingMs = this.locked_until.getTime() - Date.now();
     const remainingMinutes = Math.ceil(remainingMs / 60000);
     return {
       success: false,
-      isLocked: true,
-      remainingMinutes,
-      message: `Super Admin PIN is locked due to too many failed attempts. Try again in ${remainingMinutes} minute(s).`,
+      is_locked: true,
+      remaining_minutes: remainingMinutes,
+      message: `Super Admin PIN is locked. Try again in ${remainingMinutes} minute(s).`,
     };
   }
 
   const isMatch = await bcrypt.compare(String(plainPin), this.pin_hash);
 
   if (isMatch) {
-    // Reset failed attempts on success
     this.failed_attempts = 0;
     this.locked_until = null;
     this.last_verified_at = new Date();
     await this.save();
     return { success: true };
-  } else {
-    // Increment failed attempts
-    this.failed_attempts += 1;
-    let message = 'Invalid Super Admin PIN.';
-
-    if (this.failed_attempts >= SUPER_ADMIN_PIN.MAX_ATTEMPTS) {
-      this.locked_until = new Date(Date.now() + SUPER_ADMIN_PIN.LOCKOUT_MINUTES * 60 * 1000);
-      message = `Too many failed attempts. Super Admin PIN locked for ${SUPER_ADMIN_PIN.LOCKOUT_MINUTES} minutes.`;
-    } else {
-      const remaining = SUPER_ADMIN_PIN.MAX_ATTEMPTS - this.failed_attempts;
-      message = `Invalid PIN. ${remaining} attempt(s) remaining before lockout.`;
-    }
-
-    await this.save();
-    return { success: false, isLocked: !!this.locked_until, message };
   }
+
+  this.failed_attempts += 1;
+  let message = 'Invalid Super Admin PIN.';
+
+  if (this.failed_attempts >= SUPER_ADMIN_PIN.MAX_ATTEMPTS) {
+    this.locked_until = new Date(Date.now() + SUPER_ADMIN_PIN.LOCKOUT_MINUTES * 60 * 1000);
+    message = `Too many failed attempts. Super Admin PIN locked for ${SUPER_ADMIN_PIN.LOCKOUT_MINUTES} minutes.`;
+  } else {
+    const remaining = SUPER_ADMIN_PIN.MAX_ATTEMPTS - this.failed_attempts;
+    message = `Invalid PIN. ${remaining} attempt(s) remaining before lockout.`;
+  }
+
+  await this.save();
+  return {
+    success: false,
+    is_locked: !!this.locked_until,
+    remaining_attempts: Math.max(0, SUPER_ADMIN_PIN.MAX_ATTEMPTS - this.failed_attempts),
+    message,
+  };
 };
 
-// Static helper to hash PIN
 superAdminPinSchema.statics.hashPin = async function (plainPin) {
   const salt = await bcrypt.genSalt(10);
   return bcrypt.hash(String(plainPin), salt);

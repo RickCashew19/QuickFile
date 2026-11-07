@@ -1,7 +1,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load .env from backend root
+// Load environment variables from backend root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const config = {
@@ -12,22 +12,22 @@ const config = {
   // Database
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/quickfile',
 
-  // JWT
+  // JWT configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'quickfile_default_development_jwt_secret',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 
-  // Frontend URL (used for CORS and Password Reset Links)
+  // Frontend URL (for CORS and password reset email links)
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
-  // Initial Super Admin PIN from .env
-  superAdminPin: process.env.SUPER_ADMIN_PIN || '123456',
+  // Super Admin PIN (Strictly from .env; no hardcoded fallback)
+  superAdminPin: process.env.SUPER_ADMIN_PIN || '',
 
-  // Upload storage path
+  // Storage directory for uploads
   uploadDir: path.resolve(__dirname, '../uploads'),
 
-  // Default seed credentials
+  // Default seed accounts
   seed: {
     adminEmail: process.env.DEFAULT_ADMIN_EMAIL || 'admin@quickfile.gov.ph',
     adminPassword: process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@123456',
@@ -37,7 +37,7 @@ const config = {
     citizenPassword: process.env.DEFAULT_CITIZEN_PASSWORD || 'Citizen@123456',
   },
 
-  // Integration resolution helpers (Active config chooses CUSTOM if provided, else DEFAULT)
+  // Integration resolution helpers
   google: {
     getClientId: () => process.env.CUSTOM_GOOGLE_CLIENT_ID || process.env.DEFAULT_GOOGLE_CLIENT_ID || '',
     getClientSecret: () => process.env.CUSTOM_GOOGLE_CLIENT_SECRET || process.env.DEFAULT_GOOGLE_CLIENT_SECRET || '',

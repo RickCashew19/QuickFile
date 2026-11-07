@@ -10,35 +10,42 @@ const {
   AppSetting,
   SuperAdminPin,
 } = require('../models');
-const { ROLES, USER_STATUSES } = require('../config/constants');
+const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
 
 async function seedDatabase() {
   console.log('[Seeder] Starting database seeding process...');
 
-  // 1. Seed Super Admin PIN
+  // Requirement 8: No hardcoded fallback PIN. Stop with a clear error if missing in .env
+  const rawPin = process.env.SUPER_ADMIN_PIN;
+  if (!rawPin || !rawPin.trim()) {
+    throw new Error(
+      '[Seeder] Error: SUPER_ADMIN_PIN is missing in .env. Please configure SUPER_ADMIN_PIN in .env before running the seeder.'
+    );
+  }
+
+  // 1. Seed Super Admin PIN (Never print the PIN)
   const existingPin = await SuperAdminPin.findOne();
   if (!existingPin) {
-    const hashedPin = await SuperAdminPin.hashPin(config.superAdminPin);
-    await SuperAdminPin.create({
-      pin_hash: hashedPin,
-    });
-    console.log(`[Seeder] Seeded Super Admin PIN (Initial PIN from config: ${config.superAdminPin})`);
+    const hashedPin = await SuperAdminPin.hashPin(rawPin.trim());
+    await SuperAdminPin.create({ pin_hash: hashedPin });
+    console.log('[Seeder] Seeded Super Admin PIN successfully.');
   } else {
     console.log('[Seeder] Super Admin PIN already configured. Skipping.');
   }
 
-  // 2. Seed Default Admin Account
+  // 2. Seed Default Admin Account (Never print passwords)
   let admin = await User.findOne({ email: config.seed.adminEmail });
   if (!admin) {
-    const password_hash = await User.hashPassword(config.seed.adminPassword);
+    const passwordHash = await User.hashPassword(config.seed.adminPassword);
     admin = await User.create({
-      username: 'admin',
       email: config.seed.adminEmail,
-      password_hash,
+      password_hash: passwordHash,
+      full_name: 'Barangay Administrator',
+      phone: '09170000001',
       role: ROLES.ADMIN,
-      status: USER_STATUSES.ACTIVE,
+      is_active: true,
     });
-    console.log(`[Seeder] Created Admin: ${config.seed.adminEmail}`);
+    console.log(`[Seeder] Seeded default admin user: ${config.seed.adminEmail}`);
   } else {
     console.log(`[Seeder] Admin user already exists: ${config.seed.adminEmail}`);
   }
@@ -46,13 +53,14 @@ async function seedDatabase() {
   // 3. Seed Default Staff Account
   let staff = await User.findOne({ email: config.seed.staffEmail });
   if (!staff) {
-    const password_hash = await User.hashPassword(config.seed.staffPassword);
+    const passwordHash = await User.hashPassword(config.seed.staffPassword);
     staff = await User.create({
-      username: 'staff',
       email: config.seed.staffEmail,
-      password_hash,
+      password_hash: passwordHash,
+      full_name: 'Juan Dela Cruz',
+      phone: '09171234567',
       role: ROLES.STAFF,
-      status: USER_STATUSES.ACTIVE,
+      is_active: true,
     });
 
     await StaffDetail.create({
@@ -65,17 +73,19 @@ async function seedDatabase() {
       contact_number: '09171234567',
     });
 
+    // Requirement 2: Cleaned staff permissions
     await StaffPermission.create({
       user_id: staff._id,
       can_review_requests: true,
-      can_approve_requests: true,
-      can_issue_documents: true,
-      can_manage_residents: true,
+      can_prepare_documents: true,
+      can_print_documents: true,
+      can_release_documents: true,
+      can_verify_qr: true,
       can_view_reports: true,
-      can_manage_settings: false,
+      can_archive_records: true,
     });
 
-    console.log(`[Seeder] Created Staff: ${config.seed.staffEmail}`);
+    console.log(`[Seeder] Seeded default staff user: ${config.seed.staffEmail}`);
   } else {
     console.log(`[Seeder] Staff user already exists: ${config.seed.staffEmail}`);
   }
@@ -83,40 +93,45 @@ async function seedDatabase() {
   // 4. Seed Default Citizen Account
   let citizen = await User.findOne({ email: config.seed.citizenEmail });
   if (!citizen) {
-    const password_hash = await User.hashPassword(config.seed.citizenPassword);
+    const passwordHash = await User.hashPassword(config.seed.citizenPassword);
     citizen = await User.create({
-      username: 'citizen',
       email: config.seed.citizenEmail,
-      password_hash,
+      password_hash: passwordHash,
+      full_name: 'Maria Santos Clara',
+      phone: '09187654321',
       role: ROLES.CITIZEN,
-      status: USER_STATUSES.ACTIVE,
+      is_active: true,
     });
 
+    // Requirement 4: Restored CitizenProfile fields
     await CitizenProfile.create({
       user_id: citizen._id,
       first_name: 'Maria',
       middle_name: 'Santos',
       last_name: 'Clara',
-      birthdate: new Date('1995-06-15'), // Date type per requirement 7
+      suffix: '',
+      birthdate: new Date('1995-06-15'),
       gender: 'female',
       civil_status: 'single',
       contact_number: '09187654321',
-      address: {
-        street_address: '123 Rizal Street',
-        zone: 'Zone 4',
-        barangay: 'San Antonio',
-        city: 'Pasig City',
-        province: 'Metro Manila',
-      },
+      purok_zone: 'Zone 4',
+      street_address: '123 Rizal Street',
+      barangay: 'San Antonio',
+      city: 'Pasig City',
+      province: 'Metro Manila',
+      occupation: 'Office Clerk',
+      voter_status: VOTER_STATUSES.REGISTERED,
+      emergency_contact_name: 'Jose Clara',
+      emergency_contact_number: '09191112233',
       valid_id_type: 'Passport',
       valid_id_number: 'P1234567A',
       proof_of_residency_type: 'Utility Bill',
-      verification_status: 'verified',
+      verification_status: VERIFICATION_STATUSES.VERIFIED,
       verified_at: new Date(),
       verified_by: admin._id,
     });
 
-    console.log(`[Seeder] Created Citizen: ${config.seed.citizenEmail}`);
+    console.log(`[Seeder] Seeded default citizen user: ${config.seed.citizenEmail}`);
   } else {
     console.log(`[Seeder] Citizen user already exists: ${config.seed.citizenEmail}`);
   }
@@ -165,7 +180,7 @@ async function seedDatabase() {
     }
   }
 
-  // 6. Seed App Settings (Toggles & Metadata only; secret keys stay in .env per requirement 5)
+  // 6. Seed App Settings (Toggles only; secret keys stay in .env)
   const defaultSettings = [
     { key: 'system_name', value: 'QuickFile Barangay Portal', category: 'general', description: 'Application display name' },
     { key: 'barangay_name', value: 'Barangay San Antonio', category: 'general', description: 'Name of the barangay' },
@@ -187,11 +202,9 @@ async function seedDatabase() {
     }
   }
   console.log('[Seeder] Default application settings verified.');
-
   console.log('[Seeder] Database seeding completed successfully.');
 }
 
-// Allow direct CLI execution: node src/utils/seeder.js
 if (require.main === module) {
   (async () => {
     try {
@@ -200,7 +213,7 @@ if (require.main === module) {
       await mongoose.disconnect();
       process.exit(0);
     } catch (err) {
-      console.error('[Seeder] Fatal error:', err);
+      console.error('[Seeder] Fatal error:', err.message);
       process.exit(1);
     }
   })();

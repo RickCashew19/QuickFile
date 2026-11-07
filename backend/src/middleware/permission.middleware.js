@@ -51,3 +51,4 @@ function requirePermission(permissionKey) {
 module.exports = {
   requirePermission,
 };
+

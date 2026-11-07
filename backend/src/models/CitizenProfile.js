@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
 
 const citizenProfileSchema = new mongoose.Schema(
   {
@@ -24,12 +25,12 @@ const citizenProfileSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Requirement 4: suffix
     suffix: {
       type: String,
       trim: true,
       default: '',
     },
-    // Requirement 7: Change birthdate to a Date type
     birthdate: {
       type: Date,
       required: true,
@@ -49,13 +50,55 @@ const citizenProfileSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    address: {
-      street_address: { type: String, trim: true, default: '' },
-      zone: { type: String, trim: true, default: '' },
-      barangay: { type: String, trim: true, default: '' },
-      city: { type: String, trim: true, default: '' },
-      province: { type: String, trim: true, default: '' },
+    // Requirement 4: purok_zone and street_address
+    purok_zone: {
+      type: String,
+      trim: true,
+      default: '',
     },
+    street_address: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    barangay: {
+      type: String,
+      trim: true,
+      default: 'San Antonio',
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: 'Pasig City',
+    },
+    province: {
+      type: String,
+      trim: true,
+      default: 'Metro Manila',
+    },
+    // Requirement 4: occupation and voter_status
+    occupation: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    voter_status: {
+      type: String,
+      enum: Object.values(VOTER_STATUSES),
+      default: VOTER_STATUSES.REGISTERED,
+    },
+    // Requirement 4: emergency contact fields
+    emergency_contact_name: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    emergency_contact_number: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Supporting ID extras
     valid_id_type: {
       type: String,
       trim: true,
@@ -81,8 +124,8 @@ const citizenProfileSchema = new mongoose.Schema(
     },
     verification_status: {
       type: String,
-      enum: ['pending', 'verified', 'rejected'],
-      default: 'pending',
+      enum: Object.values(VERIFICATION_STATUSES),
+      default: VERIFICATION_STATUSES.PENDING,
       index: true,
     },
     verified_at: {
@@ -104,7 +147,6 @@ const citizenProfileSchema = new mongoose.Schema(
   }
 );
 
-// Virtual for full name
 citizenProfileSchema.virtual('full_name').get(function () {
   const parts = [this.first_name, this.middle_name, this.last_name, this.suffix];
   return parts.filter(Boolean).join(' ');

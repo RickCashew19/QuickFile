@@ -1,26 +1,32 @@
 /**
- * System-wide Constants & Enums
+ * System-Wide Constants & Enumerations
+ * Follows snake_case values for consistent database storage and API responses
  */
+
 const ROLES = Object.freeze({
   ADMIN: 'admin',
   STAFF: 'staff',
   CITIZEN: 'citizen',
 });
 
-const USER_STATUSES = Object.freeze({
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  SUSPENDED: 'suspended',
-});
-
+// Requirement 1: Updated request statuses (removed 'processing' and 'completed')
 const REQUEST_STATUSES = Object.freeze({
   PENDING: 'pending',
-  PROCESSING: 'processing',
+  UNDER_REVIEW: 'under_review',
   APPROVED: 'approved',
-  REJECTED: 'rejected',
+  IN_PREPARATION: 'in_preparation',
   READY_FOR_PICKUP: 'ready_for_pickup',
-  COMPLETED: 'completed',
+  RELEASED: 'released',
+  REJECTED: 'rejected',
+  ARCHIVED: 'archived',
   CANCELLED: 'cancelled',
+});
+
+// Requirement 6: Issued document validity statuses
+const VALIDITY_STATUSES = Object.freeze({
+  VALID: 'valid',
+  EXPIRED: 'expired',
+  REVOKED: 'revoked',
 });
 
 const PAYMENT_STATUSES = Object.freeze({
@@ -29,19 +35,32 @@ const PAYMENT_STATUSES = Object.freeze({
   PAID: 'paid',
 });
 
+const VERIFICATION_STATUSES = Object.freeze({
+  PENDING: 'pending',
+  VERIFIED: 'verified',
+  REJECTED: 'rejected',
+});
+
+const VOTER_STATUSES = Object.freeze({
+  REGISTERED: 'registered',
+  UNREGISTERED: 'unregistered',
+});
+
 const NOTIFICATION_CHANNELS = Object.freeze({
   SYSTEM: 'system',
   EMAIL: 'email',
   SMS: 'sms',
 });
 
+// Requirement 2: Cleaned staff permissions (settings are admin-only)
 const STAFF_PERMISSIONS = Object.freeze([
   'can_review_requests',
-  'can_approve_requests',
-  'can_issue_documents',
-  'can_manage_residents',
+  'can_prepare_documents',
+  'can_print_documents',
+  'can_release_documents',
+  'can_verify_qr',
   'can_view_reports',
-  'can_manage_settings',
+  'can_archive_records',
 ]);
 
 const SUPER_ADMIN_PIN = Object.freeze({
@@ -51,10 +70,7 @@ const SUPER_ADMIN_PIN = Object.freeze({
   LOCKOUT_MINUTES: 15,
 });
 
-/**
- * List of keys that the Super Admin PIN endpoint is permitted to modify in .env
- * Prevents arbitrary injection into .env (e.g. PORT, MONGO_URI, JWT_SECRET cannot be changed via API)
- */
+// Allowlisted .env keys for Super Admin PIN update endpoint
 const ALLOWED_ENV_SETTING_KEYS = Object.freeze([
   'CUSTOM_GOOGLE_CLIENT_ID',
   'CUSTOM_GOOGLE_CLIENT_SECRET',
@@ -75,9 +91,11 @@ const ALLOWED_ENV_SETTING_KEYS = Object.freeze([
 
 module.exports = {
   ROLES,
-  USER_STATUSES,
   REQUEST_STATUSES,
+  VALIDITY_STATUSES,
   PAYMENT_STATUSES,
+  VERIFICATION_STATUSES,
+  VOTER_STATUSES,
   NOTIFICATION_CHANNELS,
   STAFF_PERMISSIONS,
   SUPER_ADMIN_PIN,
