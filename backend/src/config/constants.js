@@ -3,6 +3,9 @@
  * Follows snake_case values for consistent database storage and API responses
  */
 
+// Section A: Standardized API Version Prefix
+const API_PREFIX = '/api/v1';
+
 const ROLES = Object.freeze({
   ADMIN: 'admin',
   STAFF: 'staff',
@@ -27,7 +30,6 @@ const VALIDITY_STATUSES = Object.freeze({
   REVOKED: 'revoked',
 });
 
-// Requirement 6: Added 'waived' payment status
 const PAYMENT_STATUSES = Object.freeze({
   FREE: 'free',
   UNPAID: 'unpaid',
@@ -62,14 +64,12 @@ const STAFF_PERMISSIONS = Object.freeze([
   'can_archive_records',
 ]);
 
-// Requirement 1: Super Admin Key lockout limits
 const SUPER_ADMIN_LOCKOUT = Object.freeze({
   MAX_ATTEMPTS: 5,
   LOCKOUT_MINUTES: 15,
 });
 
-// Requirement 1: Strictly allowlisted CUSTOM_* variables writable to .env
-// SU_ADMIN_KEY and DEFAULT_* keys are strictly forbidden from modification via API
+// Strictly allowlisted CUSTOM_* variables writable to .env
 const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
   'CUSTOM_GOOGLE_CLIENT_ID',
   'CUSTOM_GOOGLE_CLIENT_SECRET',
@@ -89,6 +89,7 @@ const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
 ]);
 
 module.exports = {
+  API_PREFIX,
   ROLES,
   REQUEST_STATUSES,
   VALIDITY_STATUSES,

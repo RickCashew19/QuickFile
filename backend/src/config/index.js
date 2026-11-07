@@ -22,13 +22,22 @@ function resolveSetting(customKey, defaultKey) {
 
 /**
  * Enforces critical environment invariants on startup
+ * Halts immediately if critical security or jurisdiction variables are missing
  */
 function validateConfig() {
-  const suAdminKey = process.env.SU_ADMIN_KEY;
-  if (!suAdminKey || !suAdminKey.trim()) {
-    throw new Error(
-      '[Config] Fatal Error: SU_ADMIN_KEY is missing in .env. Please define SU_ADMIN_KEY before running the server or seeder.'
-    );
+  const requiredVars = [
+    { key: 'SU_ADMIN_KEY', label: 'Super Admin Key' },
+    { key: 'JWT_SECRET', label: 'JWT Secret' },
+    { key: 'BARANGAY_NAME', label: 'Barangay Name' },
+    { key: 'CITY_MUNICIPALITY', label: 'City/Municipality' },
+    { key: 'PROVINCE', label: 'Province' },
+  ];
+
+  for (const { key, label } of requiredVars) {
+    const val = process.env[key];
+    if (!val || !val.trim()) {
+      throw new Error(`[Config] Fatal Error: ${key} (${label}) is missing in .env.`);
+    }
   }
 }
 
@@ -40,9 +49,9 @@ const config = {
   // Database
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/quickfile',
 
-  // JWT configuration
+  // JWT configuration (no fallback secret)
   jwt: {
-    secret: process.env.JWT_SECRET || 'quickfile_default_development_jwt_secret',
+    getSecret: () => process.env.JWT_SECRET || '',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 
@@ -52,11 +61,11 @@ const config = {
   // Super Admin Key (Strictly from .env; no hardcoded fallback)
   getSuAdminKey: () => (process.env.SU_ADMIN_KEY ? process.env.SU_ADMIN_KEY.trim() : ''),
 
-  // Jurisdiction info (Requirement 5)
+  // Jurisdiction info (Strictly from .env; no hardcoded fallback)
   jurisdiction: {
-    barangayName: () => process.env.BARANGAY_NAME || 'Barangay San Antonio',
-    cityMunicipality: () => process.env.CITY_MUNICIPALITY || 'Pasig City',
-    province: () => process.env.PROVINCE || 'Metro Manila',
+    barangayName: () => process.env.BARANGAY_NAME || '',
+    cityMunicipality: () => process.env.CITY_MUNICIPALITY || '',
+    province: () => process.env.PROVINCE || '',
   },
 
   // Storage directory for uploads
@@ -81,7 +90,7 @@ const config = {
   sms: {
     resolveGatewayUrl: () => resolveSetting('CUSTOM_SMS_GATEWAY_URL', 'DEFAULT_SMS_GATEWAY_URL'),
     resolveApiToken: () => resolveSetting('CUSTOM_SMS_API_TOKEN', 'DEFAULT_SMS_API_TOKEN'),
-    resolveSenderId: () => resolveSetting('CUSTOM_SMS_SENDER_ID', ''),
+    resolveSenderId: () => resolveSetting('CUSTOM_SMS_SENDER_ID', 'DEFAULT_SMS_SENDER_ID'),
   },
 
   smtp: {
@@ -160,10 +169,8 @@ const config = {
   },
 };
 
-// Attach helper functions to config object for backward-compatible destructuring
-config.config = config;
-config.validateConfig = validateConfig;
-config.resolveSetting = resolveSetting;
-
-module.exports = config;
-
+module.exports = {
+  config,
+  validateConfig,
+  resolveSetting,
+};

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const config = require('../config');
+const { config } = require('../config');
 const { User } = require('../models');
 
 /**
@@ -14,6 +14,7 @@ async function authenticate(req, res, next) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required. No Bearer token provided in Authorization header.',
+        data: null,
       });
     }
 
@@ -23,24 +24,27 @@ async function authenticate(req, res, next) {
       return res.status(401).json({
         success: false,
         message: 'Malformed Authorization header. Missing token.',
+        data: null,
       });
     }
 
     let decoded;
     try {
-      decoded = jwt.verify(token, config.jwt.secret);
+      decoded = jwt.verify(token, config.jwt.getSecret());
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
         return res.status(401).json({
           success: false,
           message: 'Token has expired. Please log in again.',
           code: 'TOKEN_EXPIRED',
+          data: null,
         });
       }
       return res.status(401).json({
         success: false,
         message: 'Invalid authentication token.',
         code: 'TOKEN_INVALID',
+        data: null,
       });
     }
 
@@ -50,14 +54,15 @@ async function authenticate(req, res, next) {
       return res.status(401).json({
         success: false,
         message: 'User account not found. Authentication rejected.',
+        data: null,
       });
     }
 
-    // Requirement 3: Use single active flag (is_active)
     if (!user.is_active) {
       return res.status(403).json({
         success: false,
         message: 'Your account is deactivated. Access denied.',
+        data: null,
       });
     }
 
@@ -78,7 +83,7 @@ async function optionalAuth(req, res, next) {
       const token = authHeader.split(' ')[1].trim();
       if (token) {
         try {
-          const decoded = jwt.verify(token, config.jwt.secret);
+          const decoded = jwt.verify(token, config.jwt.getSecret());
           const user = await User.findById(decoded.id).select('-password_hash');
           if (user && user.is_active) {
             req.user = user;

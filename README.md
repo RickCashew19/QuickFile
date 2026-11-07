@@ -18,6 +18,30 @@ QuickFile is designed to be **100% portable and computer-independent**, running 
 
 ---
 
+## 🌐 Separated Backend Architecture (REST API v1)
+
+QuickFile is transitioning to a modern, decoupled architecture:
+- **/backend**: Node.js + Express REST API with MongoDB (Mongoose) and JWT Bearer authorization.
+- **/frontend**: Single Page Application built with React + Vite (`VITE_API_URL=http://localhost:5000/api/v1`).
+
+### Standardized Endpoints (`/api/v1`):
+| Endpoint | Method | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `/api/v1/health` | GET | API Health & operational status check | Public |
+| `/api/v1/public/config` | GET | Public client IDs, site keys, and feature flags | Public |
+| `/api/v1/verify/:code` | GET | Public cryptographic certificate QR verification | Public |
+| `/api/v1/auth/register` | POST | Citizen self-registration with profile capture | Public |
+| `/api/v1/auth/login` | POST | Unified login returning Bearer JWT token | Public |
+| `/api/v1/auth/me` | GET | Authenticated user profile and permissions | Bearer Token |
+| `/api/v1/citizen/*` | * | Citizen document filing, status tracking, profile | Citizen Role |
+| `/api/v1/staff/*` | * | Staff queue review, processing, print, release | Staff Role |
+| `/api/v1/admin/*` | * | Administrative oversight, accounts, logs | Admin Role |
+| `/api/v1/admin/settings` | GET/PATCH | Integration keys guarded by Super Admin Key | Admin + SU Key |
+| `/api/v1/files/attachments/:filename` | GET | Protected attachment download & inspection | Bearer Token |
+| `/api/v1/external/*` | * | Developer Gateway guarded by API Secret Key | X-API-Key |
+
+---
+
 ## 🗂️ Modular Project Structure
 
 ```
@@ -280,7 +304,7 @@ All timestamps are rendered through standardized formatting helpers:
 ### 6. App Settings & Integration Management (OTH-ASI)
 
 QuickFile provides a unified administrative settings cockpit at `/admin/settings` where administrators manage developer gateways and pluggable external services:
-- **REST API Gateway Control (Enable / Disable)**: Administrators can toggle public and external REST API endpoints (`/api/*`) in real-time. When disabled, incoming API requests are intercepted and rejected with an automated `503 Service Unavailable` (`API_DISABLED`) payload, safeguarding backend resources while keeping internal web portals completely unaffected.
+- **REST API Gateway Control (Enable / Disable)**: Administrators can toggle public and external REST API endpoints (`/api/v1/external/*`) in real-time. When disabled, incoming external API requests are intercepted and rejected with an automated `503 Service Unavailable` (`API_DISABLED`) payload, safeguarding backend resources while keeping internal web portals completely unaffected.
 - **API Secret Key Management**: Optional bearer / API secret token for authorized third-party or mobile integrations.
 - **Social Sign-In (Google OAuth)**: Dynamic switch allowing citizens to register and log in via one-click Google OAuth or restricting the portal strictly to manual email/password authentication.
 - **Communication & Verification Infrastructure**: Instant feature toggles for real-time SMS notifications (Twilio / PhilSMS), automated email dispatch via SMTP, and the internal QR verification engine.

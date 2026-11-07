@@ -5,7 +5,39 @@ const { ALLOWED_CUSTOM_ENV_KEYS } = require('../../config/constants');
 const { AppSetting, AuditLog } = require('../../models');
 const { verifySuperAdminKey } = require('../../utils/superAdminKeyVerifier');
 
-const ENV_PATH = path.resolve(__dirname, '../../../.env');
+/**
+ * Resolves current .env file path (supports test override)
+ */
+function getEnvPath() {
+  return process.env.TEST_ENV_PATH || path.resolve(__dirname, '../../../.env');
+}
+
+/**
+ * Format and sanitize an environment variable value
+ * Section D.1: Rejects line breaks/nulls, wraps values with spaces, #, or quotes in escaped quotes
+ */
+function formatEnvValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  const str = String(value);
+
+  // Reject line breaks and null characters
+  if (/[\r\n\0]/.test(str)) {
+    const err = new Error('Validation error: Setting values cannot contain line breaks or null characters.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Quote and escape if containing spaces, hashes, or quotes
+  if (/[ #'"\\]/.test(str)) {
+    const escaped = str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
+
+  return str;
+}
 
 /**
  * Retrieve current settings with masked integration secrets
@@ -22,9 +54,9 @@ async function getSettings() {
 
 /**
  * Updates allowlisted CUSTOM_* variables in .env and runtime memory
- * Strictly requires Super Admin Key verification
+ * Section D.1: Rejects malicious characters, atomic file writes, reset capability
  */
-async function updateCustomSettings({ suAdminKey, updates = {}, actorUser, ipAddress, userAgent }) {
+async function updateCustomSettings({ suAdminKey, updates = {}, resetKeys = [], actorUser, ipAddress, userAgent }) {
   if (!suAdminKey) {
     const err = new Error('Super Admin Key is required to save integration settings.');
     err.statusCode = 400;
@@ -40,47 +72,65 @@ async function updateCustomSettings({ suAdminKey, updates = {}, actorUser, ipAdd
     userAgent,
   });
 
-  // 2. Filter updates: only allowlisted CUSTOM_* keys are permitted
   const validUpdates = {};
+
+  // Process updates
   for (const [key, value] of Object.entries(updates)) {
     if (ALLOWED_CUSTOM_ENV_KEYS.includes(key)) {
-      validUpdates[key] = typeof value === 'string' ? value.trim() : String(value || '');
+      validUpdates[key] = formatEnvValue(value);
+    }
+  }
+
+  // Process resetKeys (resetting custom key back to empty string / default)
+  if (Array.isArray(resetKeys)) {
+    for (const key of resetKeys) {
+      if (ALLOWED_CUSTOM_ENV_KEYS.includes(key)) {
+        validUpdates[key] = '';
+      }
     }
   }
 
   const modifiedKeys = Object.keys(validUpdates);
   if (modifiedKeys.length === 0) {
-    const err = new Error('No valid allowlisted settings provided for update.');
+    const err = new Error('No valid allowlisted settings provided for update or reset.');
     err.statusCode = 400;
     throw err;
   }
 
-  // 3. Update backend/.env file safely
+  // 2. Read existing .env file
+  const envPath = getEnvPath();
   let envContent = '';
-  if (fs.existsSync(ENV_PATH)) {
-    envContent = fs.readFileSync(ENV_PATH, 'utf8');
+  if (fs.existsSync(envPath)) {
+    envContent = fs.readFileSync(envPath, 'utf8');
   }
 
   let lines = envContent.split(/\r?\n/);
-  for (const [key, value] of Object.entries(validUpdates)) {
+  for (const [key, formattedVal] of Object.entries(validUpdates)) {
     let replaced = false;
     lines = lines.map((line) => {
       if (line.startsWith(`${key}=`)) {
         replaced = true;
-        return `${key}=${value}`;
+        return `${key}=${formattedVal}`;
       }
       return line;
     });
 
     if (!replaced) {
-      lines.push(`${key}=${value}`);
+      lines.push(`${key}=${formattedVal}`);
     }
 
-    // Update in-memory process.env immediately
-    process.env[key] = value;
+    // Update in-memory process.env immediately (unwrap quotes for memory)
+    const rawVal = formattedVal.startsWith('"') && formattedVal.endsWith('"')
+      ? formattedVal.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      : formattedVal;
+
+    process.env[key] = rawVal;
   }
 
-  fs.writeFileSync(ENV_PATH, lines.join('\n'), 'utf8');
+  // 3. Write atomically via temporary file
+  const tempPath = `${envPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  fs.writeFileSync(tempPath, lines.join('\n'), 'utf8');
+  fs.renameSync(tempPath, envPath);
 
   // 4. Audit settings modification (never log secrets!)
   await AuditLog.create({
@@ -103,4 +153,5 @@ async function updateCustomSettings({ suAdminKey, updates = {}, actorUser, ipAdd
 module.exports = {
   getSettings,
   updateCustomSettings,
+  formatEnvValue,
 };

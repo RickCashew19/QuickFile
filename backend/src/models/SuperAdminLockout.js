@@ -22,3 +22,4 @@ const superAdminLockoutSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('SuperAdminLockout', superAdminLockoutSchema);
+

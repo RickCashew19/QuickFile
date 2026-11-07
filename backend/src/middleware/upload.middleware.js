@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
-const config = require('../config');
+const { config } = require('../config');
 
 // Ensure upload directory exists
 if (!fs.existsSync(config.uploadDir)) {

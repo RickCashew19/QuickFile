@@ -11,11 +11,11 @@ function notFoundHandler(req, res, next) {
 
 /**
  * Central Error Handler Middleware
- * Guarantees every error returns JSON: { success: false, message, errors, data: null }
- * Requirement 2: Never include the stack trace in the JSON response. Log it on the server only.
+ * Section D.6: Never includes stack traces in JSON response.
+ * For status 500+, sends generic message to client while logging real message & stack on server.
  */
 function errorHandler(err, req, res, next) {
-  // Server-side logging only (with stack trace for developers)
+  // Always log full error and stack trace on the server terminal
   console.error(`[Error] ${req.method} ${req.originalUrl}:`, err);
 
   let statusCode = err.statusCode || err.status || 500;
@@ -32,7 +32,7 @@ function errorHandler(err, req, res, next) {
     }
   }
 
-  // Handle Mongoose CastError (e.g. invalid ObjectId)
+  // Handle Mongoose CastError (e.g. invalid ObjectId format)
   if (err.name === 'CastError') {
     statusCode = 400;
     message = `Invalid format for field '${err.path}': ${err.value}`;
@@ -64,6 +64,11 @@ function errorHandler(err, req, res, next) {
     } else {
       message = `File upload error: ${err.message}`;
     }
+  }
+
+  // Section D.6: Hide internal error messages for 500+ errors from the client
+  if (statusCode >= 500) {
+    message = 'Internal Server Error. Please contact the administrator.';
   }
 
   // JSON response: stack trace is strictly excluded

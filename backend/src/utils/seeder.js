@@ -193,7 +193,7 @@ async function seedDatabase() {
     { key: 'enable_email_notifications', value: false, category: 'notifications', description: 'Toggle SMTP email notifications' },
     { key: 'enable_google_login', value: false, category: 'integrations', description: 'Toggle Google OAuth login' },
     { key: 'enable_recaptcha', value: false, category: 'integrations', description: 'Toggle Google reCAPTCHA v2' },
-    { key: 'enable_rest_api_gateway', value: false, category: 'integrations', description: 'Toggle External REST API gateway at /api/external/v1' },
+    { key: 'enable_rest_api_gateway', value: false, category: 'integrations', description: 'Toggle External REST API gateway at /api/v1/external' },
   ];
 
   for (const s of defaultSettings) {

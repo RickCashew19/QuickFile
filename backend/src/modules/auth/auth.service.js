@@ -10,13 +10,17 @@ const {
 } = require('../../models');
 
 function generateToken(user) {
+  const secret = config.jwt.getSecret();
+  if (!secret) {
+    throw new Error('JWT_SECRET is missing in server configuration.');
+  }
   return jwt.sign(
     {
       id: user._id.toString(),
       email: user.email,
       role: user.role,
     },
-    config.jwt.secret,
+    secret,
     { expiresIn: config.jwt.expiresIn }
   );
 }
@@ -72,7 +76,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     is_active: true,
   });
 
-  // 2. Create Citizen Profile (Requirement 5: default jurisdiction from config)
+  // 2. Create Citizen Profile (default jurisdiction from config)
   const profile = await CitizenProfile.create({
     user_id: newUser._id,
     first_name: first_name.trim(),
@@ -96,7 +100,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
   // 3. Issue Token
   const token = generateToken(newUser);
 
-  // 4. Append-Only Audit Log (Requirement 4: actor_name and target_type)
+  // 4. Append-Only Audit Log
   await AuditLog.create({
     user_id: newUser._id,
     actor_name: fullName,
@@ -158,7 +162,6 @@ async function loginUser(email, password, ipAddress, userAgent) {
 
   const token = generateToken(user);
 
-  // Requirement 4: actor_name & target_type in AuditLog
   await AuditLog.create({
     user_id: user._id,
     actor_name: user.full_name,

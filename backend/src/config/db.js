@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
-const config = require('./index');
+const { config } = require('./index');
 
 let isConnected = false;
 
-async function connectDB() {
+async function connectDB(customUri = null) {
   if (isConnected) {
     return mongoose.connection;
   }
@@ -22,10 +22,12 @@ async function connectDB() {
     console.warn('[MongoDB] Disconnected from database.');
   });
 
+  const uri = customUri || process.env.MONGO_URI || config.mongoUri;
+
   try {
-    await mongoose.connect(config.mongoUri, {
+    await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000,
-      autoIndex: config.nodeEnv !== 'production', // Don't build indexes in production
+      autoIndex: config.nodeEnv !== 'production',
     });
     return mongoose.connection;
   } catch (error) {
@@ -46,4 +48,3 @@ module.exports = {
   connectDB,
   disconnectDB,
 };
-

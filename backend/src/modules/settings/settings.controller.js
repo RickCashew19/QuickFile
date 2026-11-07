@@ -3,7 +3,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 
 /**
  * Get system settings and masked integrations
- * GET /api/admin/settings
+ * GET /api/v1/admin/settings
  */
 const getSettings = asyncHandler(async (req, res) => {
   const data = await settingsService.getSettings();
@@ -17,10 +17,10 @@ const getSettings = asyncHandler(async (req, res) => {
 
 /**
  * Update custom integration settings guarded by Super Admin Key
- * PATCH /api/admin/settings
+ * PATCH /api/v1/admin/settings
  */
 const updateSettings = asyncHandler(async (req, res) => {
-  const { su_admin_key, settings } = req.body;
+  const { su_admin_key, settings, reset_keys } = req.body;
 
   if (!su_admin_key) {
     return res.status(400).json({
@@ -33,6 +33,7 @@ const updateSettings = asyncHandler(async (req, res) => {
   const result = await settingsService.updateCustomSettings({
     suAdminKey: su_admin_key,
     updates: settings || {},
+    resetKeys: reset_keys || [],
     actorUser: req.user,
     ipAddress: req.ip,
     userAgent: req.get('User-Agent'),

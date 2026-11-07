@@ -5,7 +5,8 @@ const { SUPER_ADMIN_LOCKOUT } = require('../config/constants');
 
 /**
  * Verifies the Super Admin Key using crypto.timingSafeEqual
- * Enforces lockout after 5 consecutive failures and audits all attempts
+ * Section D.2: Resets failed_attempts and locked_until when lockout expires before the check
+ * Enforces database lockout after 5 consecutive failures and audits all attempts
  * NEVER logs the key itself
  * 
  * @param {Object} params
@@ -30,28 +31,35 @@ async function verifySuperAdminKey({ providedKey, actorId = null, actorName = 'A
     lockout = await SuperAdminLockout.create({});
   }
 
-  // 1. Check if currently locked out
-  if (lockout.locked_until && new Date() < lockout.locked_until) {
-    const remainingMs = lockout.locked_until.getTime() - Date.now();
-    const remainingMinutes = Math.ceil(remainingMs / 60000);
+  // Section D.2: Check lockout expiration and reset before comparison
+  if (lockout.locked_until) {
+    if (new Date() < lockout.locked_until) {
+      const remainingMs = lockout.locked_until.getTime() - Date.now();
+      const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
 
-    await AuditLog.create({
-      user_id: actorId,
-      actor_name: actorName,
-      action: 'SU_KEY_VERIFY_BLOCKED_LOCKED',
-      module: 'SETTINGS',
-      target_type: 'SuperAdminLockout',
-      details: { remaining_minutes: remainingMinutes },
-      ip_address: ipAddress,
-      user_agent: userAgent,
-    });
+      await AuditLog.create({
+        user_id: actorId,
+        actor_name: actorName,
+        action: 'SU_KEY_VERIFY_BLOCKED_LOCKED',
+        module: 'SETTINGS',
+        target_type: 'SuperAdminLockout',
+        details: { remaining_minutes: remainingMinutes },
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
 
-    const err = new Error(`Super Admin Key is locked. Try again in ${remainingMinutes} minute(s).`);
-    err.statusCode = 423; // Locked
-    throw err;
+      const err = new Error(`Super Admin Key is locked. Try again in ${remainingMinutes} minute(s).`);
+      err.statusCode = 423; // Locked
+      throw err;
+    } else {
+      // Lockout window has passed: cleanly reset state BEFORE checking new attempt
+      lockout.failed_attempts = 0;
+      lockout.locked_until = null;
+      await lockout.save();
+    }
   }
 
-  // 2. Timing-safe comparison using SHA-256 fixed-length buffers
+  // Timing-safe comparison using SHA-256 fixed-length buffers
   const hashConfigured = crypto.createHash('sha256').update(configuredKey).digest();
   const hashProvided = crypto.createHash('sha256').update(String(providedKey || '')).digest();
   const isMatch = crypto.timingSafeEqual(hashConfigured, hashProvided);
@@ -77,7 +85,7 @@ async function verifySuperAdminKey({ providedKey, actorId = null, actorName = 'A
     return true;
   }
 
-  // 3. Handle verification failure
+  // Handle verification failure
   lockout.failed_attempts += 1;
   const isNowLocked = lockout.failed_attempts >= SUPER_ADMIN_LOCKOUT.MAX_ATTEMPTS;
 
