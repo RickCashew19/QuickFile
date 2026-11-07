@@ -6,8 +6,15 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+
+// Dynamic test credentials generated at runtime (never matches real .env)
+const DYNAMIC_SU_ADMIN_KEY = `su_key_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_ADMIN_PASSWORD = `Adm!n_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_STAFF_PASSWORD = `St@ff_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_CITIZEN_PASSWORD = `C!tizen_${crypto.randomBytes(8).toString('hex')}`;
 
 // Setup test-specific environment paths and database
 const TEST_ENV_PATH = path.resolve(__dirname, 'test_2a.env.tmp');
@@ -16,15 +23,15 @@ const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/quickfile_test';
 process.env.NODE_ENV = 'test';
 process.env.MONGO_URI = TEST_MONGO_URI;
 process.env.TEST_ENV_PATH = TEST_ENV_PATH;
-process.env.SU_ADMIN_KEY = '12345678';
+process.env.SU_ADMIN_KEY = DYNAMIC_SU_ADMIN_KEY;
 process.env.JWT_SECRET = 'quickfile_test_isolated_secret_key_2026';
 process.env.FRONTEND_URL = 'http://localhost:5173,https://portal.quickfile.gov.ph';
 process.env.BARANGAY_NAME = 'Barangay 11';
 process.env.CITY_MUNICIPALITY = 'Malaybalay';
 process.env.PROVINCE = 'Bukidnon';
-process.env.DEFAULT_ADMIN_PASSWORD = 'Admin@123456';
-process.env.DEFAULT_STAFF_PASSWORD = 'Staff@123456';
-process.env.DEFAULT_CITIZEN_PASSWORD = 'Citizen@123456';
+process.env.DEFAULT_ADMIN_PASSWORD = DYNAMIC_ADMIN_PASSWORD;
+process.env.DEFAULT_STAFF_PASSWORD = DYNAMIC_STAFF_PASSWORD;
+process.env.DEFAULT_CITIZEN_PASSWORD = DYNAMIC_CITIZEN_PASSWORD;
 
 // Write initial temporary env file for tests
 fs.writeFileSync(
@@ -35,7 +42,7 @@ fs.writeFileSync(
     `MONGO_URI=${TEST_MONGO_URI}`,
     'JWT_SECRET=quickfile_test_isolated_secret_key_2026',
     'FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph',
-    'SU_ADMIN_KEY=12345678',
+    `SU_ADMIN_KEY=${DYNAMIC_SU_ADMIN_KEY}`,
     'BARANGAY_NAME=Barangay 11',
     'CITY_MUNICIPALITY=Malaybalay',
     'PROVINCE=Bukidnon',
@@ -44,13 +51,16 @@ fs.writeFileSync(
     'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=https://dashboard.philsms.com/api/v3/',
-    'DEFAULT_SMS_API_TOKEN=test-sms-token-123456',
+    'DEFAULT_SMS_API_TOKEN=test-sms-token-rand',
     'DEFAULT_SMTP_HOST=smtp.gmail.com',
     'DEFAULT_SMTP_USER=test@gmail.com',
     'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret',
     'CUSTOM_GOOGLE_CLIENT_ID=',
     'CUSTOM_GOOGLE_CLIENT_SECRET=',
     'CUSTOM_SMS_API_TOKEN=',
+    `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
+    `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
+    `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
   ].join('\n'),
   'utf8'
 );
@@ -210,7 +220,7 @@ async function runTests() {
     const adminLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
-      { email: 'admin@quickfile.gov.ph', password: 'Admin@123456' }
+      { email: 'admin@quickfile.gov.ph', password: DYNAMIC_ADMIN_PASSWORD }
     );
     assert(adminLoginRes.status === 200, 'Admin login should succeed');
     const adminToken = adminLoginRes.data.data.access_token;
@@ -235,7 +245,7 @@ async function runTests() {
           headers: { Authorization: `Bearer ${adminToken}` },
         },
         {
-          su_admin_key: '12345678',
+          su_admin_key: DYNAMIC_SU_ADMIN_KEY,
           settings: { [key]: val },
         }
       );
@@ -262,7 +272,7 @@ async function runTests() {
         headers: { Authorization: `Bearer ${adminToken}` },
       },
       {
-        su_admin_key: '12345678',
+        su_admin_key: DYNAMIC_SU_ADMIN_KEY,
         settings: { CUSTOM_SMS_API_TOKEN: "line1\nline2" },
       }
     );
@@ -458,8 +468,7 @@ async function runTests() {
     console.log('PASS: Reset request stored 64-char SHA-256 token hash in PasswordReset.');
 
     // In a real email, the user receives rawToken. For test, let's create a known rawToken + hash
-    const crypto = require('crypto');
-    const testRawToken = 'my_secret_random_raw_token_1234567890';
+    const testRawToken = 'my_secret_random_raw_token_' + crypto.randomBytes(8).toString('hex');
     const testTokenHash = crypto.createHash('sha256').update(testRawToken).digest('hex');
 
     await PasswordReset.create({
@@ -635,7 +644,7 @@ async function runTests() {
       citizen_id: dummyCitizen._id,
       document_type_id: createdDocId,
       full_name: 'Test Citizen',
-      contact_number: '09123456789',
+      contact_number: '09199998888',
       purpose: 'Testing deletion constraint',
       fee: 80,
     });

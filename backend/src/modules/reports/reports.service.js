@@ -1,44 +1,8 @@
 const mongoose = require('mongoose');
-const { DocumentRequest, AuditLog } = require('../../models');
+const { DocumentRequest, AuditLog, AppSetting } = require('../../models');
 const { REQUEST_STATUSES, PAYMENT_STATUSES } = require('../../config/constants');
 const { config } = require('../../config');
-
-/**
- * Validates date range parameters (required, ISO 8601, from <= to, max 366 days)
- */
-function validateDateRange(from, to) {
-  if (!from || !to) {
-    const error = new Error('Both "from" and "to" date parameters are required.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-
-  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-    const error = new Error('Invalid date format for "from" or "to". Please use ISO 8601 (YYYY-MM-DD).');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  toDate.setHours(23, 59, 59, 999);
-
-  if (fromDate > toDate) {
-    const error = new Error('"from" date must be earlier than or equal to "to" date.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const dayDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (dayDiff > 366) {
-    const error = new Error('Date range cannot exceed 366 days.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return { fromDate, toDate };
-}
+const { parseLocalDateRange } = require('../../utils/dateUtil');
 
 /**
  * Validates and casts document_type_id parameter
@@ -57,8 +21,13 @@ function validateDocumentTypeId(id) {
 
 /**
  * Shared Structured Reports Service
- * Returns raw structured data (numbers, rows, labels, no formatting)
- * Reused by Staff Reports, Admin Reports, and File Exporters (PDF, Word, Excel)
+ * Returns raw structured data conforming to the documented export view-model:
+ * - summary: total_requests, released_count, rejected_count, total_revenue, waived_count, waived_amount, from, to
+ * - by_document_type: document_code, document_name, count, unit_fee, collected_amount
+ * - by_status: status, count
+ * - staff_workload: staff_name, role, per_status, total_actions (staff & admin only; citizens excluded)
+ * - transactions: items (applicant_name, document_name, document_code, tracking_number, status, fee, payment_status, payment_reference, waiver_reason, paid_at, created_at, released_at), total, page, limit, truncated, max_rows
+ * - signatories: prepared_by, noted_by (omitted if not configured)
  */
 async function generateReportData({
   from,
@@ -68,12 +37,12 @@ async function generateReportData({
   limit = 50,
   isExport = false,
   maxRows = config.exportMaxRows || 5000,
+  actorUser = {},
 }) {
-  const { fromDate, toDate } = validateDateRange(from, to);
+  const { fromDate, toDate, fromDateStr, toDateStr } = parseLocalDateRange(from, to);
   const docTypeObjectId = validateDocumentTypeId(document_type_id);
 
-  // 1. Base match queries
-  // created_at grouping: for status counts, by_document_type, total requests, transactions
+  // 1. Base queries using calendar day boundaries in barangay timezone
   const createdQuery = {
     created_at: { $gte: fromDate, $lte: toDate },
   };
@@ -81,7 +50,6 @@ async function generateReportData({
     createdQuery.document_type_id = docTypeObjectId;
   }
 
-  // paid_at grouping: for revenue and waived fee accounting
   const paidMatchQuery = {
     paid_at: { $gte: fromDate, $lte: toDate },
     payment_status: PAYMENT_STATUSES.PAID,
@@ -98,7 +66,7 @@ async function generateReportData({
     waivedMatchQuery.document_type_id = docTypeObjectId;
   }
 
-  // 2. Summary counts & totals
+  // 2. Summary KPI Metrics
   const [
     total_requests,
     released_count,
@@ -123,13 +91,13 @@ async function generateReportData({
   const waived_count = waivedAgg[0]?.count || 0;
   const waived_amount = waivedAgg[0]?.total || 0;
 
-  // 3. Status counts (by created_at)
+  // 3. Status Breakdown
   const statusCounts = await DocumentRequest.aggregate([
     { $match: createdQuery },
     { $group: { _id: '$status', count: { $sum: 1 } } },
   ]);
 
-  // 4. By Document Type (by created_at; collected_amount from paid requests only)
+  // 4. Breakdown by Document Type
   const docTypeStats = await DocumentRequest.aggregate([
     { $match: createdQuery },
     {
@@ -154,18 +122,19 @@ async function generateReportData({
     { $unwind: { path: '$doc_type', preserveNullAndEmptyArrays: true } },
     {
       $project: {
-        document_type_id: '$_id',
-        name: { $ifNull: ['$doc_type.name', 'Unknown Document'] },
-        code: { $ifNull: ['$doc_type.code', 'UNKNOWN'] },
+        document_code: { $ifNull: ['$doc_type.code', 'UNKNOWN'] },
+        document_name: { $ifNull: ['$doc_type.name', 'Unknown Document'] },
         count: 1,
+        unit_fee: { $ifNull: ['$doc_type.fee', 0] },
         collected_amount: 1,
       },
     },
-    { $sort: { name: 1 } },
+    { $sort: { document_name: 1 } },
   ]);
 
-  // 5. Staff Workload Breakdown (from AuditLog REQUEST_STATUS_CHANGE entries in range)
-  const staffWorkload = await AuditLog.aggregate([
+  // 5. Staff Workload: Group audit entries by actor, keeping ONLY staff and admin roles
+  // Citizens' own cancellations/actions are strictly excluded via $lookup to users
+  const staffWorkloadRaw = await AuditLog.aggregate([
     {
       $match: {
         action: 'REQUEST_STATUS_CHANGE',
@@ -173,40 +142,75 @@ async function generateReportData({
       },
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'user_id',
+        foreignField: '_id',
+        as: 'actor_user',
+      },
+    },
+    { $unwind: '$actor_user' },
+    {
+      $match: {
+        'actor_user.role': { $in: ['staff', 'admin'] },
+      },
+    },
+    {
       $group: {
         _id: {
           user_id: '$user_id',
-          actor_name: '$actor_name',
+          staff_name: '$actor_user.full_name',
+          role: '$actor_user.role',
           to_status: '$details.to_status',
         },
-        count: { $sum: 1 },
+        status_count: { $sum: 1 },
       },
     },
     {
       $group: {
         _id: {
           user_id: '$_id.user_id',
-          actor_name: '$_id.actor_name',
+          staff_name: '$_id.staff_name',
+          role: '$_id.role',
         },
-        statuses: {
+        per_status_array: {
           $push: {
             status: '$_id.to_status',
-            count: '$count',
+            count: '$status_count',
           },
         },
-        total_actions: { $sum: '$count' },
+        total_actions: { $sum: '$status_count' },
       },
     },
     {
       $project: {
-        user_id: '$_id.user_id',
-        actor_name: '$_id.actor_name',
+        _id: 0,
+        staff_name: '$_id.staff_name',
+        role: '$_id.role',
+        per_status_array: 1,
         total_actions: 1,
-        statuses: 1,
       },
     },
     { $sort: { total_actions: -1 } },
   ]);
+
+  // Format per_status into an object { [status]: count }
+  const staff_workload = staffWorkloadRaw.map((w) => {
+    const per_status = {};
+    if (Array.isArray(w.per_status_array)) {
+      for (const item of w.per_status_array) {
+        if (item.status) {
+          per_status[item.status] = item.count;
+        }
+      }
+    }
+    return {
+      staff_name: w.staff_name || 'Staff Member',
+      role: w.role || 'staff',
+      per_status,
+      total_actions: w.total_actions || 0,
+    };
+  });
 
   // 6. Paginated Transaction List
   const safePage = Math.max(1, parseInt(page, 10) || 1);
@@ -226,18 +230,34 @@ async function generateReportData({
   ]);
 
   const transactions = transactionDocs.map((r) => ({
-    tracking_number: r.tracking_number,
     applicant_name: r.citizen_id?.full_name || 'Resident Citizen',
     document_name: r.document_type_id?.name || 'Document',
     document_code: r.document_type_id?.code || 'DOC',
+    tracking_number: r.tracking_number,
     status: r.status,
-    fee: r.fee,
-    payment_status: r.payment_status,
+    fee: r.fee !== undefined ? r.fee : 0,
+    payment_status: r.payment_status || 'unpaid',
+    payment_reference: r.payment_reference || '',
+    waiver_reason: r.waiver_reason || '',
     paid_at: r.paid_at || null,
     created_at: r.created_at,
+    released_at: r.released_at || null,
   }));
 
   const isTruncated = isExport && totalTransactions > maxRows;
+
+  // 7. Signatories resolution from settings
+  const settingsList = await AppSetting.find({
+    key: { $in: ['barangay_captain', 'barangay_secretary'] },
+  }).lean();
+  const settingsMap = {};
+  for (const s of settingsList) {
+    settingsMap[s.key] = s.value;
+  }
+
+  const captainName = (settingsMap.barangay_captain || process.env.BARANGAY_CAPTAIN_NAME || '').trim();
+  const secretaryName = (settingsMap.barangay_secretary || process.env.BARANGAY_SECRETARY_NAME || '').trim();
+  const notedBy = secretaryName || captainName;
 
   return {
     summary: {
@@ -247,12 +267,18 @@ async function generateReportData({
       total_revenue,
       waived_count,
       waived_amount,
-      from: fromDate.toISOString(),
-      to: toDate.toISOString(),
+      from: fromDateStr,
+      to: toDateStr,
     },
-    by_document_type: docTypeStats,
+    by_document_type: docTypeStats.map((d) => ({
+      document_code: d.document_code,
+      document_name: d.document_name,
+      count: d.count || 0,
+      unit_fee: d.unit_fee || 0,
+      collected_amount: d.collected_amount || 0,
+    })),
     by_status: statusCounts.map((s) => ({ status: s._id, count: s.count })),
-    staff_workload: staffWorkload,
+    staff_workload,
     transactions: {
       items: transactions,
       total: totalTransactions,
@@ -260,6 +286,10 @@ async function generateReportData({
       limit: safeLimit,
       truncated: isTruncated,
       max_rows: maxRows,
+    },
+    signatories: {
+      prepared_by: actorUser.full_name || 'Authorized Officer',
+      noted_by: notedBy, // Only filled if configured; empty string if not configured
     },
   };
 }
@@ -276,7 +306,32 @@ const CONTENT_TYPES = Object.freeze({
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 });
 
-async function exportReport({ format, from, to, document_type_id, scope = 'staff', actorUser }) {
+const GENERATION_TIMEOUT_MS = 15000;
+
+/**
+ * Executes report generation with a strict 15-second timeout
+ */
+async function generateWithTimeout(generatorFn, ...args) {
+  let timerId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timerId = setTimeout(() => {
+      const err = new Error('Report generation timed out. Please narrow your date range and try again.');
+      err.statusCode = 500;
+      reject(err);
+    }, GENERATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([generatorFn(...args), timeoutPromise]);
+  } finally {
+    clearTimeout(timerId);
+  }
+}
+
+/**
+ * Export report controller entrypoint
+ */
+async function exportReport({ format, from, to, document_type_id, scope = 'staff', actorUser = {} }) {
   if (!format || typeof format !== 'string') {
     const error = new Error('Export format parameter is required. Supported formats: pdf, docx, xlsx.');
     error.statusCode = 400;
@@ -290,19 +345,38 @@ async function exportReport({ format, from, to, document_type_id, scope = 'staff
     throw error;
   }
 
-  const reportData = await generateReportData({ from, to, document_type_id, isExport: true });
+  // Row cap selection: 500 for PDF/Word, 5000 for Excel
+  const maxRows = fmt === 'xlsx'
+    ? (config.exportMaxRows || 5000)
+    : (config.exportDocMaxRows || 500);
+
+  const reportData = await generateReportData({
+    from,
+    to,
+    document_type_id,
+    isExport: true,
+    maxRows,
+    actorUser,
+  });
 
   let buffer;
-  if (fmt === 'pdf') {
-    buffer = await generatePdfReport(reportData, { scope, actorUser });
-  } else if (fmt === 'docx') {
-    buffer = await generateWordReport(reportData, { scope, actorUser });
-  } else if (fmt === 'xlsx') {
-    buffer = await generateExcelReport(reportData, { scope, actorUser });
+  try {
+    if (fmt === 'pdf') {
+      buffer = await generateWithTimeout(generatePdfReport, reportData, { scope, actorUser });
+    } else if (fmt === 'docx') {
+      buffer = await generateWithTimeout(generateWordReport, reportData, { scope, actorUser });
+    } else if (fmt === 'xlsx') {
+      buffer = await generateWithTimeout(generateExcelReport, reportData, { scope, actorUser });
+    }
+  } catch (err) {
+    console.error(`[ReportExport] Generation error for format "${fmt}" (${scope} scope):`, err.message);
+    const serverErr = new Error('Report generation failed due to a server error. Please try again.');
+    serverErr.statusCode = 500;
+    throw serverErr;
   }
 
-  const fromDateStr = from ? String(from).slice(0, 10) : 'start';
-  const toDateStr = to ? String(to).slice(0, 10) : 'end';
+  const fromDateStr = reportData.summary.from;
+  const toDateStr = reportData.summary.to;
   const filename = `quickfile-report-${scope}-${fromDateStr}-to-${toDateStr}.${fmt}`;
 
   await AuditLog.create({
@@ -334,6 +408,5 @@ module.exports = {
   generateReportData,
   getStructuredReportData: generateReportData,
   exportReport,
-  validateDateRange,
   validateDocumentTypeId,
 };

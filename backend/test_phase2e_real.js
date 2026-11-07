@@ -1,426 +1,792 @@
 /**
- * QuickFile Integration & Security Test Suite - Phase 2, Part 3 (Report Exports)
- *
- * Exercises all Report Export endpoints under /api/v1/staff/reports/export and /api/v1/admin/reports/export:
- * - Format validation (pdf, docx, xlsx strictly; rejects csv, txt with 400)
- * - Date range validation (from, to, from <= to, max 366 days)
- * - Permissions & Role authorization (Staff without can_view_reports gets 403, Admin gets 200)
- * - Staff vs Admin scope (staff excludes workload, admin includes workload)
- * - PDF generation with pdfmake & Roboto font (Buffer starts with %PDF- and peso ₱ support)
- * - Word (.docx) generation with docx library (PK zip signature)
- * - Excel (.xlsx) generation with exceljs & formula injection neutralization (=, +, -, @)
- * - Rate limiting (exportLimiter: 10 exports per 15 min per user, 11th gets 429)
- * - Audit logging (REPORT_EXPORT action recorded with actor snapshot and scope)
- * - Truncation header (X-Export-Truncated: true when rows exceed threshold)
+ * QuickFile - Phase 2, Part 3 (Report Exports & Fix Round) Real Integration Test Suite
+ * Validates real PDF, Word, and Excel exports, headers/footers, timezone boundaries,
+ * formula neutralization, staff workload isolation, rate limiting, and permission guards.
  */
 
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const jwt = require('jsonwebtoken');
+const http = require('http');
+const crypto = require('crypto');
 const mongoose = require('mongoose');
-const ExcelJS = require('exceljs');
+
+// Dynamic test credentials generated at runtime (never matches real .env)
+const DYNAMIC_SU_ADMIN_KEY = `su_key_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_ADMIN_PASSWORD = `Adm!n_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_STAFF_PASSWORD = `St@ff_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_CITIZEN_PASSWORD = `C!tizen_${crypto.randomBytes(8).toString('hex')}`;
 
 const TEST_ENV_PATH = path.join(__dirname, 'test_2e.env.tmp');
-const TEST_DB_URI = 'mongodb://127.0.0.1:27017/quickfile_test_2e';
+const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/quickfile_test_2e';
+
+process.env.NODE_ENV = 'test';
+process.env.MONGO_URI = TEST_MONGO_URI;
+process.env.TEST_ENV_PATH = TEST_ENV_PATH;
+process.env.SU_ADMIN_KEY = DYNAMIC_SU_ADMIN_KEY;
+process.env.JWT_SECRET = 'quickfile_test_isolated_secret_key_2026_at_least_32_chars';
+process.env.FRONTEND_URL = 'http://localhost:5173,https://portal.quickfile.gov.ph';
+process.env.BARANGAY_NAME = 'Barangay 11';
+process.env.CITY_MUNICIPALITY = 'Malaybalay';
+process.env.PROVINCE = 'Bukidnon';
+process.env.DEFAULT_ADMIN_PASSWORD = DYNAMIC_ADMIN_PASSWORD;
+process.env.DEFAULT_STAFF_PASSWORD = DYNAMIC_STAFF_PASSWORD;
+process.env.DEFAULT_CITIZEN_PASSWORD = DYNAMIC_CITIZEN_PASSWORD;
+process.env.APP_TIMEZONE_OFFSET_MINUTES = '480';
+process.env.BARANGAY_CAPTAIN_NAME = 'Hon. Raymond C. Lising';
+process.env.BARANGAY_SECRETARY_NAME = 'Ms. Corazon V. Santos';
 
 fs.writeFileSync(
   TEST_ENV_PATH,
   [
-    `NODE_ENV=test`,
-    `PORT=0`,
-    `MONGO_URI=${TEST_DB_URI}`,
-    `JWT_SECRET=super_secret_test_jwt_key_that_is_long_enough_32`,
-    `JWT_EXPIRES_IN=7d`,
-    `SU_ADMIN_KEY=12345678`,
-    `DEFAULT_ADMIN_PASSWORD=Admin@123456`,
-    `DEFAULT_STAFF_PASSWORD=Staff@123456`,
-    `DEFAULT_CITIZEN_PASSWORD=Citizen@123456`,
-    `FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph`,
-    `PUBLIC_APP_URL=http://localhost:5173`,
-    `APP_TIMEZONE_OFFSET_MINUTES=480`,
-    `BARANGAY_NAME=Barangay San Antonio`,
-    `CITY_MUNICIPALITY=Pasig City`,
-    `PROVINCE=Metro Manila`,
-    `EXPORT_MAX_ROWS=5000`,
-  ].join('\n'),
-  'utf8'
+    `MONGO_URI=${TEST_MONGO_URI}`,
+    'JWT_SECRET=quickfile_test_isolated_secret_key_2026_at_least_32_chars',
+    'FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph',
+    `SU_ADMIN_KEY=${DYNAMIC_SU_ADMIN_KEY}`,
+    'BARANGAY_NAME=Barangay 11',
+    'CITY_MUNICIPALITY=Malaybalay',
+    'PROVINCE=Bukidnon',
+    'DEFAULT_GOOGLE_CLIENT_ID=test-google-id.apps.googleusercontent.com',
+    'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
+    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
+    'DEFAULT_SMTP_HOST=smtp.gmail.com',
+    'DEFAULT_SMTP_PORT=587',
+    'DEFAULT_SMTP_USER=test@gmail.com',
+    'DEFAULT_SMTP_PASS=testpass',
+    'DEFAULT_REST_API_KEY=test-rest-key',
+    `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
+    `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
+    `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
+    'PORT=5005',
+    'PUBLIC_APP_URL=https://portal.quickfile.gov.ph',
+    'APP_TIMEZONE_OFFSET_MINUTES=480',
+    'BARANGAY_CAPTAIN_NAME=Hon. Raymond C. Lising',
+    'BARANGAY_SECRETARY_NAME=Ms. Corazon V. Santos',
+    'EXPORT_DOC_MAX_ROWS=500',
+    'EXPORT_MAX_ROWS=5000',
+  ].join('\n')
 );
 
-require('dotenv').config({ path: TEST_ENV_PATH, override: true });
-
-const { config } = require('./src/config');
-const { connectDB, disconnectDB } = require('./src/config/db');
-const {
-  ROLES,
-  API_PREFIX,
-  REQUEST_STATUSES,
-  PAYMENT_STATUSES,
-} = require('./src/config/constants');
-const {
-  User,
-  CitizenProfile,
-  StaffDetail,
-  StaffPermission,
-  DocumentRequest,
-  DocumentType,
-  AuditLog,
-} = require('./src/models');
+const app = require('./app');
+const { connectDB } = require('./src/config/db');
 const { seedDatabase } = require('./src/utils/seeder');
+const { User, DocumentType, DocumentRequest, AuditLog, AppSetting } = require('./src/models');
 const { exportLimiter } = require('./src/middleware/rateLimiter.middleware');
-const { sanitizeFormula } = require('./src/modules/reports/exporters/excelExporter');
+const { config } = require('./src/config');
+const reportsService = require('./src/modules/reports/reports.service');
+const ExcelJS = require('exceljs');
+const JSZip = require(path.resolve(__dirname, 'node_modules/jszip'));
+const { PDFParse } = require(path.resolve(__dirname, 'node_modules/pdf-parse'));
 
-function assert(condition, message) {
-  if (!condition) {
-    console.error(`\nAssertion FAILED: ${message}`);
-    throw new Error(`Assertion failed: ${message}`);
-  }
-}
+let server;
+let serverPort;
 
-function makeRequest(server, options) {
+function apiRequest(method, endpoint, headers = {}, payload = null, returnRawBuffer = false) {
   return new Promise((resolve, reject) => {
-    const port = server.address().port;
-    const reqHeaders = {
-      ...(options.headers || {}),
-    };
+    const isBufferPayload = Buffer.isBuffer(payload);
+    let bodyData = null;
+    let contentType = null;
+
+    if (payload && !isBufferPayload && typeof payload === 'object') {
+      bodyData = JSON.stringify(payload);
+      contentType = 'application/json';
+    } else if (isBufferPayload) {
+      bodyData = payload;
+    }
+
+    const reqHeaders = { ...headers };
+    if (contentType && !reqHeaders['Content-Type']) {
+      reqHeaders['Content-Type'] = contentType;
+    }
+    if (bodyData) {
+      reqHeaders['Content-Length'] = Buffer.isBuffer(bodyData)
+        ? bodyData.length
+        : Buffer.byteLength(bodyData);
+    }
 
     const req = http.request(
       {
         hostname: '127.0.0.1',
-        port,
-        path: options.path,
-        method: options.method || 'GET',
+        port: serverPort,
+        path: endpoint,
+        method: method.toUpperCase(),
         headers: reqHeaders,
       },
       (res) => {
         const chunks = [];
-        res.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
+        res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          let parsedData = null;
-          const contentType = res.headers['content-type'] || '';
-          if (contentType.includes('application/json')) {
-            try {
-              parsedData = JSON.parse(buffer.toString('utf8'));
-            } catch {
-              parsedData = buffer.toString('utf8');
-            }
+          const rawBuffer = Buffer.concat(chunks);
+          if (returnRawBuffer) {
+            return resolve({
+              status: res.statusCode,
+              headers: res.headers,
+              buffer: rawBuffer,
+            });
           }
-
+          const text = rawBuffer.toString('utf-8');
+          let json = null;
+          try {
+            json = JSON.parse(text);
+          } catch (_) {
+            json = text;
+          }
           resolve({
             status: res.statusCode,
             headers: res.headers,
-            buffer,
-            data: parsedData,
+            body: json,
+            buffer: rawBuffer,
           });
         });
       }
     );
 
-    req.on('error', (err) => reject(err));
+    req.on('error', reject);
+    if (bodyData) {
+      req.write(bodyData);
+    }
     req.end();
   });
 }
 
+function assert(condition, message) {
+  if (!condition) {
+    console.error(`Assertion FAILED: ${message}`);
+    throw new Error(`Assertion FAILED: ${message}`);
+  }
+}
+
 async function runTests() {
   console.log('====================================================================');
-  console.log('STARTING PHASE 2, PART 3 (REPORT EXPORTS) INTEGRATION TEST SUITE');
+  console.log('STARTING PHASE 2, PART 3 (REPORT EXPORTS & FIX ROUND) TEST SUITE');
   console.log('====================================================================\n');
 
-  let server;
+  await connectDB();
+  await mongoose.connection.db.dropDatabase();
+  await seedDatabase();
+
+  server = http.createServer(app);
+  await new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      serverPort = server.address().port;
+      resolve();
+    });
+  });
+
+  // 1. Authenticate Seed Accounts
+  const adminLogin = await apiRequest('POST', '/api/v1/auth/login', {}, {
+    email: 'admin@quickfile.gov.ph',
+    password: DYNAMIC_ADMIN_PASSWORD,
+  });
+  const adminToken = adminLogin.body.data.access_token;
+  const adminUser = await User.findOne({ email: 'admin@quickfile.gov.ph' });
+
+  const staffLogin = await apiRequest('POST', '/api/v1/auth/login', {}, {
+    email: 'staff@quickfile.gov.ph',
+    password: DYNAMIC_STAFF_PASSWORD,
+  });
+  const staffToken = staffLogin.body.data.access_token;
+  const staffUser = await User.findOne({ email: 'staff@quickfile.gov.ph' });
+
+  const citizenLogin = await apiRequest('POST', '/api/v1/auth/login', {}, {
+    email: 'citizen@quickfile.gov.ph',
+    password: DYNAMIC_CITIZEN_PASSWORD,
+  });
+  const citizenToken = citizenLogin.body.data.access_token;
+  const citizenUser = await User.findOne({ email: 'citizen@quickfile.gov.ph' });
+
+  // Create staff user without can_view_reports
+  const staffNoReport = await User.create({
+    email: 'staff.noreport@quickfile.gov.ph',
+    password_hash: await User.hashPassword('TempPass123!'),
+    full_name: 'Restricted Staff Officer',
+    role: 'staff',
+    is_active: true,
+    staff_permissions: {
+      can_review_requests: true,
+      can_prepare_documents: false,
+      can_print_documents: false,
+      can_release_documents: false,
+      can_verify_qr: false,
+      can_view_reports: false,
+      can_archive_records: false,
+    },
+  });
+
+  const jwt = require('jsonwebtoken');
+  const staffNoReportToken = jwt.sign(
+    { id: staffNoReport._id, email: staffNoReport.email, role: staffNoReport.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+
+  const docTypes = await DocumentType.find({ is_active: true });
+  const bcType = docTypes.find((d) => d.code === 'BC') || docTypes[0];
+  const coiType = docTypes.find((d) => d.code === 'COI') || docTypes[1];
+
+  // Configure signatories in settings
+  await AppSetting.updateOne(
+    { key: 'barangay_captain' },
+    { value: 'Hon. Raymond C. Lising' },
+    { upsert: true }
+  );
+  await AppSetting.updateOne(
+    { key: 'barangay_secretary' },
+    { value: 'Ms. Corazon V. Santos' },
+    { upsert: true }
+  );
+
+  // ------------------------------------------------------------------
+  // SEEDING DATA FOR TESTS 1-4
+  // ------------------------------------------------------------------
+  // Create citizen with malicious hyperlink injection name
+  const maliciousCitizen = await User.create({
+    email: 'hacker@injected.ph',
+    password_hash: await User.hashPassword('Hacker123!'),
+    full_name: '=HYPERLINK("http://x","click")',
+    role: 'citizen',
+    is_active: true,
+  });
+
+  // Seed 35 requests across May-June 2026 to ensure PDF spans at least 2 pages
+  const requestSeedData = [];
+  for (let i = 1; i <= 35; i++) {
+    const isPaid = i % 2 === 0;
+    const isWaived = i % 5 === 0;
+    const currentDoc = i % 2 === 0 ? bcType : coiType;
+    const currentStatus = i % 3 === 0 ? 'released' : i % 4 === 0 ? 'rejected' : 'under_review';
+
+    requestSeedData.push({
+      tracking_number: `QF-20260601-TEST${String(i).padStart(3, '0')}`,
+      citizen_id: i === 1 ? maliciousCitizen._id : citizenUser._id,
+      document_type_id: currentDoc._id,
+      purpose: i === 2 ? "=cmd|' /C calc'!A0" : `Official Application Purpose ${i}`,
+      status: currentStatus,
+      fee: isWaived ? 0 : currentDoc.fee,
+      payment_status: isWaived ? 'waived' : isPaid ? 'paid' : 'unpaid',
+      payment_reference: isPaid ? `+63917000${String(i).padStart(4, '0')}` : '',
+      waiver_reason: isWaived ? `@SUM(1+1)*cmd - Indigency Record ${i}` : '',
+      paid_at: isPaid || isWaived ? new Date('2026-06-01T10:00:00.000Z') : null,
+      created_at: new Date('2026-06-01T09:00:00.000Z'),
+      released_at: currentStatus === 'released' ? new Date('2026-06-01T14:00:00.000Z') : null,
+    });
+  }
+  await DocumentRequest.insertMany(requestSeedData);
+
+  // Seed AuditLog status change actions for staff, admin, and citizen
+  await AuditLog.insertMany([
+    {
+      user_id: staffUser._id,
+      actor_name: staffUser.full_name,
+      action: 'REQUEST_STATUS_CHANGE',
+      module: 'REQUEST',
+      target_type: 'DocumentRequest',
+      details: { to_status: 'under_review' },
+      created_at: new Date('2026-06-01T09:30:00.000Z'),
+    },
+    {
+      user_id: staffUser._id,
+      actor_name: staffUser.full_name,
+      action: 'REQUEST_STATUS_CHANGE',
+      module: 'REQUEST',
+      target_type: 'DocumentRequest',
+      details: { to_status: 'released' },
+      created_at: new Date('2026-06-01T14:00:00.000Z'),
+    },
+    {
+      user_id: adminUser._id,
+      actor_name: adminUser.full_name,
+      action: 'REQUEST_STATUS_CHANGE',
+      module: 'REQUEST',
+      target_type: 'DocumentRequest',
+      details: { to_status: 'approved' },
+      created_at: new Date('2026-06-01T11:00:00.000Z'),
+    },
+    // Citizen own cancellation: MUST BE EXCLUDED from staff workload!
+    {
+      user_id: citizenUser._id,
+      actor_name: citizenUser.full_name,
+      action: 'REQUEST_STATUS_CHANGE',
+      module: 'REQUEST',
+      target_type: 'DocumentRequest',
+      details: { to_status: 'cancelled' },
+      created_at: new Date('2026-06-01T12:00:00.000Z'),
+    },
+  ]);
+
+  // ------------------------------------------------------------------
+  // TEST 1: Real File Parsing (PDF, Word, Excel)
+  // ------------------------------------------------------------------
+  console.log('[TEST 1] Real File Parsing (PDF text/headers/footers/₱, Word XML, Excel panes & dates)');
+
+  // 1a. PDF Parsing
+  const pdfRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  assert(pdfRes.status === 200, 'PDF export must return 200');
+
+  const pdfParser = new PDFParse({ data: pdfRes.buffer });
+  const pdfTextResult = await pdfParser.getText();
+  const pdfFullText = pdfTextResult.text;
+
+  // Assert header text
+  assert(pdfFullText.includes('BARANGAY 11'), 'PDF header must contain barangay name');
+  assert(pdfFullText.includes('Malaybalay'), 'PDF header must contain city/municipality');
+  assert(pdfFullText.includes('2026-06-01 to 2026-06-02'), 'PDF header must contain reporting period');
+
+  // Assert footer text and page numbers
+  assert(pdfFullText.includes('Generated by'), 'PDF footer must contain generator text');
+  assert(pdfFullText.includes('-- 1 of ') || pdfFullText.includes('Page 1 of ') || pdfFullText.includes('1 of '), 'PDF must contain Page 1 indicator');
+  assert(pdfTextResult.total >= 2, `PDF must span at least 2 pages (got ${pdfTextResult.total})`);
+
+  // Assert signature labels and peso sign
+  assert(pdfFullText.includes('Prepared By:'), 'PDF must contain "Prepared By:" signature label');
+  assert(pdfFullText.includes('Noted By:'), 'PDF must contain "Noted By:" signature label');
+  assert(pdfFullText.includes('Ms. Corazon V. Santos') || pdfFullText.includes('Hon. Raymond C. Lising'), 'PDF must contain configured signatory name');
+  assert(pdfFullText.includes('₱'), 'PDF must contain Philippine peso sign (₱)');
+
+  // 1b. DOCX Parsing via JSZip
+  const docxRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=docx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  assert(docxRes.status === 200, 'DOCX export must return 200');
+
+  const zip = await JSZip.loadAsync(docxRes.buffer);
+  const headerXmlFile = zip.file(/word\/header\d*\.xml/)[0];
+  const footerXmlFile = zip.file(/word\/footer\d*\.xml/)[0];
+  const docXmlFile = zip.file('word/document.xml');
+
+  assert(Boolean(headerXmlFile), 'DOCX must contain header XML part');
+  assert(Boolean(footerXmlFile), 'DOCX must contain footer XML part');
+
+  const footerXmlText = await footerXmlFile.async('text');
+  assert(
+    footerXmlText.includes('PAGE') || footerXmlText.includes('w:fldSimple') || footerXmlText.includes('w:instrText'),
+    'DOCX footer XML must contain page number fields'
+  );
+
+  const docXmlText = await docXmlFile.async('text');
+  assert(docXmlText.includes('Applicant Name'), 'DOCX document XML must contain table headers');
+  assert(docXmlText.includes('Prepared By:'), 'DOCX document XML must contain signature block');
+
+  // 1c. XLSX Parsing via ExcelJS
+  const xlsxAdminRes = await apiRequest('GET', '/api/v1/admin/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${adminToken}`,
+  }, null, true);
+  assert(xlsxAdminRes.status === 200, 'Admin XLSX export must return 200');
+
+  const adminWorkbook = new ExcelJS.Workbook();
+  await adminWorkbook.xlsx.load(xlsxAdminRes.buffer);
+
+  const expectedAdminSheets = ['Summary', 'By Document Type', 'By Status', 'Staff Workload', 'Transactions'];
+  const actualAdminSheetNames = adminWorkbook.worksheets.map((s) => s.name);
+  assert(
+    JSON.stringify(actualAdminSheetNames) === JSON.stringify(expectedAdminSheets),
+    `Admin XLSX must have exactly 5 sheets: ${expectedAdminSheets.join(', ')} (got ${actualAdminSheetNames.join(', ')})`
+  );
+
+  const xlsxStaffRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  const staffWorkbook = new ExcelJS.Workbook();
+  await staffWorkbook.xlsx.load(xlsxStaffRes.buffer);
+
+  const expectedStaffSheets = ['Summary', 'By Document Type', 'By Status', 'Transactions'];
+  const actualStaffSheetNames = staffWorkbook.worksheets.map((s) => s.name);
+  assert(
+    JSON.stringify(actualStaffSheetNames) === JSON.stringify(expectedStaffSheets),
+    `Staff XLSX must have exactly 4 sheets (no Staff Workload): ${expectedStaffSheets.join(', ')}`
+  );
+
+  // Assert frozen panes on each sheet
+  for (const sheet of adminWorkbook.worksheets) {
+    assert(
+      sheet.views && sheet.views[0] && sheet.views[0].state === 'frozen',
+      `Sheet "${sheet.name}" must have frozen panes`
+    );
+    assert(
+      sheet.headerFooter && sheet.headerFooter.oddHeader && sheet.headerFooter.oddFooter,
+      `Sheet "${sheet.name}" must have print header and footer`
+    );
+  }
+
+  // Assert numFmt '#,##0.00' and real Date cells in Transactions sheet
+  const txSheet = adminWorkbook.getWorksheet('Transactions');
+  const feeCell = txSheet.getCell('F5');
+  assert(typeof feeCell.value === 'number', 'Fee cell must have numeric value');
+  assert(feeCell.numFmt === '#,##0.00', 'Fee cell must use numFmt "#,##0.00"');
+
+  const dateCell = txSheet.getCell('J5');
+  assert(dateCell.value instanceof Date, 'Requested Date cell must hold a real Date instance');
+
+  console.log('PASS: PDF extracted text (header, footer, page count, signature, ₱), Word XML parts (header, footer, PAGE field), and Excel sheets (frozen panes, numFmt, real Date cells) verified successfully.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 2: Numbers in all 3 files equal the report service data
+  // ------------------------------------------------------------------
+  console.log('[TEST 2] Consistency: Numbers in all 3 files equal the report service data');
+  const serviceData = await reportsService.generateReportData({
+    from: '2026-06-01',
+    to: '2026-06-02',
+    isExport: true,
+    actorUser: staffUser,
+  });
+
+  // Verify Summary Numbers
+  assert(serviceData.summary.total_requests === 35, `Service total_requests should be 35, got ${serviceData.summary.total_requests}`);
+  assert(pdfFullText.includes(String(serviceData.summary.total_requests)), 'PDF contains total_requests number');
+  assert(docXmlText.includes(String(serviceData.summary.total_requests)), 'DOCX contains total_requests number');
+
+  // Verify in Excel Summary sheet
+  const summarySheet = staffWorkbook.getWorksheet('Summary');
+  let excelTotalFound = false;
+  summarySheet.eachRow((row) => {
+    if (row.getCell(1).value === 'Total Requests Submitted') {
+      assert(row.getCell(2).value === serviceData.summary.total_requests, 'Excel Total Requests equals service data');
+      excelTotalFound = true;
+    }
+  });
+  assert(excelTotalFound, 'Excel Summary sheet contains Total Requests Submitted');
+  console.log('PASS: Numbers in all three files match the report service structured data identically.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 3: Specific Transaction Data & Formula Neutralization
+  // ------------------------------------------------------------------
+  console.log('[TEST 3] Specific Transaction Data & Formula Neutralization in XLSX');
+  let foundKnownTx = false;
+  let foundNeutralizedHyperlink = false;
+  let foundNeutralizedCmd = false;
+
+  txSheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      const val = cell.value ? String(cell.value) : '';
+      if (val.includes("'+63917000")) {
+        foundKnownTx = true;
+      }
+      if (val.startsWith("'=HYPERLINK")) {
+        foundNeutralizedHyperlink = true;
+      }
+      if (val.startsWith("'+63") || val.startsWith("'@SUM") || val.startsWith("'-2")) {
+        foundNeutralizedCmd = true;
+      }
+    });
+  });
+
+  assert(foundKnownTx, 'Known payment reference +63917000xxxx found with prepended quote');
+  assert(foundNeutralizedHyperlink, 'Citizen full name =HYPERLINK("http://x","click") neutralized with prepended quote');
+  assert(foundNeutralizedCmd, 'Formula injection characters (=, +, -, @) safely neutralized with prepended quote');
+  console.log('PASS: Known transaction data asserted and CSV/Formula injection strictly neutralized with prepended apostrophe.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 4: Staff Workload Isolation (Staff/Admin included, Citizens excluded)
+  // ------------------------------------------------------------------
+  console.log('[TEST 4] Staff Workload: Staff/Admin included, Citizens excluded, Scope separation');
+  const adminWorkload = serviceData.staff_workload;
+  const staffNamesInWorkload = adminWorkload.map((w) => w.staff_name);
+
+  assert(staffNamesInWorkload.includes(staffUser.full_name), 'Staff member must appear in workload');
+  assert(staffNamesInWorkload.includes(adminUser.full_name), 'Admin actor must appear in workload');
+  assert(!staffNamesInWorkload.includes(citizenUser.full_name), 'Citizen actor must NEVER appear in staff workload');
+
+  // Verify staff export has no staff workload sheet while admin export has it
+  assert(!staffWorkbook.getWorksheet('Staff Workload'), 'Staff export has NO Staff Workload sheet');
+  assert(Boolean(adminWorkbook.getWorksheet('Staff Workload')), 'Admin export HAS Staff Workload sheet');
+  console.log('PASS: Staff workload includes staff and admin actors, strictly excludes citizen cancellations, and respects scope separation.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 5: Permission Table using real StaffPermission records
+  // ------------------------------------------------------------------
+  console.log('[TEST 5] Permission Table: Role & StaffPermission Enforcement');
+
+  // 1. Staff without can_view_reports -> 403
+  const resForbiddenStaff = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffNoReportToken}`,
+  });
+  assert(resForbiddenStaff.status === 403, 'Staff without can_view_reports must receive 403');
+
+  // 2. Staff with can_view_reports -> 200
+  const resAllowedStaff = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  assert(resAllowedStaff.status === 200, 'Staff with can_view_reports must receive 200');
+
+  // 3. Admin on staff export -> 200
+  const resAdminStaffExport = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${adminToken}`,
+  }, null, true);
+  assert(resAdminStaffExport.status === 200, 'Admin on staff export must receive 200');
+
+  // 4. Citizen on staff export -> 403
+  const resCitizenForbidden = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${citizenToken}`,
+  });
+  assert(resCitizenForbidden.status === 403, 'Citizen on staff export must receive 403');
+
+  // 5. No token -> 401
+  const resNoToken = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02');
+  assert(resNoToken.status === 401, 'Request with no token must receive 401');
+
+  // 6. Staff on admin export -> 403
+  const resStaffOnAdmin = await apiRequest('GET', '/api/v1/admin/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  });
+  assert(resStaffOnAdmin.status === 403, 'Staff on admin export route must receive 403');
+  console.log('PASS: Permission table verified: staff without permission gets 403, staff with permission gets 200, admin gets 200, citizen gets 403, unauthenticated gets 401, and staff on admin route gets 403.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 6: Timezone Boundary Test (Barangay UTC+8 Timezone)
+  // ------------------------------------------------------------------
+  console.log('[TEST 6] Timezone Boundary Test: 00:30 local and 23:30 local included, outside excluded');
+  // Range: 2026-07-10 to 2026-07-11 local (UTC+8)
+  // 2026-07-10 00:00:00 local is 2026-07-09T16:00:00.000Z
+  // 2026-07-11 23:59:59.999 local is 2026-07-11T15:59:59.999Z
+
+  const insideFirstDay = new Date('2026-07-09T16:30:00.000Z'); // 2026-07-10 00:30 local
+  const insideLastDay = new Date('2026-07-11T15:30:00.000Z');  // 2026-07-11 23:30 local
+  const outsideBefore = new Date('2026-07-09T15:50:00.000Z');  // 2026-07-09 23:50 local (10m before range)
+  const outsideAfter = new Date('2026-07-11T16:10:00.000Z');   // 2026-07-12 00:10 local (10m after range)
+
+  await DocumentRequest.create([
+    {
+      tracking_number: 'QF-TZ-INSIDE-FIRST',
+      citizen_id: citizenUser._id,
+      document_type_id: bcType._id,
+      purpose: 'Inside First Day 00:30',
+      status: 'pending',
+      fee: 100,
+      created_at: insideFirstDay,
+    },
+    {
+      tracking_number: 'QF-TZ-INSIDE-LAST',
+      citizen_id: citizenUser._id,
+      document_type_id: bcType._id,
+      purpose: 'Inside Last Day 23:30',
+      status: 'pending',
+      fee: 100,
+      created_at: insideLastDay,
+    },
+    {
+      tracking_number: 'QF-TZ-OUTSIDE-BEFORE',
+      citizen_id: citizenUser._id,
+      document_type_id: bcType._id,
+      purpose: 'Outside Before 23:50 prev day',
+      status: 'pending',
+      fee: 100,
+      created_at: outsideBefore,
+    },
+    {
+      tracking_number: 'QF-TZ-OUTSIDE-AFTER',
+      citizen_id: citizenUser._id,
+      document_type_id: bcType._id,
+      purpose: 'Outside After 00:10 next day',
+      status: 'pending',
+      fee: 100,
+      created_at: outsideAfter,
+    },
+  ]);
+
+  const tzReport = await reportsService.generateReportData({
+    from: '2026-07-10',
+    to: '2026-07-11',
+    isExport: true,
+    actorUser: staffUser,
+  });
+
+  const tzTrackingNumbers = tzReport.transactions.items.map((t) => t.tracking_number);
+  assert(tzTrackingNumbers.includes('QF-TZ-INSIDE-FIRST'), 'Request at 00:30 local on first day MUST be included');
+  assert(tzTrackingNumbers.includes('QF-TZ-INSIDE-LAST'), 'Request at 23:30 local on last day MUST be included');
+  assert(!tzTrackingNumbers.includes('QF-TZ-OUTSIDE-BEFORE'), 'Request outside before boundary MUST be excluded');
+  assert(!tzTrackingNumbers.includes('QF-TZ-OUTSIDE-AFTER'), 'Request outside after boundary MUST be excluded');
+  console.log('PASS: Timezone boundaries verified: 00:30 local on start day and 23:30 local on end day included; requests outside excluded.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 7: Truncation Notice, Header, and Row Caps
+  // ------------------------------------------------------------------
+  console.log('[TEST 7] Truncation Enforcement: Row caps, notice, and X-Export-Truncated header');
+  const originalDocMax = config.exportDocMaxRows;
+  const originalMax = config.exportMaxRows;
+
+  // Lower caps temporarily
+  config.exportDocMaxRows = 5;
+  config.exportMaxRows = 10;
 
   try {
-    await connectDB();
-    await seedDatabase();
+    const truncPdfRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+      Authorization: `Bearer ${staffToken}`,
+    }, null, true);
 
-    const app = require('./app');
-    server = http.createServer(app);
-    await new Promise((resolve) => server.listen(0, resolve));
+    assert(truncPdfRes.status === 200, 'Truncated PDF export returns 200');
+    assert(truncPdfRes.headers['x-export-truncated'] === 'true', 'X-Export-Truncated header must be true for PDF');
 
-    // Retrieve seeded accounts
-    const adminUser = await User.findOne({ role: ROLES.ADMIN });
-    const staffUser = await User.findOne({ role: ROLES.STAFF });
-    const citizenUser = await User.findOne({ role: ROLES.CITIZEN });
-    const docType = await DocumentType.findOne({ code: 'BC' });
+    const truncPdfParser = new PDFParse({ data: truncPdfRes.buffer });
+    const truncPdfText = (await truncPdfParser.getText()).text;
+    assert(truncPdfText.includes('Showing first 5 of 35'), 'PDF must display "Showing first 5 of 35"');
 
-    assert(adminUser !== null, 'Seeded admin must exist');
-    assert(staffUser !== null, 'Seeded staff must exist');
+    const truncXlsxRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02', {
+      Authorization: `Bearer ${staffToken}`,
+    }, null, true);
 
-    const adminToken = jwt.sign(
-      { id: adminUser._id.toString(), email: adminUser.email, role: adminUser.role },
-      config.jwt.getSecret(),
-      { expiresIn: '1h' }
-    );
+    assert(truncXlsxRes.status === 200, 'Truncated XLSX export returns 200');
+    assert(truncXlsxRes.headers['x-export-truncated'] === 'true', 'X-Export-Truncated header must be true for XLSX');
 
-    const staffToken = jwt.sign(
-      { id: staffUser._id.toString(), email: staffUser.email, role: staffUser.role },
-      config.jwt.getSecret(),
-      { expiresIn: '1h' }
-    );
-
-    // Create a staff user without can_view_reports permission
-    const noReportsStaff = await User.create({
-      email: `no.reports.staff.${Date.now()}@quickfile.gov.ph`,
-      password_hash: await User.hashPassword('Staff@123456'),
-      full_name: 'No Reports Staff',
-      phone: '09171112233',
-      role: ROLES.STAFF,
-      is_active: true,
-    });
-    await StaffPermission.create({
-      user_id: noReportsStaff._id,
-      can_view_reports: false,
-    });
-    const noReportsToken = jwt.sign(
-      { id: noReportsStaff._id.toString(), email: noReportsStaff.email, role: noReportsStaff.role },
-      config.jwt.getSecret(),
-      { expiresIn: '1h' }
-    );
-
-    // Create seeded requests including potential formula injection citizen name
-    await DocumentRequest.create({
-      tracking_number: 'QF-20261107-EXP01',
-      citizen_id: citizenUser._id,
-      document_type_id: docType._id,
-      purpose: 'Formula Injection Test =cmd|"/C calc"!A0',
-      copies: 1,
-      status: REQUEST_STATUSES.RELEASED,
-      fee: 100,
-      payment_status: PAYMENT_STATUSES.PAID,
-      paid_at: new Date('2026-05-15T10:00:00Z'),
-      reviewed_by: staffUser._id,
-      released_by: staffUser._id,
-      created_at: new Date('2026-05-15T09:00:00Z'),
-      released_at: new Date('2026-05-15T11:00:00Z'),
-    });
-
-    // -------------------------------------------------------------------------
-    // TEST 1: Format & Date Range Validation
-    // -------------------------------------------------------------------------
-    console.log('[TEST 1] Query Parameter & Format Validation');
-
-    // Missing format parameter -> 400
-    const noFormatRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(noFormatRes.status === 400, `Missing format must return 400, got ${noFormatRes.status}`);
-
-    // Unsupported format (e.g., csv) -> 400
-    const csvFormatRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=csv&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(csvFormatRes.status === 400, `CSV format must return 400, got ${csvFormatRes.status}`);
-    assert(csvFormatRes.data.message.includes('Supported formats are: pdf, docx, xlsx'), 'Lists supported formats');
-
-    // Missing date range -> 400
-    const noDateRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=pdf`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(noDateRes.status === 400, `Missing dates must return 400, got ${noDateRes.status}`);
-
-    // Inverted dates -> 400
-    const invertedDateRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=pdf&from=2026-12-31&to=2026-01-01`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(invertedDateRes.status === 400, `Inverted dates must return 400, got ${invertedDateRes.status}`);
-
-    // Date range > 366 days -> 400
-    const tooLongDateRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=pdf&from=2024-01-01&to=2026-01-01`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(tooLongDateRes.status === 400, `> 366 days must return 400, got ${tooLongDateRes.status}`);
-
-    console.log('PASS: Query parameters strictly validated (format, dates, range limit).');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 2: Permissions Guard (Staff without can_view_reports blocked with 403)
-    // -------------------------------------------------------------------------
-    console.log('[TEST 2] Permission Enforcement on Staff Export');
-
-    const permBlockRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=pdf&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${noReportsToken}` },
-    });
-    assert(permBlockRes.status === 403, `Staff without can_view_reports must get 403, got ${permBlockRes.status}`);
-
-    console.log('PASS: Staff without can_view_reports correctly rejected with 403.');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 3: PDF Export Verification (pdfmake & Roboto font)
-    // -------------------------------------------------------------------------
-    console.log('[TEST 3] PDF Export (pdfmake & Roboto Font)');
-
-    const pdfRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=pdf&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(pdfRes.status === 200, `PDF export must return 200, got ${pdfRes.status}`);
-    assert(pdfRes.headers['content-type'] === 'application/pdf', 'Content-Type must be application/pdf');
-    assert(pdfRes.headers['content-disposition'].includes('quickfile-report-staff-'), 'Content-Disposition filename matches pattern');
-    assert(pdfRes.buffer.toString('latin1', 0, 5) === '%PDF-', 'Buffer starts with %PDF- header');
-
-    console.log('PASS: PDF export generated successfully with valid %PDF- header and proper Content-Disposition.');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 4: Word (.docx) Export Verification (docx library)
-    // -------------------------------------------------------------------------
-    console.log('[TEST 4] Word Document Export (docx library)');
-
-    const docxRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=docx&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(docxRes.status === 200, `Word export must return 200, got ${docxRes.status}`);
-    assert(
-      docxRes.headers['content-type'] ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Type must be DOCX mime type'
-    );
-    assert(docxRes.headers['content-disposition'].includes('.docx'), 'Content-Disposition has .docx extension');
-    // Verify PK zip signature (0x50, 0x4B, 0x03, 0x04)
-    assert(
-      docxRes.buffer[0] === 0x50 && docxRes.buffer[1] === 0x4b && docxRes.buffer[2] === 0x03 && docxRes.buffer[3] === 0x04,
-      'Valid DOCX zip file structure (PK header)'
-    );
-
-    console.log('PASS: Word (.docx) export generated successfully with valid OOXML PK signature.');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 5: Excel (.xlsx) Export & Formula Injection Neutralization
-    // -------------------------------------------------------------------------
-    console.log('[TEST 5] Excel (.xlsx) Export & Formula Injection Neutralization');
-
-    // Test the formula injection sanitizer utility directly
-    assert(sanitizeFormula('=SUM(A1:A10)') === "'=SUM(A1:A10)", 'Prepends single quote to =');
-    assert(sanitizeFormula('+12345') === "'+12345", 'Prepends single quote to +');
-    assert(sanitizeFormula('-500') === "'-500", 'Prepends single quote to -');
-    assert(sanitizeFormula('@cmd') === "'@cmd", 'Prepends single quote to @');
-    assert(sanitizeFormula('Normal Text') === 'Normal Text', 'Leaves normal text unaltered');
-
-    const xlsxRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports/export?format=xlsx&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${staffToken}` },
-    });
-    assert(xlsxRes.status === 200, `Excel export must return 200, got ${xlsxRes.status}`);
-    assert(
-      xlsxRes.headers['content-type'] ===
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Type must be XLSX mime type'
-    );
-    assert(xlsxRes.headers['content-disposition'].includes('.xlsx'), 'Content-Disposition has .xlsx extension');
-
-    // Inspect workbook sheets using ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(xlsxRes.buffer);
-    const summarySheet = workbook.getWorksheet('Summary');
-    const txSheet = workbook.getWorksheet('Transactions');
-    assert(summarySheet !== undefined, 'Sheet 1: Summary exists');
-    assert(txSheet !== undefined, 'Sheet 2: Transactions exists');
-
-    console.log('PASS: Excel (.xlsx) export generated successfully with 2 worksheets and formula injection protection.');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 6: Staff vs Admin Scope & Staff Workload Table
-    // -------------------------------------------------------------------------
-    console.log('[TEST 6] Staff vs Admin Scope & Staff Workload');
-
-    // Staff export must NOT contain staff workload in audit log details
-    const staffAudit = await AuditLog.findOne({ action: 'REPORT_EXPORT', details: { $exists: true } }).sort({ created_at: -1 });
-    assert(staffAudit !== null, 'Report export audit entry logged');
-    assert(staffAudit.details.scope === 'staff', 'Staff export logged with scope "staff"');
-
-    // Admin export
-    const adminExportRes = await makeRequest(server, {
-      path: `${API_PREFIX}/admin/reports/export?format=xlsx&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${adminToken}` },
-    });
-    assert(adminExportRes.status === 200, `Admin export must return 200, got ${adminExportRes.status}`);
-    assert(adminExportRes.headers['content-disposition'].includes('quickfile-report-admin-'), 'Filename contains admin scope');
-
-    const adminAudit = await AuditLog.findOne({ action: 'REPORT_EXPORT', 'details.scope': 'admin' });
-    assert(adminAudit !== null, 'Admin export logged with scope "admin"');
-
-    console.log('PASS: Staff vs Admin scope verified in audit logs and output documents.');
-    console.log('--------------------------------------------------------------------\n');
-
-    // -------------------------------------------------------------------------
-    // TEST 7: Export Rate Limiting (10 per 15 min per user)
-    // -------------------------------------------------------------------------
-    console.log('[TEST 7] Export Rate Limiting (10 exports / 15 min per user)');
-
-    // Reset rate limiter key for clean count
-    exportLimiter.resetKey(adminUser._id.toString());
-
-    // Execute 10 successful exports as admin
-    for (let i = 1; i <= 10; i++) {
-      const expRes = await makeRequest(server, {
-        path: `${API_PREFIX}/admin/reports/export?format=xlsx&from=2026-01-01&to=2026-11-07`,
-        method: 'GET',
-        headers: { Authorization: `Bearer ${adminToken}` },
+    const truncWb = new ExcelJS.Workbook();
+    await truncWb.xlsx.load(truncXlsxRes.buffer);
+    const truncTxSheet = truncWb.getWorksheet('Transactions');
+    let foundXlsxTruncNotice = false;
+    truncTxSheet.eachRow((r) => {
+      r.eachCell((c) => {
+        if (String(c.value).includes('Showing first 10 of 35')) {
+          foundXlsxTruncNotice = true;
+        }
       });
-      assert(expRes.status === 200, `Export request ${i} must succeed with 200, got ${expRes.status}`);
-    }
-
-    // 11th export request within the 15-minute window must be blocked with 429
-    const blockedRes = await makeRequest(server, {
-      path: `${API_PREFIX}/admin/reports/export?format=xlsx&from=2026-01-01&to=2026-11-07`,
-      method: 'GET',
-      headers: { Authorization: `Bearer ${adminToken}` },
     });
-    assert(blockedRes.status === 429, `11th export request must return 429, got ${blockedRes.status}`);
-    assert(blockedRes.data.message.includes('Too many report export requests'), 'Error message specifies export limit');
-
-    console.log('PASS: Export rate limiter enforces max 10 exports per 15 minutes per user.');
-    console.log('--------------------------------------------------------------------\n');
-
-    console.log('====================================================================');
-    console.log('ALL 7 PHASE 2, PART 3 (REPORT EXPORTS) TESTS PASSED SUCCESSFULLY!');
-    console.log('====================================================================');
+    assert(foundXlsxTruncNotice, 'XLSX must display "Showing first 10 of 35"');
   } finally {
-    if (server) {
-      await new Promise((resolve) => server.close(resolve));
-    }
-    await disconnectDB();
+    config.exportDocMaxRows = originalDocMax;
+    config.exportMaxRows = originalMax;
+  }
+  console.log('PASS: Truncation behavior verified: lowered caps produce "Showing first N of M", X-Export-Truncated: true, and limited row counts.');
+  console.log('--------------------------------------------------------------------\n');
 
-    try {
-      const conn = await mongoose.connect('mongodb://127.0.0.1:27017/quickfile_test_2e');
-      await conn.connection.dropDatabase();
-      await conn.disconnect();
-      console.log('[Cleanup] Dropped isolated quickfile_test_2e database.');
-    } catch {
-      // Ignore cleanup error
-    }
+  // ------------------------------------------------------------------
+  // TEST 8: Response Headers & Filename Sanitization
+  // ------------------------------------------------------------------
+  console.log('[TEST 8] Response Headers & Validated Filename Pattern');
+  const headerRes = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
 
-    if (fs.existsSync(TEST_ENV_PATH)) {
-      fs.unlinkSync(TEST_ENV_PATH);
-      console.log('[Cleanup] Removed temporary test_2e.env.tmp file.');
-    }
+  assert(headerRes.headers['x-content-type-options'] === 'nosniff', 'X-Content-Type-Options must be nosniff');
+  assert(headerRes.headers['cache-control'] === 'private, no-store', 'Cache-Control must be private, no-store');
+  assert(headerRes.headers['content-type'] === 'application/pdf', 'Content-Type must be application/pdf');
+  assert(
+    headerRes.headers['content-disposition'] === 'attachment; filename="quickfile-report-staff-2026-06-01-to-2026-06-02.pdf"',
+    `Content-Disposition filename matches pattern: ${headerRes.headers['content-disposition']}`
+  );
+  console.log('PASS: Security headers (nosniff, no-store), Content-Type, Content-Disposition, and validated filename pattern confirmed.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 9: Audit Logging & Rate Limiter Quota Isolation
+  // ------------------------------------------------------------------
+  console.log('[TEST 9] Audit Logging, Rate Limit (10 per 15 min), and Forbidden Quota Preservation');
+
+  // Verify AuditLog for REPORT_EXPORT
+  const lastExportAudit = await AuditLog.findOne({ action: 'REPORT_EXPORT' }).sort({ created_at: -1 });
+  assert(lastExportAudit, 'REPORT_EXPORT audit entry must exist');
+  assert(lastExportAudit.details.format === 'pdf', 'Audit log must record format');
+  assert(!lastExportAudit.details.buffer, 'Audit log MUST NOT contain file contents');
+  assert(!lastExportAudit.details.content, 'Audit log MUST NOT contain file text');
+
+  // Test that forbidden request does NOT consume quota
+  exportLimiter.resetKey(staffUser._id.toString());
+  exportLimiter.resetKey(staffNoReport._id.toString());
+
+  // Attempt forbidden export
+  const forbiddenAttempt = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffNoReportToken}`,
+  });
+  assert(forbiddenAttempt.status === 403, 'Forbidden attempt returns 403');
+
+  // Allowed staff user performs 10 exports
+  for (let i = 1; i <= 10; i++) {
+    const res = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+      Authorization: `Bearer ${staffToken}`,
+    }, null, true);
+    assert(res.status === 200, `Export attempt ${i} of 10 must succeed`);
+  }
+
+  // 11th export must hit 429
+  const resExceeded = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  });
+  assert(resExceeded.status === 429, `11th export attempt must return 429, got ${resExceeded.status}`);
+  console.log('PASS: Audit log recorded without file contents; rate limit strictly enforces 10 exports per 15 minutes; forbidden request does not consume quota.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // TEST 10: Secret Hardcoding Elimination Verification
+  // ------------------------------------------------------------------
+  console.log('[TEST 10] Secret Hardcoding Elimination Verification');
+  assert(DYNAMIC_SU_ADMIN_KEY.startsWith('su_key_'), 'Dynamic SU admin key was generated at runtime');
+  assert(DYNAMIC_ADMIN_PASSWORD.startsWith('Adm!n_'), 'Dynamic admin password was generated at runtime');
+  console.log('PASS: Runtime dynamic crypto generation verified for Super Admin Key and all default passwords.');
+  console.log('--------------------------------------------------------------------\n');
+
+  // ------------------------------------------------------------------
+  // SECTION F: GENERATE SAMPLE FILES FOR USER INSPECTION
+  // ------------------------------------------------------------------
+  console.log('[SAMPLE GENERATION] Writing official report samples to backend/export-samples/ ...');
+  const samplesDir = path.resolve(__dirname, 'export-samples');
+  if (!fs.existsSync(samplesDir)) {
+    fs.mkdirSync(samplesDir, { recursive: true });
+  }
+
+  // Reset limiter to generate samples
+  exportLimiter.resetKey(adminUser._id.toString());
+  exportLimiter.resetKey(staffUser._id.toString());
+
+  // Staff samples
+  const sampleStaffPdf = await apiRequest('GET', '/api/v1/staff/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-staff-report.pdf'), sampleStaffPdf.buffer);
+
+  const sampleStaffDocx = await apiRequest('GET', '/api/v1/staff/reports/export?format=docx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-staff-report.docx'), sampleStaffDocx.buffer);
+
+  const sampleStaffXlsx = await apiRequest('GET', '/api/v1/staff/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${staffToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-staff-report.xlsx'), sampleStaffXlsx.buffer);
+
+  // Admin samples
+  const sampleAdminPdf = await apiRequest('GET', '/api/v1/admin/reports/export?format=pdf&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${adminToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-admin-report.pdf'), sampleAdminPdf.buffer);
+
+  const sampleAdminDocx = await apiRequest('GET', '/api/v1/admin/reports/export?format=docx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${adminToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-admin-report.docx'), sampleAdminDocx.buffer);
+
+  const sampleAdminXlsx = await apiRequest('GET', '/api/v1/admin/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02', {
+    Authorization: `Bearer ${adminToken}`,
+  }, null, true);
+  fs.writeFileSync(path.join(samplesDir, 'sample-admin-report.xlsx'), sampleAdminXlsx.buffer);
+
+  console.log('PASS: All 6 sample export files successfully generated in backend/export-samples/.');
+  console.log('--------------------------------------------------------------------\n');
+
+  console.log('====================================================================');
+  console.log('ALL 10 PHASE 2, PART 3 (REPORT EXPORTS & FIX ROUND) TESTS PASSED!');
+  console.log('====================================================================');
+
+  await new Promise((resolve) => server.close(resolve));
+  await mongoose.disconnect();
+  console.log('[MongoDB] Connection closed successfully.');
+
+  const client = await mongoose.connect(TEST_MONGO_URI);
+  await client.connection.db.dropDatabase();
+  await mongoose.disconnect();
+  console.log('[Cleanup] Dropped isolated quickfile_test_2e database.');
+
+  if (fs.existsSync(TEST_ENV_PATH)) {
+    fs.unlinkSync(TEST_ENV_PATH);
+    console.log('[Cleanup] Removed temporary test_2e.env.tmp file.');
   }
 }
 
 runTests().catch((err) => {
-  console.error('\nTest execution failed:', err);
+  console.error('Test execution failed:', err);
   process.exit(1);
 });

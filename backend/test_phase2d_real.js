@@ -16,6 +16,11 @@
 
 const http = require('http');
 const fs = require('fs');
+const crypto = require('crypto');
+const DYNAMIC_SU_ADMIN_KEY = `su_key_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_ADMIN_PASSWORD = `Adm!n_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_STAFF_PASSWORD = `St@ff_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_CITIZEN_PASSWORD = `C!tizen_${crypto.randomBytes(8).toString('hex')}`;
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
@@ -32,10 +37,10 @@ fs.writeFileSync(
     `MONGO_URI=${TEST_DB_URI}`,
     `JWT_SECRET=super_secret_test_jwt_key_that_is_long_enough_32`,
     `JWT_EXPIRES_IN=7d`,
-    `SU_ADMIN_KEY=12345678`,
-    `DEFAULT_ADMIN_PASSWORD=Admin@123456`,
-    `DEFAULT_STAFF_PASSWORD=Staff@123456`,
-    `DEFAULT_CITIZEN_PASSWORD=Citizen@123456`,
+    `SU_ADMIN_KEY=${DYNAMIC_SU_ADMIN_KEY}`,
+    `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
+    `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
+    `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
     `FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph`,
     `PUBLIC_APP_URL=http://localhost:5173`,
     `APP_TIMEZONE_OFFSET_MINUTES=480`,

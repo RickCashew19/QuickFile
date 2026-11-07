@@ -256,6 +256,8 @@ const exportAdminReport = asyncHandler(async (req, res) => {
     res.setHeader('X-Export-Truncated', 'true');
   }
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Content-Type', result.contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
   return res.status(200).send(result.buffer);

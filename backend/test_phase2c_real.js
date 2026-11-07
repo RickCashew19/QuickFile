@@ -33,6 +33,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const DYNAMIC_SU_ADMIN_KEY = `su_key_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_ADMIN_PASSWORD = `Adm!n_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_STAFF_PASSWORD = `St@ff_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_CITIZEN_PASSWORD = `C!tizen_${crypto.randomBytes(8).toString('hex')}`;
 const mongoose = require('mongoose');
 
 // Configure isolated test environment variables
@@ -49,18 +53,18 @@ fs.writeFileSync(
     'FRONTEND_URL=http://localhost:5173',
     'PUBLIC_APP_URL=http://localhost:5173',
     'APP_TIMEZONE_OFFSET_MINUTES=480',
-    'SU_ADMIN_KEY=12345678',
+    `SU_ADMIN_KEY=${DYNAMIC_SU_ADMIN_KEY}`,
     'BARANGAY_NAME=Barangay San Antonio',
     'CITY_MUNICIPALITY=Pasig City',
     'PROVINCE=Metro Manila',
     'BARANGAY_CAPTAIN_NAME=Hon. Raymond C. Lising',
     'BARANGAY_SECRETARY_NAME=Sec. Corazon A. Mendoza',
     'DEFAULT_ADMIN_EMAIL=admin@quickfile.gov.ph',
-    'DEFAULT_ADMIN_PASSWORD=Admin@123456',
+    `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
     'DEFAULT_STAFF_EMAIL=staff@quickfile.gov.ph',
-    'DEFAULT_STAFF_PASSWORD=Staff@123456',
+    `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
     'DEFAULT_CITIZEN_EMAIL=citizen@quickfile.gov.ph',
-    'DEFAULT_CITIZEN_PASSWORD=Citizen@123456',
+    `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
     'CERTIFICATE_VALIDITY_DAYS=180',
     'CUSTOM_REST_API_SECRET_KEY=',
   ].join('\n'),
@@ -268,7 +272,7 @@ async function runTests() {
       unit_fee: 50,
       fee: 50,
       payment_status: PAYMENT_STATUSES.UNPAID,
-      payment_reference: 'GCASH-TX-12345678',
+      payment_reference: 'GCASH-TX-99887766',
       waiver_reason: 'Indigent family endorsement',
       payment_recorded_by: staffUser._id,
       processing_notes: 'INTERNAL SECRET NOTE: Applicant is under verification.',
@@ -321,7 +325,7 @@ async function runTests() {
     });
     assert(staffGetRes.status === 200, 'Staff get request must return 200');
     const staffReqData = staffGetRes.data?.data?.request;
-    assert(staffReqData.payment_reference === 'GCASH-TX-12345678', 'Staff can view payment_reference');
+    assert(staffReqData.payment_reference === 'GCASH-TX-99887766', 'Staff can view payment_reference');
     assert(staffReqData.waiver_reason === 'Indigent family endorsement', 'Staff can view waiver_reason');
 
     console.log('PASS: Citizen serializer strictly prevented leakage of internal notes, handler IDs, payment audit fields, and file paths.');
@@ -893,7 +897,7 @@ async function runTests() {
     const successLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
-      { email: 'citizen@quickfile.gov.ph', password: 'Citizen@123456' }
+      { email: 'citizen@quickfile.gov.ph', password: DYNAMIC_CITIZEN_PASSWORD }
     );
     assert(successLoginRes.status === 200, 'Successful login must return 200');
 

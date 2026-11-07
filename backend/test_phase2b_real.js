@@ -9,6 +9,11 @@ const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const DYNAMIC_SU_ADMIN_KEY = `su_key_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_ADMIN_PASSWORD = `Adm!n_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_STAFF_PASSWORD = `St@ff_${crypto.randomBytes(8).toString('hex')}`;
+const DYNAMIC_CITIZEN_PASSWORD = `C!tizen_${crypto.randomBytes(8).toString('hex')}`;
 
 // Setup test-specific environment paths and database
 const TEST_ENV_PATH = path.resolve(__dirname, 'test_2b.env.tmp');
@@ -17,15 +22,15 @@ const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/quickfile_test';
 process.env.NODE_ENV = 'test';
 process.env.MONGO_URI = TEST_MONGO_URI;
 process.env.TEST_ENV_PATH = TEST_ENV_PATH;
-process.env.SU_ADMIN_KEY = '12345678';
+process.env.SU_ADMIN_KEY = DYNAMIC_SU_ADMIN_KEY;
 process.env.JWT_SECRET = 'quickfile_test_isolated_secret_key_2026_at_least_32_chars';
 process.env.FRONTEND_URL = 'http://localhost:5173,https://portal.quickfile.gov.ph';
 process.env.BARANGAY_NAME = 'Barangay 11';
 process.env.CITY_MUNICIPALITY = 'Malaybalay';
 process.env.PROVINCE = 'Bukidnon';
-process.env.DEFAULT_ADMIN_PASSWORD = 'Admin@123456';
-process.env.DEFAULT_STAFF_PASSWORD = 'Staff@123456';
-process.env.DEFAULT_CITIZEN_PASSWORD = 'Citizen@123456';
+process.env.DEFAULT_ADMIN_PASSWORD = DYNAMIC_ADMIN_PASSWORD;
+process.env.DEFAULT_STAFF_PASSWORD = DYNAMIC_STAFF_PASSWORD;
+process.env.DEFAULT_CITIZEN_PASSWORD = DYNAMIC_CITIZEN_PASSWORD;
 process.env.TRUST_PROXY = 'true';
 
 // Write initial temporary env file for tests
@@ -38,7 +43,7 @@ fs.writeFileSync(
     `MONGO_URI=${TEST_MONGO_URI}`,
     'JWT_SECRET=quickfile_test_isolated_secret_key_2026_at_least_32_chars',
     'FRONTEND_URL=http://localhost:5173,https://portal.quickfile.gov.ph',
-    'SU_ADMIN_KEY=12345678',
+    `SU_ADMIN_KEY=${DYNAMIC_SU_ADMIN_KEY}`,
     'BARANGAY_NAME=Barangay 11',
     'CITY_MUNICIPALITY=Malaybalay',
     'PROVINCE=Bukidnon',
@@ -47,7 +52,10 @@ fs.writeFileSync(
     'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=https://dashboard.philsms.com/api/v3/',
-    'DEFAULT_SMS_API_TOKEN=test-sms-token-123456',
+    `DEFAULT_SMS_API_TOKEN=test-sms-token-rand`,
+    `DEFAULT_ADMIN_PASSWORD=${DYNAMIC_ADMIN_PASSWORD}`,
+    `DEFAULT_STAFF_PASSWORD=${DYNAMIC_STAFF_PASSWORD}`,
+    `DEFAULT_CITIZEN_PASSWORD=${DYNAMIC_CITIZEN_PASSWORD}`,
     'DEFAULT_SMTP_HOST=smtp.gmail.com',
     'DEFAULT_SMTP_USER=test@gmail.com',
     'DEFAULT_REST_API_SECRET_KEY=test-rest-api-secret',
@@ -341,7 +349,7 @@ async function runTests() {
     const citizenLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
-      { email: 'citizen@quickfile.gov.ph', password: 'Citizen@123456' }
+      { email: 'citizen@quickfile.gov.ph', password: DYNAMIC_CITIZEN_PASSWORD }
     );
     assert(citizenLoginRes.status === 200, 'Citizen login failed');
     const citizenToken = citizenLoginRes.data.data.access_token;
@@ -497,7 +505,7 @@ async function runTests() {
     const adminLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
-      { email: 'admin@quickfile.gov.ph', password: 'Admin@123456' }
+      { email: 'admin@quickfile.gov.ph', password: DYNAMIC_ADMIN_PASSWORD }
     );
     const adminToken = adminLoginRes.data.data.access_token;
 
@@ -770,7 +778,7 @@ async function runTests() {
     const staffLoginRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/login`, method: 'POST' },
-      { email: staffUser.email, password: 'Staff@123456' }
+      { email: staffUser.email, password: DYNAMIC_STAFF_PASSWORD }
     );
     const staffToken = staffLoginRes.data.data.access_token;
 

@@ -87,6 +87,7 @@ const config = {
       ? parseInt(process.env.CERTIFICATE_VALIDITY_DAYS, 10)
       : 180,
   appTimezoneOffsetMinutes: parseInt(process.env.APP_TIMEZONE_OFFSET_MINUTES, 10) || 480,
+  exportDocMaxRows: parseInt(process.env.EXPORT_DOC_MAX_ROWS, 10) || 500,
   exportMaxRows: parseInt(process.env.EXPORT_MAX_ROWS, 10) || 5000,
 
   // Database (strictly from .env; no hardcoded fallback)

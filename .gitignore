@@ -17,6 +17,7 @@ backend/src/uploads/*
 backend/uploads/*
 !backend/uploads/.gitkeep
 backend/mongodb_data/
+backend/export-samples/
 *.env.tmp
 backend/test_*.env*
 frontend/node_modules/

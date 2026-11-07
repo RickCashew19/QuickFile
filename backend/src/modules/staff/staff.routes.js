@@ -50,8 +50,8 @@ router.post(
   staffController.createWalkIn
 );
 
-// Reports -> Guarded by can_view_reports
-router.get('/reports/export', exportLimiter, requirePermission('can_view_reports'), staffController.exportStaffReport);
+// Reports -> Guarded by can_view_reports (permission check precedes exportLimiter)
+router.get('/reports/export', requirePermission('can_view_reports'), exportLimiter, staffController.exportStaffReport);
 router.get('/reports', requirePermission('can_view_reports'), staffController.getReports);
 
 // Staff QR Verification Scan -> Guarded by can_verify_qr
