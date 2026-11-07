@@ -4,7 +4,7 @@ const staffController = require('./staff.controller');
 const { verifyController } = require('../verify/verify.controller');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const { requirePermission } = require('../../middleware/permission.middleware');
-const { userApiLimiter, pollingLimiter } = require('../../middleware/rateLimiter.middleware');
+const { userApiLimiter, pollingLimiter, exportLimiter } = require('../../middleware/rateLimiter.middleware');
 const { upload } = require('../../utils/fileUpload');
 const { sanitizeNoSql } = require('../../middleware/sanitizeNoSql.middleware');
 const { validateObjectIdParam } = require('../../middleware/validateObjectId.middleware');
@@ -51,6 +51,7 @@ router.post(
 );
 
 // Reports -> Guarded by can_view_reports
+router.get('/reports/export', exportLimiter, requirePermission('can_view_reports'), staffController.exportStaffReport);
 router.get('/reports', requirePermission('can_view_reports'), staffController.getReports);
 
 // Staff QR Verification Scan -> Guarded by can_verify_qr

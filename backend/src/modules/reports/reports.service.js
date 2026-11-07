@@ -264,9 +264,76 @@ async function generateReportData({
   };
 }
 
+const { generatePdfReport } = require('./exporters/pdfExporter');
+const { generateWordReport } = require('./exporters/wordExporter');
+const { generateExcelReport } = require('./exporters/excelExporter');
+
+const SUPPORTED_FORMATS = Object.freeze(['pdf', 'docx', 'xlsx']);
+
+const CONTENT_TYPES = Object.freeze({
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+});
+
+async function exportReport({ format, from, to, document_type_id, scope = 'staff', actorUser }) {
+  if (!format || typeof format !== 'string') {
+    const error = new Error('Export format parameter is required. Supported formats: pdf, docx, xlsx.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const fmt = format.toLowerCase().trim();
+  if (!SUPPORTED_FORMATS.includes(fmt)) {
+    const error = new Error(`Invalid export format: "${format}". Supported formats are: pdf, docx, xlsx.`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const reportData = await generateReportData({ from, to, document_type_id, isExport: true });
+
+  let buffer;
+  if (fmt === 'pdf') {
+    buffer = await generatePdfReport(reportData, { scope, actorUser });
+  } else if (fmt === 'docx') {
+    buffer = await generateWordReport(reportData, { scope, actorUser });
+  } else if (fmt === 'xlsx') {
+    buffer = await generateExcelReport(reportData, { scope, actorUser });
+  }
+
+  const fromDateStr = from ? String(from).slice(0, 10) : 'start';
+  const toDateStr = to ? String(to).slice(0, 10) : 'end';
+  const filename = `quickfile-report-${scope}-${fromDateStr}-to-${toDateStr}.${fmt}`;
+
+  await AuditLog.create({
+    user_id: actorUser._id,
+    actor_name: actorUser.full_name,
+    action: 'REPORT_EXPORT',
+    module: 'REPORTS',
+    target_type: 'Report',
+    details: {
+      format: fmt,
+      from: fromDateStr,
+      to: toDateStr,
+      document_type_id: document_type_id || null,
+      scope,
+      row_count: reportData.transactions.items.length,
+      truncated: reportData.transactions.truncated,
+    },
+  });
+
+  return {
+    buffer,
+    filename,
+    contentType: CONTENT_TYPES[fmt],
+    truncated: reportData.transactions.truncated,
+  };
+}
+
 module.exports = {
   generateReportData,
   getStructuredReportData: generateReportData,
+  exportReport,
   validateDateRange,
   validateDocumentTypeId,
 };

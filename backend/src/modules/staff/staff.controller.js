@@ -309,6 +309,26 @@ const getReports = asyncHandler(async (req, res) => {
   });
 });
 
+const exportStaffReport = asyncHandler(async (req, res) => {
+  const { format, from, to, document_type_id } = req.query;
+  const result = await reportsService.exportReport({
+    format,
+    from,
+    to,
+    document_type_id,
+    scope: 'staff',
+    actorUser: req.user,
+  });
+
+  if (result.truncated) {
+    res.setHeader('X-Export-Truncated', 'true');
+  }
+
+  res.setHeader('Content-Type', result.contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+  return res.status(200).send(result.buffer);
+});
+
 module.exports = {
   getDashboard,
   getLiveStats,
@@ -327,4 +347,5 @@ module.exports = {
   searchResidents,
   createWalkIn,
   getReports,
+  exportStaffReport,
 };

@@ -4,7 +4,7 @@ const adminController = require('./admin.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.middleware');
 const { validateObjectIdParam } = require('../../middleware/validateObjectId.middleware');
-const { userApiLimiter, pollingLimiter } = require('../../middleware/rateLimiter.middleware');
+const { userApiLimiter, pollingLimiter, exportLimiter } = require('../../middleware/rateLimiter.middleware');
 const { ROLES } = require('../../config/constants');
 
 // Guard: All admin routes require authentication and ADMIN role
@@ -49,6 +49,7 @@ router.delete('/issued-documents/:id', validateObjectIdParam('id'), adminControl
 router.get('/audit-logs', adminController.listAuditLogs);
 
 // 8. Reports
+router.get('/reports/export', exportLimiter, adminController.exportAdminReport);
 router.get('/reports', adminController.getReports);
 
 module.exports = router;
