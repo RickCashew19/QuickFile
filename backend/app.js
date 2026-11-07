@@ -4,7 +4,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { config } = require('./src/config');
 const { API_PREFIX } = require('./src/config/constants');
-const { notFoundHandler, errorHandler } = require('./src/middleware/error.middleware');
+const { notFoundHandler } = require('./src/middleware/notFound.middleware');
+const { errorHandler } = require('./src/middleware/errorHandler.middleware');
 const { apiLimiter } = require('./src/middleware/rateLimiter.middleware');
 const { sanitizeNoSql } = require('./src/middleware/sanitizeNoSql.middleware');
 
@@ -16,11 +17,14 @@ const citizenRoutes = require('./src/modules/citizen/citizen.routes');
 const notificationRoutes = require('./src/modules/notification/notification.routes');
 const documentTypesRoutes = require('./src/modules/admin/documentTypes/documentTypes.routes');
 const requestRoutes = require('./src/modules/request/request.routes');
+const staffRoutes = require('./src/modules/staff/staff.routes');
+const verifyRoutes = require('./src/modules/verify/verify.routes');
 const fileRoutes = require('./src/modules/file/file.routes');
 
 const app = express();
 
-if (config.trustProxy) {
+// Trust Proxy Configuration (accepts true, false, or hop count)
+if (config.trustProxy !== false) {
   app.set('trust proxy', config.trustProxy);
 }
 
@@ -57,13 +61,14 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Fix 6: Set strict payload limits to prevent memory exhaustion
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Fix 4: NoSQL injection protection on body, query, params
+// NoSQL injection protection on body, query, params
 app.use(sanitizeNoSql);
 
-// Apply rate limiter to all API endpoints
+// Rate limiter for unauthenticated requests
 app.use('/api', apiLimiter);
 
 // ==============================================================================
@@ -82,9 +87,11 @@ app.get(`${API_PREFIX}/health`, (req, res) => {
 
 // Mounted modules under /api/v1/
 app.use(`${API_PREFIX}/auth`, authRoutes);
+app.use(`${API_PREFIX}/verify`, verifyRoutes);
 app.use(`${API_PREFIX}/citizen/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/citizen/requests`, requestRoutes);
 app.use(`${API_PREFIX}/citizen`, citizenRoutes);
+app.use(`${API_PREFIX}/staff`, staffRoutes);
 app.use(`${API_PREFIX}/files`, fileRoutes);
 app.use(`${API_PREFIX}/admin/document-types`, documentTypesRoutes);
 app.use(`${API_PREFIX}/admin/settings`, settingsRoutes);

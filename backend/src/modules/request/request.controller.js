@@ -1,4 +1,5 @@
 const requestService = require('./request.service');
+const { serializeCitizenRequest } = require('./request.serializer');
 const asyncHandler = require('../../utils/asyncHandler');
 
 /**
@@ -38,7 +39,7 @@ const createRequest = asyncHandler(async (req, res) => {
   return res.status(201).json({
     success: true,
     message: 'Document request submitted successfully.',
-    data: result,
+    data: serializeCitizenRequest(result),
   });
 });
 
@@ -58,7 +59,10 @@ const listRequests = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Document requests retrieved successfully.',
-    data: result,
+    data: {
+      requests: result.requests.map(serializeCitizenRequest),
+      pagination: result.pagination,
+    },
   });
 });
 
@@ -75,7 +79,7 @@ const getRequest = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Document request retrieved successfully.',
-    data: result,
+    data: serializeCitizenRequest(result),
   });
 });
 
@@ -119,7 +123,7 @@ const updateRequest = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Document request updated successfully.',
-    data: result,
+    data: serializeCitizenRequest(result),
   });
 });
 
@@ -142,7 +146,7 @@ const cancelRequest = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Document request cancelled successfully.',
-    data: result,
+    data: serializeCitizenRequest(result),
   });
 });
 

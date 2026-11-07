@@ -292,9 +292,12 @@ async function runTests() {
       }
       assert(threwMissing, 'Should throw error when reCAPTCHA token is missing while enabled');
 
-      // Test valid simulated token
+      // Test valid simulated token via injected verifier (Fix 2)
+      const { setRecaptchaVerifier } = require('./src/utils/recaptcha');
+      setRecaptchaVerifier(async () => ({ success: true, verified: true }));
       const validMockRes = await verifyRecaptcha('mock-valid-recaptcha-token', '127.0.0.1');
       assert(validMockRes.verified === true, 'Mock token should verify');
+      setRecaptchaVerifier(null);
       console.log('PASS: reCAPTCHA enforces token and verifies when enable_recaptcha is true.');
     } finally {
       await AppSetting.updateOne({ key: 'enable_recaptcha' }, { value: false });

@@ -35,10 +35,16 @@ const documentRequestSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    created_by_staff_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     purpose: {
       type: String,
       required: true,
       trim: true,
+      maxlength: 500,
     },
     copies: {
       type: Number,
@@ -52,6 +58,11 @@ const documentRequestSchema = new mongoose.Schema(
       enum: Object.values(REQUEST_STATUSES),
       default: REQUEST_STATUSES.PENDING,
       index: true,
+    },
+    unit_fee: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     fee: {
       type: Number,
@@ -88,10 +99,17 @@ const documentRequestSchema = new mongoose.Schema(
     rejection_reason: {
       type: String,
       default: '',
+      maxlength: 500,
+    },
+    cancellation_reason: {
+      type: String,
+      default: '',
+      maxlength: 500,
     },
     processing_notes: {
       type: String,
       default: '',
+      maxlength: 1000,
     },
     reviewed_by: {
       type: mongoose.Schema.Types.ObjectId,
@@ -117,6 +135,14 @@ const documentRequestSchema = new mongoose.Schema(
       default: null,
     },
     approved_at: {
+      type: Date,
+      default: null,
+    },
+    ready_at: {
+      type: Date,
+      default: null,
+    },
+    rejected_at: {
       type: Date,
       default: null,
     },

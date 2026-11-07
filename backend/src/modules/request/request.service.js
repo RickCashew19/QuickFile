@@ -1,43 +1,67 @@
 const crypto = require('crypto');
-const {
-  DocumentRequest,
-  DocumentType,
-  AuditLog,
-} = require('../../models');
-const {
-  REQUEST_STATUSES,
-  PAYMENT_STATUSES,
-} = require('../../config/constants');
+const { DocumentRequest, DocumentType, AuditLog } = require('../../models');
+const { REQUEST_STATUSES, PAYMENT_STATUSES } = require('../../config/constants');
 const { saveValidatedFile, deleteUploadedFile } = require('../../utils/fileUpload');
+const { validateAndParseFormData } = require('../../utils/formDataValidator');
 const { sendNotification } = require('../notification/notification.service');
 const { transitionRequestStatus } = require('./requestTransition');
 
 /**
- * Generates a unique, non-guessable tracking number: QF-YYYYMMDD-XXXXXX
+ * Generates an 8-character unique alphanumeric tracking number
+ * Format: QF-YYYYMMDD-XXXXXX
  */
 async function generateTrackingNumber() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const dateStr = `${yyyy}${mm}${dd}`;
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  let isUnique = false;
+  let trackingNumber = '';
 
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6 chars
-    const candidate = `QF-${dateStr}-${randomHex}`;
+  while (!isUnique) {
+    const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
+    trackingNumber = `QF-${dateStr}-${randomHex}`;
 
-    const exists = await DocumentRequest.findOne({ tracking_number: candidate });
-    if (!exists) {
-      return candidate;
+    const existing = await DocumentRequest.findOne({ tracking_number: trackingNumber });
+    if (!existing) {
+      isUnique = true;
     }
   }
 
-  throw new Error('Failed to generate a unique tracking number after multiple attempts.');
+  return trackingNumber;
 }
 
 /**
- * Creates a new document request
- * Server determines fee and payment_status strictly from the active DocumentType
+ * Validates copies is an integer between 1 and 10 (Fix 6)
+ */
+function validateCopies(copies) {
+  const copiesNum = Number(copies);
+  if (!Number.isInteger(copiesNum) || copiesNum < 1 || copiesNum > 10) {
+    const error = new Error('Number of copies must be an integer between 1 and 10.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return copiesNum;
+}
+
+/**
+ * Validates purpose string length (max 500 chars)
+ */
+function validatePurpose(purpose) {
+  if (typeof purpose !== 'string' || !purpose.trim()) {
+    const error = new Error('Purpose is required and must be a non-empty string.');
+    error.statusCode = 400;
+    throw error;
+  }
+  const trimmed = purpose.trim();
+  if (trimmed.length > 500) {
+    const error = new Error('Purpose cannot exceed 500 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return trimmed;
+}
+
+/**
+ * Create a new citizen document request
+ * Server determines unit_fee, fee and payment_status strictly from the active DocumentType
  */
 async function createRequest({
   citizenUser,
@@ -46,16 +70,20 @@ async function createRequest({
   copies,
   formData = {},
   files = [],
+  created_by_staff_id = null,
   ipAddress,
   userAgent,
 }) {
-  if (!documentTypeId || !purpose) {
-    const error = new Error('Validation error: document_type_id and purpose are required.');
+  if (!documentTypeId || typeof documentTypeId !== 'string') {
+    const error = new Error('Validation error: document_type_id must be a valid string ID.');
     error.statusCode = 400;
     throw error;
   }
 
-  // 1. Validate DocumentType exists and is currently active
+  const validPurpose = validatePurpose(purpose);
+  const copiesCount = validateCopies(copies);
+
+  // 1. Validate DocumentType exists and is active
   const docType = await DocumentType.findById(documentTypeId);
   if (!docType || !docType.is_active) {
     const error = new Error('Selected document type is invalid or currently inactive.');
@@ -63,24 +91,15 @@ async function createRequest({
     throw error;
   }
 
-  // 2. Validate and clamp copies (1 to 10)
-  const copiesCount = Math.min(10, Math.max(1, parseInt(copies, 10) || 1));
-
-  // 3. Server computes fee and payment_status (never trust client)
-  const fee = (docType.fee || 0) * copiesCount;
+  // 2. Server computes unit_fee, fee and payment_status
+  const unitFee = Number((docType.fee || 0).toFixed(2));
+  const fee = Number((unitFee * copiesCount).toFixed(2));
   const paymentStatus = fee === 0 ? PAYMENT_STATUSES.FREE : PAYMENT_STATUSES.UNPAID;
 
-  // 4. Validate & parse form_data if passed as JSON string
-  let parsedFormData = formData;
-  if (typeof formData === 'string') {
-    try {
-      parsedFormData = JSON.parse(formData);
-    } catch {
-      parsedFormData = {};
-    }
-  }
+  // 3. Strict form_data validation (Fix 3)
+  const parsedFormData = validateAndParseFormData(formData);
 
-  // 5. Process and validate file uploads with rollback on error
+  // 4. Process and validate file uploads with rollback on error
   const savedAttachments = [];
   try {
     for (const file of files) {
@@ -88,31 +107,31 @@ async function createRequest({
       savedAttachments.push(saved);
     }
   } catch (fileErr) {
-    // Rollback: clean up any files that were already saved before error
     for (const att of savedAttachments) {
       deleteUploadedFile(att.stored_filename);
     }
     throw fileErr;
   }
 
-  // 6. Generate unique tracking number
+  // 5. Generate unique tracking number
   const trackingNumber = await generateTrackingNumber();
 
-  // 7. Maintain consistency between primary attachment and attachments array
   const primaryAttachment = savedAttachments[0] || null;
   const attachmentName = primaryAttachment ? primaryAttachment.original_name : '';
   const attachmentPath = primaryAttachment ? primaryAttachment.stored_filename : '';
 
-  // 8. Create DocumentRequest record
+  // 6. Create DocumentRequest record
   let newRequest;
   try {
     newRequest = await DocumentRequest.create({
       tracking_number: trackingNumber,
       citizen_id: citizenUser._id,
       document_type_id: docType._id,
-      purpose: String(purpose).trim(),
+      created_by_staff_id,
+      purpose: validPurpose,
       copies: copiesCount,
       status: REQUEST_STATUSES.PENDING,
+      unit_fee: unitFee,
       fee,
       payment_status: paymentStatus,
       form_data: parsedFormData,
@@ -121,14 +140,13 @@ async function createRequest({
       attachments: savedAttachments,
     });
   } catch (createErr) {
-    // Rollback saved files if database insertion fails
     for (const att of savedAttachments) {
       deleteUploadedFile(att.stored_filename);
     }
     throw createErr;
   }
 
-  // 9. Send in-app notification to citizen
+  // 7. In-app notification
   await sendNotification({
     user_id: citizenUser._id,
     title: 'Document Request Submitted',
@@ -139,10 +157,10 @@ async function createRequest({
       document_type: docType.name,
     },
   }).catch((err) => {
-    console.warn(`[Notification] Failed to send submission notification:`, err.message);
+    console.warn('[Notification] Failed to send submission notification:', err.message);
   });
 
-  // 10. Audit log entry
+  // 8. Audit log entry
   await AuditLog.create({
     user_id: citizenUser._id,
     actor_name: citizenUser.full_name,
@@ -169,7 +187,7 @@ async function createRequest({
  */
 async function listCitizenRequests(citizenId, { page = 1, limit = 10, status }) {
   const safePage = Math.max(1, parseInt(page, 10) || 1);
-  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 10)); // Capped at 50
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (safePage - 1) * safeLimit;
 
   const query = { citizen_id: citizenId };
@@ -182,8 +200,7 @@ async function listCitizenRequests(citizenId, { page = 1, limit = 10, status }) 
       .populate('document_type_id')
       .sort({ created_at: -1 })
       .skip(skip)
-      .limit(safeLimit)
-      .lean(),
+      .limit(safeLimit),
     DocumentRequest.countDocuments(query),
   ]);
 
@@ -245,6 +262,7 @@ async function getCitizenRequestStatus(citizenId, trackingNumber) {
 
 /**
  * Update request (allowed strictly while status is PENDING and by owner only)
+ * Fix 4: Uses atomic findOneAndUpdate with status: 'pending' in the filter
  */
 async function updateCitizenRequest({
   citizenId,
@@ -258,48 +276,45 @@ async function updateCitizenRequest({
   ipAddress,
   userAgent,
 }) {
-  const request = await DocumentRequest.findOne({
+  const existing = await DocumentRequest.findOne({
     tracking_number: trackingNumber.trim(),
     citizen_id: citizenId,
   });
 
-  if (!request) {
+  if (!existing) {
     const error = new Error('Document request not found.');
     error.statusCode = 404;
     throw error;
   }
 
-  if (request.status !== REQUEST_STATUSES.PENDING) {
-    const error = new Error(`Request cannot be edited because its current status is "${request.status}". Only pending requests can be edited.`);
+  if (existing.status !== REQUEST_STATUSES.PENDING) {
+    const error = new Error(
+      `Request cannot be edited because its current status is "${existing.status}". Only pending requests can be edited.`
+    );
     error.statusCode = 400;
     throw error;
   }
 
+  const updateFields = {};
+
   // Recalculate fee if copies are modified
   if (copies !== undefined) {
-    const docType = await DocumentType.findById(request.document_type_id);
-    const copiesCount = Math.min(10, Math.max(1, parseInt(copies, 10) || request.copies));
-    request.copies = copiesCount;
-    request.fee = (docType?.fee || 0) * copiesCount;
-    if (request.fee === 0) {
-      request.payment_status = PAYMENT_STATUSES.FREE;
-    }
+    const copiesCount = validateCopies(copies);
+    const docType = await DocumentType.findById(existing.document_type_id);
+    const unitFee = Number((docType?.fee || 0).toFixed(2));
+    const fee = Number((unitFee * copiesCount).toFixed(2));
+    updateFields.unit_fee = unitFee;
+    updateFields.copies = copiesCount;
+    updateFields.fee = fee;
+    updateFields.payment_status = fee === 0 ? PAYMENT_STATUSES.FREE : PAYMENT_STATUSES.UNPAID;
   }
 
-  if (purpose !== undefined && typeof purpose === 'string') {
-    request.purpose = purpose.trim();
+  if (purpose !== undefined) {
+    updateFields.purpose = validatePurpose(purpose);
   }
 
   if (formData !== undefined) {
-    let parsedFormData = formData;
-    if (typeof formData === 'string') {
-      try {
-        parsedFormData = JSON.parse(formData);
-      } catch {
-        parsedFormData = request.form_data;
-      }
-    }
-    request.form_data = parsedFormData;
+    updateFields.form_data = validateAndParseFormData(formData);
   }
 
   // Process attachments
@@ -311,27 +326,26 @@ async function updateCitizenRequest({
       }
 
       if (replaceAttachments) {
-        // Clean up previous files from disk
-        for (const oldAtt of request.attachments) {
+        for (const oldAtt of existing.attachments) {
           deleteUploadedFile(oldAtt.stored_filename);
         }
-        request.attachments = newlySaved;
+        updateFields.attachments = newlySaved;
       } else {
-        const totalCount = request.attachments.length + newlySaved.length;
+        const totalCount = existing.attachments.length + newlySaved.length;
         if (totalCount > 3) {
-          const error = new Error(`Total attachments exceed the maximum of 3 files (current: ${request.attachments.length}, new: ${newlySaved.length}).`);
+          const error = new Error(
+            `Total attachments exceed the maximum of 3 files (current: ${existing.attachments.length}, new: ${newlySaved.length}).`
+          );
           error.statusCode = 400;
           throw error;
         }
-        request.attachments = [...request.attachments, ...newlySaved];
+        updateFields.attachments = [...existing.attachments, ...newlySaved];
       }
 
-      // Maintain consistency
-      const primary = request.attachments[0] || null;
-      request.attachment_name = primary ? primary.original_name : '';
-      request.attachment_path = primary ? primary.stored_filename : '';
+      const primary = (updateFields.attachments || [])[0] || null;
+      updateFields.attachment_name = primary ? primary.original_name : '';
+      updateFields.attachment_path = primary ? primary.stored_filename : '';
     } catch (attErr) {
-      // Rollback newly saved files
       for (const att of newlySaved) {
         deleteUploadedFile(att.stored_filename);
       }
@@ -339,29 +353,41 @@ async function updateCitizenRequest({
     }
   }
 
-  await request.save();
+  // Atomic update conditioned on pending status
+  const updated = await DocumentRequest.findOneAndUpdate(
+    { _id: existing._id, status: REQUEST_STATUSES.PENDING },
+    { $set: updateFields },
+    { new: true }
+  ).populate('document_type_id');
+
+  if (!updated) {
+    const error = new Error('Status changed or request was modified by another user. Please refresh.');
+    error.statusCode = 409;
+    throw error;
+  }
 
   await AuditLog.create({
     user_id: actorUser._id,
     actor_name: actorUser.full_name,
     action: 'DOCUMENT_REQUEST_UPDATE',
     module: 'REQUEST',
-    target_id: request._id.toString(),
+    target_id: updated._id.toString(),
     target_type: 'DocumentRequest',
     details: {
-      tracking_number: request.tracking_number,
-      copies: request.copies,
-      fee: request.fee,
+      tracking_number: updated.tracking_number,
+      copies: updated.copies,
+      fee: updated.fee,
     },
     ip_address: ipAddress || '',
     user_agent: userAgent || '',
   });
 
-  return request.populate('document_type_id');
+  return updated;
 }
 
 /**
  * Cancel request (allowed strictly while status is PENDING and by owner only)
+ * Fix 4: Uses atomic findOneAndUpdate via transitionRequestStatus
  */
 async function cancelCitizenRequest({
   citizenId,
@@ -371,25 +397,28 @@ async function cancelCitizenRequest({
   ipAddress,
   userAgent,
 }) {
-  const request = await DocumentRequest.findOne({
+  const existing = await DocumentRequest.findOne({
     tracking_number: trackingNumber.trim(),
     citizen_id: citizenId,
   });
 
-  if (!request) {
+  if (!existing) {
     const error = new Error('Document request not found.');
     error.statusCode = 404;
     throw error;
   }
 
-  if (request.status !== REQUEST_STATUSES.PENDING) {
-    const error = new Error(`Request cannot be cancelled because its current status is "${request.status}". Only pending requests can be cancelled.`);
+  if (existing.status !== REQUEST_STATUSES.PENDING) {
+    const error = new Error(
+      `Request cannot be cancelled because its current status is "${existing.status}". Only pending requests can be cancelled.`
+    );
     error.statusCode = 400;
     throw error;
   }
 
   return transitionRequestStatus({
-    request,
+    requestId: existing._id,
+    expectedStatus: REQUEST_STATUSES.PENDING,
     newStatus: REQUEST_STATUSES.CANCELLED,
     actorUser,
     rejectionReason: cancellationReason,

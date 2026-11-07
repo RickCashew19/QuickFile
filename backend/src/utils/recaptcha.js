@@ -1,9 +1,21 @@
 const { config } = require('../config');
 const { AppSetting } = require('../models');
 
+// Pluggable verifier for testing / dependency injection without NODE_ENV branching
+let customVerifier = null;
+
+function setRecaptchaVerifier(fn) {
+  customVerifier = fn;
+}
+
+function getRecaptchaVerifier() {
+  return customVerifier;
+}
+
 /**
  * Verifies a Google reCAPTCHA v2 token
  * Bypassed when enable_recaptcha setting is false
+ * Uses a 5-second timeout and fails closed with 503 if the verification service is unreachable
  */
 async function verifyRecaptcha(token, ipAddress) {
   // 1. Check if reCAPTCHA is enabled in application settings
@@ -21,11 +33,12 @@ async function verifyRecaptcha(token, ipAddress) {
     throw error;
   }
 
-  // 3. In test mode, accept simulated valid token
-  if (config.nodeEnv === 'test' && token === 'mock-valid-recaptcha-token') {
-    return { success: true, verified: true, mock: true };
+  // 3. Delegate to injected verifier if configured (used in automated tests)
+  if (typeof customVerifier === 'function') {
+    return await customVerifier(token, ipAddress);
   }
 
+  // 4. Resolve secret key from environment configuration
   const secretKey = config.recaptcha.resolveSecretKey().value;
   if (!secretKey) {
     const error = new Error('reCAPTCHA secret key is not configured on the server.');
@@ -42,12 +55,40 @@ async function verifyRecaptcha(token, ipAddress) {
     params.append('remoteip', ipAddress);
   }
 
-  const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-    method: 'POST',
-    body: params,
-  });
+  // 5. Call Google API with 5-second timeout via AbortController
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  const data = await response.json();
+  let response;
+  try {
+    response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      body: params,
+      signal: controller.signal,
+    });
+  } catch {
+    const error = new Error('reCAPTCHA verification service unavailable.');
+    error.statusCode = 503;
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) {
+    const error = new Error('reCAPTCHA verification service unavailable.');
+    error.statusCode = 503;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    const error = new Error('reCAPTCHA verification service unavailable.');
+    error.statusCode = 503;
+    throw error;
+  }
+
   if (!data.success) {
     const error = new Error('reCAPTCHA verification failed. Please try again.');
     error.statusCode = 400;
@@ -59,5 +100,6 @@ async function verifyRecaptcha(token, ipAddress) {
 
 module.exports = {
   verifyRecaptcha,
+  setRecaptchaVerifier,
+  getRecaptchaVerifier,
 };
-

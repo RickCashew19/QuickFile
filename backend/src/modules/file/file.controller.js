@@ -8,7 +8,8 @@ const asyncHandler = require('../../utils/asyncHandler');
 /**
  * Serves a protected attachment file
  * GET /api/v1/files/attachments/:filename
- * Strictly checks path traversal and enforces role / owner authorization
+ * Strictly checks path traversal, enforces role/owner authorization,
+ * sends RFC 5987 Content-Disposition and Cache-Control: private, no-store
  */
 const getAttachment = asyncHandler(async (req, res) => {
   const { filename } = req.params;
@@ -85,12 +86,18 @@ const getAttachment = asyncHandler(async (req, res) => {
   const attachmentMeta = request.attachments.find((att) => att.stored_filename === filename);
   const mimeType = attachmentMeta?.mime_type || 'application/octet-stream';
   const originalName = attachmentMeta?.original_name || filename;
-  const safeOriginalName = originalName.replace(/["\r\n\0]/g, '_');
 
-  // 5. Send secure headers and stream file
+  // 5. Send secure headers (RFC 5987 Unicode filename and ASCII fallback)
+  const asciiFallback = originalName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+  const encodedName = encodeURIComponent(originalName);
+
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Content-Type', mimeType);
-  res.setHeader('Content-Disposition', `inline; filename="${safeOriginalName}"`);
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`
+  );
 
   return res.sendFile(filePath);
 });

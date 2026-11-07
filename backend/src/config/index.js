@@ -58,11 +58,25 @@ function validateConfig() {
   }
 }
 
+/**
+ * Parses TRUST_PROXY into boolean or integer hop count
+ */
+function parseTrustProxy(val) {
+  if (!val) return false;
+  const trimmed = String(val).trim().toLowerCase();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  const num = parseInt(trimmed, 10);
+  if (!isNaN(num)) return num;
+  return false;
+}
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
-  trustProxy: process.env.TRUST_PROXY === 'true' ? true : (process.env.TRUST_PROXY || false),
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  certificateValidityDays: parseInt(process.env.CERTIFICATE_VALIDITY_DAYS, 10) || 180,
 
   // Database (strictly from .env; no hardcoded fallback)
   mongoUri: process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '',
@@ -85,9 +99,6 @@ const config = {
     cityMunicipality: () => process.env.CITY_MUNICIPALITY || '',
     province: () => process.env.PROVINCE || '',
   },
-
-  // Storage directory for uploads
-  uploadDir: path.resolve(__dirname, '../uploads'),
 
   // Default seed accounts (Strictly from .env)
   seed: {

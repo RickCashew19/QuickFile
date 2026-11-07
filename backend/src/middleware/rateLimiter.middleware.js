@@ -13,13 +13,13 @@ const rateLimitHandler = (message) => (req, res) => {
 };
 
 /**
- * Helper to identify request by authenticated user ID if available, otherwise by IP
+ * Key generator for authenticated users (falls back to IP if unauthenticated)
  */
-const userOrIpKey = (req) => (req.user && req.user._id ? req.user._id.toString() : req.ip || 'unknown');
+const userKeyGenerator = (req) => (req.user && req.user._id ? req.user._id.toString() : req.ip || 'unknown');
 
 /**
  * Rate limiter for sensitive authentication endpoints (Login, Register, Password Reset)
- * 15 requests per 15 minutes per IP
+ * 15 requests per 15 minutes per IP (16th attempt returns 429)
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -45,7 +45,7 @@ const suKeyLimiter = rateLimit({
 });
 
 /**
- * Rate limiter for public endpoints (Public QR verification, etc.)
+ * Rate limiter for public endpoints (Public QR verification, config, etc.)
  * 60 requests per 15 minutes per IP
  */
 const publicLimiter = rateLimit({
@@ -58,28 +58,41 @@ const publicLimiter = rateLimit({
 });
 
 /**
- * General API limiter for authenticated & general routes
- * 600 requests per 15 minutes per authenticated user (or per IP for unauthenticated)
+ * Unauthenticated API limiter (per IP)
+ * 100 requests per 15 minutes per IP
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: 100,
   validate: { trustProxy: false },
-  keyGenerator: userOrIpKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Rate limit exceeded. Please try again later.'),
 });
 
 /**
+ * Authenticated user API limiter (placed AFTER authenticate middleware)
+ * 100 requests per 15 minutes per user ID
+ */
+const userApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  validate: { trustProxy: false },
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('User rate limit exceeded. Please try again later.'),
+});
+
+/**
  * High-frequency limiter for live status polling endpoints (8-second citizen polling)
- * 1200 requests per 15 minutes per user
+ * 300 requests per 15 minutes per user
  */
 const pollingLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1200,
+  max: 300,
   validate: { trustProxy: false },
-  keyGenerator: userOrIpKey,
+  keyGenerator: userKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many status polling requests. Please reduce polling frequency.'),
@@ -90,5 +103,6 @@ module.exports = {
   suKeyLimiter,
   publicLimiter,
   apiLimiter,
+  userApiLimiter,
   pollingLimiter,
 };

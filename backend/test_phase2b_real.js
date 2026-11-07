@@ -597,8 +597,9 @@ async function runTests() {
 
     // Attachments consistency
     assert(createdReq?.attachments?.length === 2, 'Must have 2 attachments');
-    assert(createdReq?.attachment_name === 'valid_id.pdf', 'attachment_name must match primary file');
-    assert(createdReq?.attachment_path === createdReq.attachments[0].stored_filename, 'attachment_path must match primary file stored name');
+    assert(createdReq?.attachments[0]?.original_name === 'valid_id.pdf', 'attachments must contain primary file');
+    assert(createdReq?.attachment_path === undefined, 'attachment_path must never be returned to citizens (Fix 1)');
+    assert(createdReq?.processing_notes === undefined, 'processing_notes must never be returned to citizens (Fix 1)');
 
     // Check files actually exist on disk with random filenames
     for (const att of createdReq.attachments) {

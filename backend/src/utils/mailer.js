@@ -2,6 +2,17 @@ const nodemailer = require('nodemailer');
 const { config } = require('../config');
 const { AppSetting } = require('../models');
 
+// Pluggable transport for testing / dependency injection without NODE_ENV branching
+let customTransport = null;
+
+function setMailTransport(transport) {
+  customTransport = transport;
+}
+
+function getMailTransport() {
+  return customTransport;
+}
+
 /**
  * Creates a nodemailer transporter from resolved configuration
  */
@@ -21,8 +32,8 @@ function createTransporter() {
 }
 
 /**
- * Sends an email notification using SMTP configuration
- * Bypasses gracefully when email notifications are disabled or in test mode
+ * Sends an email notification using SMTP configuration or injected transport
+ * Bypasses gracefully when email notifications are disabled in settings
  */
 async function sendMail({ to, subject, html, text }) {
   // 1. Check if email notifications are enabled in system settings
@@ -37,19 +48,12 @@ async function sendMail({ to, subject, html, text }) {
     };
   }
 
-  // 2. In test environment, simulate sending without external network calls
-  if (config.nodeEnv === 'test') {
-    return {
-      success: true,
-      simulated: true,
-      messageId: `test-${Date.now()}`,
-    };
-  }
+  // 2. Resolve transporter (injected mock transport or live SMTP transporter)
+  const transporter = customTransport || createTransporter();
 
-  // 3. Create transporter and send mail
+  // 3. Resolve sender info and send email
   const fromName = config.smtp.resolveFromName().value || 'QuickFile';
   const fromEmail = config.smtp.resolveFromEmail().value || 'no-reply@quickfile.gov.ph';
-  const transporter = createTransporter();
 
   const info = await transporter.sendMail({
     from: `"${fromName}" <${fromEmail}>`,
@@ -61,12 +65,13 @@ async function sendMail({ to, subject, html, text }) {
 
   return {
     success: true,
-    messageId: info.messageId,
+    messageId: info ? info.messageId : undefined,
   };
 }
 
 module.exports = {
   sendMail,
   createTransporter,
+  setMailTransport,
+  getMailTransport,
 };
-
