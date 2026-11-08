@@ -22,6 +22,7 @@ const {
   NOTIFICATION_CHANNELS,
 } = require('../../config/constants');
 const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
+const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
 const staffService = require('../staff/staff.service');
 
 const ATTACHMENTS_DIR = path.join(__dirname, '../../../uploads/attachments');
@@ -307,10 +308,15 @@ async function createStaff(data, actorUser) {
     throw err;
   }
 
-  if (phone && !/^(09|\+639)\d{9}$/.test(phone.trim())) {
-    const err = new Error('Validation error: Invalid Philippine phone number format.');
-    err.statusCode = 400;
-    throw err;
+  let normalizedPhone = '';
+  if (phone && phone.trim()) {
+    const norm = normalizePhilippinePhone(phone);
+    if (!norm.isValid) {
+      const err = new Error('Validation error: Invalid Philippine phone number format. Must be an 11-digit mobile number (e.g. 09171234567 or +639171234567).');
+      err.statusCode = 400;
+      throw err;
+    }
+    normalizedPhone = norm.local;
   }
 
   const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d).{8,72}$/;
@@ -357,7 +363,7 @@ async function createStaff(data, actorUser) {
     email: email.toLowerCase().trim(),
     password_hash: passwordHash,
     full_name: full_name.trim(),
-    phone: phone ? phone.trim() : '',
+    phone: normalizedPhone,
     role: ROLES.STAFF,
     is_active: true,
   });
@@ -370,7 +376,7 @@ async function createStaff(data, actorUser) {
       employee_id: employee_id ? employee_id.trim() : '',
       position: position ? position.trim() : 'Barangay Staff',
       department: department ? department.trim() : 'General Services',
-      contact_number: phone ? phone.trim() : '',
+      contact_number: normalizedPhone,
     });
 
     const permObj = { user_id: user._id };
@@ -427,13 +433,21 @@ async function updateStaff(id, data, actorUser) {
     user.full_name = full_name.trim();
   }
 
+  let normalizedUpdatePhone = undefined;
   if (phone !== undefined) {
-    if (phone && !/^(09|\+639)\d{9}$/.test(phone.trim())) {
-      const err = new Error('Validation error: Invalid Philippine phone number format.');
-      err.statusCode = 400;
-      throw err;
+    if (phone && phone.trim()) {
+      const norm = normalizePhilippinePhone(phone);
+      if (!norm.isValid) {
+        const err = new Error('Validation error: Invalid Philippine phone number format. Must be an 11-digit mobile number (e.g. 09171234567 or +639171234567).');
+        err.statusCode = 400;
+        throw err;
+      }
+      normalizedUpdatePhone = norm.local;
+      user.phone = norm.local;
+    } else {
+      normalizedUpdatePhone = '';
+      user.phone = '';
     }
-    user.phone = phone ? phone.trim() : '';
   }
 
   await user.save();
@@ -460,7 +474,7 @@ async function updateStaff(id, data, actorUser) {
 
   if (position !== undefined) detail.position = position.trim();
   if (department !== undefined) detail.department = department.trim();
-  if (phone !== undefined) detail.contact_number = phone ? phone.trim() : '';
+  if (normalizedUpdatePhone !== undefined) detail.contact_number = normalizedUpdatePhone;
   await detail.save();
 
   await AuditLog.create({

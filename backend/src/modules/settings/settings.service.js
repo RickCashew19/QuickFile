@@ -2,6 +2,7 @@ const { config } = require('../../config');
 const { AppSetting, AuditLog } = require('../../models');
 const { verifySuperAdminKey } = require('../../utils/superAdminKeyVerifier');
 const { formatEnvValue, writeCustomEnvVars } = require('../../utils/envWriter');
+const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
 
 /**
  * Retrieve current settings with masked integration secrets
@@ -218,12 +219,13 @@ async function updateGeneralSettings({ updates, actorUser, ipAddress, userAgent 
     }
 
     if (key === 'contact_phone' && trimmed) {
-      const phoneRegex = /^(09|\+639)\d{9}$/;
-      if (!phoneRegex.test(trimmed)) {
+      const norm = normalizePhilippinePhone(trimmed);
+      if (!norm.isValid) {
         const err = new Error('Invalid contact phone format. Must be a valid Philippine mobile number (e.g., 09171234567 or +639171234567).');
         err.statusCode = 400;
         throw err;
       }
+      trimmed = norm.local;
     }
 
     updates[key] = trimmed;

@@ -6,6 +6,7 @@ import { Input } from '../../../components/shared/Input';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
 import { Icon } from '../../../components/shared/Icon';
+import { cleanPhoneInput } from '../../../utils/phoneUtil';
 import './AdminSettingsPage.css';
 
 export function AdminSettingsPage() {
@@ -615,8 +616,13 @@ export function AdminSettingsPage() {
             />
             <Input
               label="Official Contact Phone"
+              type="tel"
               value={generalDraft.contact_phone}
-              onChange={(e) => setGeneralDraft({ ...generalDraft, contact_phone: e.target.value })}
+              onChange={(e) =>
+                setGeneralDraft({ ...generalDraft, contact_phone: cleanPhoneInput(e.target.value) })
+              }
+              placeholder="0917 123 4567 or +63 917 123 4567"
+              helpText="Format: 09XX XXX XXXX or +63 9XX XXX XXXX"
               required
             />
           </div>

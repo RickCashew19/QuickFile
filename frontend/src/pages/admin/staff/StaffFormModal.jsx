@@ -3,6 +3,7 @@ import { Modal } from '../../../components/shared/Modal';
 import { Button } from '../../../components/shared/Button';
 import { Input } from '../../../components/shared/Input';
 import { Alert } from '../../../components/shared/Alert';
+import { cleanPhoneInput, normalizePhilippinePhone } from '../../../utils/phoneUtil';
 
 export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving = false }) {
   const isEditing = Boolean(staff);
@@ -44,7 +45,9 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
   }, [staff, isOpen]);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    const sanitized = name === 'phone' ? cleanPhoneInput(value) : value;
+    setFormData((prev) => ({ ...prev, [name]: sanitized }));
   };
 
   const handleSubmit = async (e) => {
@@ -54,6 +57,16 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
     if (!formData.full_name.trim() || formData.full_name.trim().length < 2) {
       setError('Full name must be at least 2 characters.');
       return;
+    }
+
+    let normalizedPhone = '';
+    if (formData.phone && formData.phone.trim()) {
+      const norm = normalizePhilippinePhone(formData.phone);
+      if (!norm.isValid) {
+        setError('Please enter a valid Philippine mobile number (e.g., 0917 123 4567 or +639171234567).');
+        return;
+      }
+      normalizedPhone = norm.local;
     }
 
     if (!isEditing) {
@@ -68,7 +81,10 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
     }
 
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        phone: normalizedPhone || formData.phone,
+      });
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to save staff member.');
@@ -129,10 +145,12 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
           />
           <Input
             label="Contact Phone"
+            type="tel"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            placeholder="09171234567"
+            placeholder="0917 123 4567"
+            helpText="Accepts 11-digit local (09XX) or international (+639XX) formats."
           />
         </div>
 

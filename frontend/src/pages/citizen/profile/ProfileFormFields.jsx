@@ -1,9 +1,14 @@
 import { Input } from '../../../components/shared/Input';
 import { ProfileFormSection } from './ProfileFormSection';
+import { cleanPhoneInput } from '../../../utils/phoneUtil';
 
 export function ProfileFormFields({ formData, onChange, errors, isEditing }) {
   const handleChange = (field) => (e) => {
-    onChange(field, e.target.value);
+    const val =
+      field === 'contact_number' || field === 'emergency_contact_number'
+        ? cleanPhoneInput(e.target.value)
+        : e.target.value;
+    onChange(field, val);
   };
 
   return (
@@ -97,11 +102,13 @@ export function ProfileFormFields({ formData, onChange, errors, isEditing }) {
       >
         <Input
           label="Mobile Phone / Contact Number"
+          type="tel"
           value={formData.contact_number || ''}
           onChange={handleChange('contact_number')}
-          placeholder="09123456789"
+          placeholder="0917 123 4567 or +63 917 123 4567"
           disabled={!isEditing}
           error={errors.contact_number}
+          helpText={isEditing ? 'Accepts 09XX XXX XXXX or +63 9XX XXX XXXX' : undefined}
         />
         <Input
           label="Purok / Zone"
@@ -172,9 +179,12 @@ export function ProfileFormFields({ formData, onChange, errors, isEditing }) {
         />
         <Input
           label="Emergency Contact Phone"
+          type="tel"
           value={formData.emergency_contact_number || ''}
           onChange={handleChange('emergency_contact_number')}
+          placeholder="0917 123 4567"
           disabled={!isEditing}
+          error={errors.emergency_contact_number}
         />
         <Input
           label="Valid ID Type"

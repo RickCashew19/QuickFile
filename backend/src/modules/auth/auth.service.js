@@ -13,6 +13,7 @@ const {
   AuditLog,
 } = require('../../models');
 const { sendMail } = require('../../utils/mailer');
+const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
 
 /**
  * Dependency-injected Google Token Verifier (allows clean test mocking without environment backdoors)
@@ -101,7 +102,21 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     .filter(Boolean)
     .join(' ');
 
-  const primaryPhone = (phone || contact_number || '').trim();
+  let primaryPhone = (phone || contact_number || '').trim();
+  if (primaryPhone) {
+    const norm = normalizePhilippinePhone(primaryPhone);
+    if (norm.isValid) {
+      primaryPhone = norm.local;
+    }
+  }
+
+  let emergencyPhone = (emergency_contact_number || '').trim();
+  if (emergencyPhone) {
+    const normEmergency = normalizePhilippinePhone(emergencyPhone);
+    if (normEmergency.isValid) {
+      emergencyPhone = normEmergency.local;
+    }
+  }
 
   // 1. Create User
   const newUser = await User.create({
@@ -131,7 +146,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     province: (province || config.jurisdiction.province()).trim(),
     occupation: (occupation || '').trim(),
     emergency_contact_name: (emergency_contact_name || '').trim(),
-    emergency_contact_number: (emergency_contact_number || '').trim(),
+    emergency_contact_number: emergencyPhone,
     profile_complete: true,
   });
 

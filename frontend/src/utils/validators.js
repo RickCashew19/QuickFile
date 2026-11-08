@@ -1,4 +1,5 @@
 import { formatFileSize } from './formatters';
+import { normalizePhilippinePhone } from './phoneUtil';
 
 export const ALLOWED_ATTACHMENT_TYPES = [
   'image/jpeg',
@@ -65,6 +66,20 @@ export function validateProfileForm(formData) {
 
   if (!formData.gender || !['male', 'female', 'other'].includes(formData.gender)) {
     errors.gender = 'Please select a valid gender option.';
+  }
+
+  if (formData.contact_number && String(formData.contact_number).trim()) {
+    const norm = normalizePhilippinePhone(String(formData.contact_number));
+    if (!norm.isValid) {
+      errors.contact_number = 'Please enter a valid Philippine mobile number (e.g. 0917 123 4567 or +639171234567).';
+    }
+  }
+
+  if (formData.emergency_contact_number && String(formData.emergency_contact_number).trim()) {
+    const norm = normalizePhilippinePhone(String(formData.emergency_contact_number));
+    if (!norm.isValid) {
+      errors.emergency_contact_number = 'Please enter a valid Philippine mobile number (e.g. 0917 123 4567 or +639171234567).';
+    }
   }
 
   return {

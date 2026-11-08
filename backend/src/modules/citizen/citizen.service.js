@@ -1,4 +1,5 @@
 const { User, CitizenProfile, DocumentType, AuditLog } = require('../../models');
+const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
 
 const PROFILE_COMPLETENESS_FIELDS = [
   'first_name',
@@ -94,6 +95,14 @@ async function updateCitizenProfile(userId, updateData, ipAddress, userAgent) {
     if (updateData[field] !== undefined) {
       if (field === 'birthdate') {
         profile.birthdate = new Date(updateData.birthdate);
+      } else if (field === 'contact_number' || field === 'emergency_contact_number') {
+        const val = typeof updateData[field] === 'string' ? updateData[field].trim() : '';
+        if (val) {
+          const norm = normalizePhilippinePhone(val);
+          profile[field] = norm.isValid ? norm.local : val;
+        } else {
+          profile[field] = '';
+        }
       } else {
         profile[field] = typeof updateData[field] === 'string' ? updateData[field].trim() : updateData[field];
       }

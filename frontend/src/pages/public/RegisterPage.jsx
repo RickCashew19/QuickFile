@@ -7,6 +7,7 @@ import { Input } from '../../components/shared/Input';
 import { Select } from '../../components/shared/Select';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
+import { cleanPhoneInput, normalizePhilippinePhone } from '../../utils/phoneUtil';
 import './RegisterPage.css';
 import './LoginPage.css';
 
@@ -73,7 +74,11 @@ export function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const sanitizedValue =
+      name === 'contact_number' || name === 'emergency_contact_number'
+        ? cleanPhoneInput(value)
+        : value;
+    setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
   };
 
   const handleSubmit = async (e) => {
@@ -103,6 +108,27 @@ export function RegisterPage() {
       return;
     }
 
+    // Phone number validation if provided
+    let normalizedContact = '';
+    if (formData.contact_number && formData.contact_number.trim()) {
+      const norm = normalizePhilippinePhone(formData.contact_number);
+      if (!norm.isValid) {
+        setErrorMessage('Please enter a valid Philippine mobile number (e.g., 0917 123 4567 or +639171234567).');
+        return;
+      }
+      normalizedContact = norm.local;
+    }
+
+    let normalizedEmergency = '';
+    if (formData.emergency_contact_number && formData.emergency_contact_number.trim()) {
+      const normEmerg = normalizePhilippinePhone(formData.emergency_contact_number);
+      if (!normEmerg.isValid) {
+        setErrorMessage('Please enter a valid emergency contact number (e.g., 0917 123 4567 or +639171234567).');
+        return;
+      }
+      normalizedEmergency = normEmerg.local;
+    }
+
     if (config?.integrations?.recaptcha_enabled && !recaptchaToken) {
       setErrorMessage('Please complete the reCAPTCHA verification.');
       return;
@@ -112,6 +138,8 @@ export function RegisterPage() {
     try {
       const payload = {
         ...formData,
+        contact_number: normalizedContact || formData.contact_number,
+        emergency_contact_number: normalizedEmergency || formData.emergency_contact_number,
         recaptcha_token: recaptchaToken,
       };
       delete payload.confirm_password;
@@ -272,8 +300,9 @@ export function RegisterPage() {
               name="contact_number"
               value={formData.contact_number}
               onChange={handleChange}
-              placeholder="09123456789"
+              placeholder="0917 123 4567 or +63 917 123 4567"
               prefix={<Icon name="phone" size={18} />}
+              helpText="Accepts 11-digit local (09XX) or international (+639XX) formats."
             />
             <div className="qf-form-row-2">
               <Input
@@ -330,7 +359,7 @@ export function RegisterPage() {
                 name="emergency_contact_number"
                 value={formData.emergency_contact_number}
                 onChange={handleChange}
-                placeholder="09123456789"
+                placeholder="0917 123 4567"
               />
             </div>
           </fieldset>
