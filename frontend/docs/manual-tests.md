@@ -29,9 +29,9 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 3.2**: Enter invalid credentials (`wrong@example.com` / `wrongpass`) and submit.
 - [ ] **Expected**: Red alert appears: *"Invalid email or password."* Form stays populated with email.
 - [ ] **Step 3.3**: Log in with citizen credentials.
-- [ ] **Expected**: Successfully redirects to `/citizen/requests`.
+- [ ] **Expected**: Successfully redirects to `/citizen/dashboard`.
 - [ ] **Step 3.4**: Attempt to navigate directly to `/admin/dashboard` while logged in as citizen.
-- [ ] **Expected**: Blocked by `RoleRoute` and automatically redirected back to `/citizen/requests`.
+- [ ] **Expected**: Blocked by `RoleRoute` and automatically redirected back to `/citizen/dashboard`.
 
 ---
 
@@ -74,3 +74,74 @@ Use this checklist to perform manual verification in a desktop or mobile browser
   - High-visibility focus outline (`2px solid var(--color-primary)`) wraps each input and button.
   - Pressing `Enter` on any button or inside an input submits the form.
   - Opening a modal traps focus; pressing `Escape` closes the modal.
+
+---
+
+### Test Suite 8: Citizen Dashboard & Completeness Banner
+- [ ] **Step 8.1**: Log in as a resident. Navigate to `/citizen/dashboard`.
+- [ ] **Expected**:
+  - Greeting card displays resident's full name.
+  - If profile lacks birthdate or gender, an amber banner warns *"Profile Incomplete (X%)"* with a direct link to `/citizen/profile`.
+  - Status summary metric cards display real-time counters (Pending, Processing, Ready, Completed).
+  - Recent requests table lists the 5 most recent submissions with direct link to view full details.
+
+---
+
+### Test Suite 9: Document Catalog & Request Submission
+- [ ] **Step 9.1**: Navigate to `/citizen/catalog`.
+- [ ] **Expected**: All active document types are displayed with their requirements, processing times, and fees. Clicking "Request Document" opens `/citizen/requests/new?doc=<id>`.
+- [ ] **Step 9.2**: On `/citizen/requests/new`, pre-filled profile information is loaded.
+- [ ] **Step 9.3**: Enter a purpose exceeding 500 characters or negative copies.
+- [ ] **Expected**: Client-side validator displays inline errors before submit.
+- [ ] **Step 9.4**: Adjust copies from 1 to 3.
+- [ ] **Expected**: Fee summary box dynamically recalculates total fee in real time.
+- [ ] **Step 9.5**: Upload an attachment (JPG, PNG, WEBP, or PDF up to 5MB).
+- [ ] **Step 9.6**: Submit the form.
+- [ ] **Expected**: Button enters loading state to prevent double submission. A confirmation screen appears displaying the generated Tracking Number (e.g., `QF-2026-XXXX`) with a "Copy Tracking Number" button and direct link to track.
+
+---
+
+### Test Suite 10: Request History & Status Filtering
+- [ ] **Step 10.1**: Navigate to `/citizen/requests`.
+- [ ] **Expected**: Paginated table/cards displaying all resident requests.
+- [ ] **Step 10.2**: Select status filter: "Pending".
+- [ ] **Expected**: List immediately filters to pending requests only.
+- [ ] **Step 10.3**: Change rows per page dropdown (10, 20, 50).
+- [ ] **Expected**: Pagination controls update accordingly.
+- [ ] **Step 10.4**: Click the "Copy" icon next to any tracking number.
+- [ ] **Expected**: Clipboard captures tracking number and icon briefly switches to a green checkmark reading "Copied".
+
+---
+
+### Test Suite 11: Request Detail, Live 8s Polling, & Secure Downloads
+- [ ] **Step 11.1**: Open `/citizen/requests/:trackingNumber`.
+- [ ] **Expected**:
+  - Visual status timeline shows stage progress (Submitted, Under Review, Approved, In Preparation, Ready for Pickup, Released).
+  - Fee and payment status badges are displayed.
+  - Attached documents are listed. Clicking "Download" retrieves file blob with Authorization header and triggers browser save dialog; object URL is cleanly revoked.
+- [ ] **Step 11.2**: In another browser tab as staff, approve or advance the request status.
+- [ ] **Expected**: Within 8 seconds, the citizen status detail page automatically updates without requiring a manual page refresh.
+- [ ] **Step 11.3**: While status is "pending", click "Cancel Request".
+- [ ] **Expected**: Modal prompts for cancellation reason. Submitting cancels the request and updates status to `cancelled`.
+
+---
+
+### Test Suite 12: Editing Pending Requests
+- [ ] **Step 12.1**: From a pending request detail view, click "Edit Request" or visit `/citizen/requests/:trackingNumber/edit`.
+- [ ] **Step 12.2**: Update the purpose, copies, or select "Replace existing attachments".
+- [ ] **Step 12.3**: Submit changes.
+- [ ] **Expected**: Redirects to detail view with updated data. If staff has advanced the request in the background, a 409 conflict alert is shown.
+
+---
+
+### Test Suite 13: Citizen Profile Completeness & Notifications
+- [ ] **Step 13.1**: Navigate to `/citizen/profile`.
+- [ ] **Expected**: Profile completeness progress bar displays calculated percentage score (0-100%).
+- [ ] **Step 13.2**: Click "Edit Profile", update personal and contact details, and save.
+- [ ] **Expected**: Profile saves successfully, user greeting in the top navigation updates, and completeness score recomputes.
+- [ ] **Step 13.3**: Navigate to `/citizen/notifications`.
+- [ ] **Expected**:
+  - Unread notifications show an unread dot and blue border.
+  - Header bell icon reflects current unread count.
+  - Clicking "Mark Read" updates notification state and decreases unread count.
+  - Clicking "Clear All" opens a modal; confirming purges notifications.

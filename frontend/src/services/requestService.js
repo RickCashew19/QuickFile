@@ -2,32 +2,59 @@ import { apiClient } from './apiClient';
 
 export const requestService = {
   /**
-   * Lightweight status polling
+   * Submits a new document request with multipart/form-data attachments
    */
-  async getStatus(trackingNumber) {
-    return apiClient.get(`/citizen/requests/${encodeURIComponent(trackingNumber)}/status`);
+  async createRequest(formData) {
+    return apiClient.post('/citizen/requests', formData);
   },
 
   /**
-   * Full request record
+   * Updates an existing request (only permitted while status is pending)
+   */
+  async updateRequest(trackingNumber, formData) {
+    return apiClient.put(`/citizen/requests/${encodeURIComponent(trackingNumber)}`, formData);
+  },
+
+  /**
+   * Cancels a pending request
+   */
+  async cancelRequest(trackingNumber, cancellationReason) {
+    return apiClient.post(`/citizen/requests/${encodeURIComponent(trackingNumber)}/cancel`, {
+      cancellation_reason: cancellationReason,
+    });
+  },
+
+  /**
+   * Retrieves single request details by tracking number
    */
   async getRequest(trackingNumber) {
     return apiClient.get(`/citizen/requests/${encodeURIComponent(trackingNumber)}`);
   },
 
   /**
-   * List citizen requests
+   * Lightweight status polling endpoint
    */
-  async listRequests(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    const endpoint = `/citizen/requests${query ? `?${query}` : ''}`;
-    return apiClient.get(endpoint);
+  async getStatus(trackingNumber) {
+    return apiClient.get(`/citizen/requests/${encodeURIComponent(trackingNumber)}/status`);
   },
 
   /**
-   * Catalog of active document types
+   * Lists citizen requests with pagination and optional status filter
    */
-  async getCatalog() {
-    return apiClient.get('/citizen/catalog');
+  async listRequests(params = {}) {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', params.page);
+    if (params.limit) query.set('limit', params.limit);
+    if (params.status && params.status !== 'all') query.set('status', params.status);
+
+    const qs = query.toString();
+    return apiClient.get(`/citizen/requests${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Downloads an attachment blob securely with token
+   */
+  async downloadAttachment(storedFilename) {
+    return apiClient.download(`/files/attachments/${encodeURIComponent(storedFilename)}`);
   },
 };

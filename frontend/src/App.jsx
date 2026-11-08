@@ -19,6 +19,16 @@ import { ResetPasswordPage } from './pages/public/ResetPasswordPage';
 import { PublicVerifyPage } from './pages/public/PublicVerifyPage';
 import { NotFoundPage } from './pages/public/NotFoundPage';
 
+// Citizen Portal Pages
+import { CitizenDashboardPage } from './pages/citizen/dashboard/CitizenDashboardPage';
+import { CitizenCatalogPage } from './pages/citizen/catalog/CitizenCatalogPage';
+import { CitizenNewRequestPage } from './pages/citizen/requests/CitizenNewRequestPage';
+import { CitizenHistoryPage } from './pages/citizen/requests/CitizenHistoryPage';
+import { CitizenRequestDetailPage } from './pages/citizen/requests/CitizenRequestDetailPage';
+import { CitizenEditRequestPage } from './pages/citizen/requests/CitizenEditRequestPage';
+import { CitizenProfilePage } from './pages/citizen/profile/CitizenProfilePage';
+import { CitizenNotificationsPage } from './pages/citizen/notifications/CitizenNotificationsPage';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -73,23 +83,14 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="/citizen/dashboard" replace />} />
-          <Route
-            path="dashboard"
-            element={
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Citizen Dashboard</h2>
-                <p>Citizen portal modules are being loaded.</p>
-              </div>
-            }
-          />
-          <Route
-            path="requests"
-            element={
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Request History</h2>
-              </div>
-            }
-          />
+          <Route path="dashboard" element={<CitizenDashboardPage />} />
+          <Route path="catalog" element={<CitizenCatalogPage />} />
+          <Route path="requests" element={<CitizenHistoryPage />} />
+          <Route path="requests/new" element={<CitizenNewRequestPage />} />
+          <Route path="requests/:trackingNumber" element={<CitizenRequestDetailPage />} />
+          <Route path="requests/:trackingNumber/edit" element={<CitizenEditRequestPage />} />
+          <Route path="profile" element={<CitizenProfilePage />} />
+          <Route path="notifications" element={<CitizenNotificationsPage />} />
         </Route>
 
         {/* Staff Portal Shell */}

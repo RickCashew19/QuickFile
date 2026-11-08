@@ -1,0 +1,69 @@
+.qf-request-form-card {
+  max-width: 720px;
+  margin: 0 auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-sm);
+}
+
+.qf-fee-summary-box {
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.qf-fee-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  margin-bottom: var(--space-2);
+}
+
+.qf-fee-summary-total {
+  font-size: var(--font-lg);
+  font-weight: var(--font-bold);
+  color: var(--color-primary);
+}
+
+.qf-fee-disclaimer {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: var(--space-2);
+}
+
+.qf-success-card {
+  max-width: 580px;
+  margin: var(--space-12) auto;
+  text-align: center;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md);
+}
+
+.qf-success-tracking-box {
+  background-color: var(--color-primary-light);
+  border: 1px dashed var(--color-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin: var(--space-6) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.qf-success-tracking-number {
+  font-family: var(--font-mono);
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-primary);
+}

@@ -1,0 +1,97 @@
+.qf-detail-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 840px) {
+  .qf-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qf-detail-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.qf-timeline {
+  list-style: none;
+  position: relative;
+  padding-left: var(--space-6);
+}
+
+.qf-timeline::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 8px;
+  width: 2px;
+  background-color: var(--color-border);
+}
+
+.qf-timeline-item {
+  position: relative;
+  margin-bottom: var(--space-6);
+}
+
+.qf-timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.qf-timeline-node {
+  position: absolute;
+  left: -24px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qf-timeline-item--completed .qf-timeline-node {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-text-inverse);
+}
+
+.qf-timeline-item--current .qf-timeline-node {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.qf-timeline-item--rejected .qf-timeline-node,
+.qf-timeline-item--cancelled .qf-timeline-node {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.qf-timeline-title {
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+
+.qf-timeline-time {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+}
+
+.qf-timeline-note {
+  font-size: var(--font-xs);
+  color: var(--color-danger);
+  background-color: var(--color-danger-bg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+}

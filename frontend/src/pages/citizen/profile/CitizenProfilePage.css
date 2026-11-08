@@ -1,0 +1,199 @@
+.qf-profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.qf-profile-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .qf-profile-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.qf-profile-title {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.qf-profile-subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.qf-profile-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-12) 0;
+}
+
+/* Completeness Progress Card */
+.qf-completeness-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-6);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.qf-completeness-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.qf-completeness-title {
+  font-size: var(--font-base);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+
+.qf-completeness-subtitle {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0 0;
+}
+
+.qf-completeness-percentage {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-primary);
+}
+
+.qf-completeness-bar {
+  width: 100%;
+  height: 10px;
+  background-color: var(--color-bg-alt);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.qf-completeness-bar__fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.qf-completeness-bar__fill--low {
+  background-color: var(--color-warning);
+}
+
+.qf-completeness-bar__fill--medium {
+  background-color: #3b82f6;
+}
+
+.qf-completeness-bar__fill--high {
+  background-color: var(--color-success);
+}
+
+/* Sections */
+.qf-profile-section {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.qf-profile-section__header {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.qf-profile-section__title {
+  font-size: var(--font-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.qf-profile-section__desc {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.qf-profile-section__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .qf-profile-section__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Field styling for selects */
+.qf-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qf-field-label {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+}
+
+.qf-required {
+  color: var(--color-danger);
+  font-weight: var(--font-bold);
+}
+
+.qf-select-control {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.qf-select-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.qf-select-control:disabled {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.qf-field-error {
+  font-size: var(--font-xs);
+  color: var(--color-danger);
+}
+
+/* Actions */
+.qf-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0;
+}
