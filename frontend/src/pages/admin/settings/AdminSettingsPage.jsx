@@ -272,7 +272,7 @@ export function AdminSettingsPage() {
               <div>Active Client Secret: <code>{integrations.google?.client_secret || 'Not configured'}</code></div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="qf-grid-2col">
               <Input
                 label="Custom Google Client ID"
                 placeholder="Enter client ID to override..."
@@ -332,7 +332,7 @@ export function AdminSettingsPage() {
               <div>Active API Token: <code>{integrations.sms?.api_token || 'Not configured'}</code></div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="qf-grid-2col">
               <Input
                 label="Custom Gateway URL"
                 placeholder="https://..."
@@ -393,7 +393,7 @@ export function AdminSettingsPage() {
               <div>Password: <code>{integrations.smtp?.pass || '••••••'}</code></div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="qf-grid-2col">
               <Input
                 label="Custom SMTP Host"
                 placeholder="smtp.example.com"
@@ -477,7 +477,7 @@ export function AdminSettingsPage() {
               <div>Secret Key: <code>{integrations.recaptcha?.secret_key || 'Not configured'}</code></div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="qf-grid-2col">
               <Input
                 label="Custom Site Key"
                 placeholder="6LeIxacTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
@@ -522,7 +522,7 @@ export function AdminSettingsPage() {
             Barangay Profile & Certificate Signatories
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="qf-grid-2col">
             <Input
               label="System Name"
               value={generalDraft.system_name}
@@ -537,7 +537,7 @@ export function AdminSettingsPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="qf-grid-2col">
             <Input
               label="Barangay Captain (Official Signatory)"
               value={generalDraft.barangay_captain}
@@ -552,7 +552,7 @@ export function AdminSettingsPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="qf-grid-2col">
             <Input
               label="Official Contact Email"
               type="email"

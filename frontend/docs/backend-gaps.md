@@ -36,3 +36,21 @@ This document records any discrepancies between what frontend screens ideally pr
 - **Missing Capability**: While citizens have `PUT /api/v1/citizen/profile`, there are no self-service profile update endpoints for staff or admin accounts (only `GET /api/v1/auth/me` exists for reading profile information).
 - **Frontend Workaround**:
   For Staff and Admin users, the Profile modal displays their account details (name, position, department, assigned permissions) as read-only. Staff profile changes are administered through `AdminStaffManagementPage` (`PUT /api/v1/admin/staff/:id`). Password changes can be accomplished via `/forgot-password`.
+
+---
+
+### Gap 5: Super Admin Key Authorization (401) vs JWT Session Expiration (401)
+- **Endpoint**: `PATCH /api/v1/admin/settings`
+- **Observation**:
+  When an administrator inputs an invalid Super Admin Key during settings modification or credential reset, the backend throws an authentication error with status `401 Unauthorized` and message *"Invalid Super Admin Key. X attempt(s) remaining before lockout."* Under standard frontend interceptor rules, any 401 response invalidates the session and logs the user out.
+- **Frontend Workaround**:
+  In `frontend/src/services/apiClient.js`, `/admin/settings` is explicitly identified as a Super Admin step-up verification endpoint. 401 responses on this endpoint do not purge tokens or trigger session expiration. The `ApiError` is returned directly to `AdminSettingsPage` and `SuperAdminKeyModal`, displaying the remaining attempt count to the administrator while preserving their session.
+
+---
+
+### Gap 6: Document Type Deletion Blocked by Existing Request References
+- **Endpoint**: `DELETE /api/v1/admin/document-types/:id`
+- **Observation**:
+  If a document type has even one historical filing in the barangay database, the backend blocks hard deletion with a 400 error: *"Cannot delete document type because X existing request(s) reference it. Please deactivate it instead."*
+- **Frontend Workaround**:
+  `AdminDocTypesPage` provides an immediate, one-click "Deactivate" / "Activate" toggle button right next to "Edit" and "Delete". In addition, when hard deletion is attempted and rejected by the backend constraint, a descriptive alert recommends deactivating the document type so historical audit integrity is preserved while hiding the certificate from future citizen filings.

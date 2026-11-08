@@ -119,7 +119,7 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
           />
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div className="qf-grid-2col">
           <Input
             label="Employee ID"
             name="employee_id"
@@ -136,7 +136,7 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div className="qf-grid-2col">
           <Input
             label="Position"
             name="position"

@@ -115,7 +115,7 @@ export function DocTypeFormModal({ isOpen, onClose, onSave, docType = null, isSa
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {error && <Alert variant="danger">{error}</Alert>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
+        <div className="qf-grid-2col">
           <Input
             label="Document Name"
             name="name"
@@ -143,7 +143,7 @@ export function DocTypeFormModal({ isOpen, onClose, onSave, docType = null, isSa
           placeholder="Brief description of the document purpose"
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div className="qf-grid-2col">
           <Input
             label="Standard Fee (PHP)"
             name="fee"

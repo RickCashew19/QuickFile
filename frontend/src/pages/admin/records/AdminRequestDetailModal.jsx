@@ -31,7 +31,7 @@ export function AdminRequestDetailModal({ isOpen, onClose, request }) {
           <StatusBadge status={request.status} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div className="qf-grid-2col">
           <div>
             <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>Citizen</div>
             <div style={{ fontWeight: 'var(--font-medium)' }}>{request.citizen_id?.full_name || request.citizen_name || '—'}</div>
