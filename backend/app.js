@@ -52,6 +52,7 @@ const corsOptions = {
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['Content-Disposition', 'X-Export-Truncated', 'Retry-After'],
 };
 app.use(cors(corsOptions));
 

@@ -783,8 +783,45 @@ async function runTests() {
   console.log('PASS: All 6 sample export files successfully generated in backend/export-samples/.');
   console.log('--------------------------------------------------------------------\n');
 
+  // ------------------------------------------------------------------
+  // TEST 11: CORS exposedHeaders on Report Export
+  // ------------------------------------------------------------------
+  console.log('[TEST 11] Testing CORS exposedHeaders on Report Export route...');
+  exportLimiter.resetKey(adminUser._id.toString());
+  const corsExportRes = await apiRequest(
+    'GET',
+    '/api/v1/admin/reports/export?format=xlsx&from=2026-06-01&to=2026-06-02',
+    {
+      Authorization: `Bearer ${adminToken}`,
+      Origin: 'http://localhost:5173',
+    },
+    null,
+    true
+  );
+
+  assert(corsExportRes.status === 200, `Export request with allowed Origin should return 200 (got ${corsExportRes.status})`);
+  const exposeHeadersHeader = corsExportRes.headers['access-control-expose-headers'] || '';
+  const normalizedExposeHeaders = exposeHeadersHeader.toLowerCase();
+
+  assert(
+    normalizedExposeHeaders.includes('content-disposition'),
+    `access-control-expose-headers must include Content-Disposition (got: "${exposeHeadersHeader}")`
+  );
+  assert(
+    normalizedExposeHeaders.includes('x-export-truncated'),
+    `access-control-expose-headers must include X-Export-Truncated (got: "${exposeHeadersHeader}")`
+  );
+  assert(
+    normalizedExposeHeaders.includes('retry-after'),
+    `access-control-expose-headers must include Retry-After (got: "${exposeHeadersHeader}")`
+  );
+
+  console.log('PASS: CORS correctly exposes Content-Disposition, X-Export-Truncated, and Retry-After.');
+  console.log(`      Header value: "${exposeHeadersHeader}"`);
+  console.log('--------------------------------------------------------------------\n');
+
   console.log('====================================================================');
-  console.log('ALL 10 PHASE 2, PART 3 (REPORT EXPORTS & FIX ROUND) TESTS PASSED!');
+  console.log('ALL 11 PHASE 2, PART 3 (REPORT EXPORTS & FIX ROUND) TESTS PASSED!');
   console.log('====================================================================');
 
   await new Promise((resolve) => server.close(resolve));
