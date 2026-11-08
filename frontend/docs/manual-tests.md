@@ -145,3 +145,122 @@ Use this checklist to perform manual verification in a desktop or mobile browser
   - Header bell icon reflects current unread count.
   - Clicking "Mark Read" updates notification state and decreases unread count.
   - Clicking "Clear All" opens a modal; confirming purges notifications.
+
+---
+
+### Test Suite 14: Staff Dashboard & Live 15s Polling
+- [ ] **Step 14.1**: Log in with staff credentials (`staff@quickfile.gov.ph`). Navigate to `/staff/dashboard`.
+- [ ] **Expected**:
+  - Staff workspace header welcomes staff member by full name.
+  - KPI summary stat cards display counts for Pending Review, Under Review, In Preparation, and Ready for Pickup.
+  - Quick action shortcuts (Review Queue, Walk-In Filing, QR Scanner, Reports) are displayed according to staff permissions.
+  - Recent document requests table is populated.
+- [ ] **Step 14.2**: In another browser window as citizen, file a new document request.
+- [ ] **Expected**: Within 15 seconds, the staff dashboard live polling updates the pending counter without manual page reload.
+
+---
+
+### Test Suite 15: Staff Request Queue & Filtering
+- [ ] **Step 15.1**: Navigate to `/staff/requests`.
+- [ ] **Expected**: Request queue table displays Tracking Number, Resident Name/Email, Document Type, Copies, Status Badge, and Date Requested.
+- [ ] **Step 15.2**: Filter by status: "Pending".
+- [ ] **Expected**: Only pending applications are listed.
+- [ ] **Step 15.3**: Filter by specific Document Type (e.g. "Barangay Clearance") and search by resident name.
+- [ ] **Expected**: List filters dynamically; clicking "Reset Filters" clears all inputs and returns to full listing.
+- [ ] **Step 15.4**: Click "View Details" on any request.
+- [ ] **Expected**: Opens `/staff/requests/:id`.
+
+---
+
+### Test Suite 16: Staff Document Processing Workflow & 409 Conflict Handling
+- [ ] **Step 16.1**: Open a pending request at `/staff/requests/:id`.
+- [ ] **Expected**:
+  - Applicant personal details, stated purpose, copies, fee, and attachments are displayed.
+  - Staff Action Bar displays "Start Review" and "Reject" (guarded by `can_review_requests`).
+- [ ] **Step 16.2**: Click "Start Review".
+- [ ] **Expected**: Status transitions to `Under Review`. Action Bar now shows "Approve Application" and "Reject".
+- [ ] **Step 16.3**: Add an internal processing note in the sidebar notes section.
+- [ ] **Expected**: Note is appended with timestamp and staff member attribution; note is flagged as staff-only and never leaked to citizen.
+- [ ] **Step 16.4**: Click "Approve Application".
+- [ ] **Expected**: Status transitions to `Approved`. Action Bar displays "Prepare Document".
+- [ ] **Step 16.5**: Click "Prepare Document".
+- [ ] **Expected**: Status transitions to `In Preparation`. Action Bar displays "Issue & Generate Certificate".
+- [ ] **Step 16.6**: Click "Issue & Generate Certificate".
+- [ ] **Expected**: Status transitions to `Ready for Pickup`. IssuedDocument is created with certificate number and verification QR code.
+- [ ] **Step 16.7 (409 Conflict Recovery)**: In a second tab/session, advance the request state or have another user change it. Return to first tab and click an action.
+- [ ] **Expected**: Catch handler detects 409 Conflict, displays an amber banner: *"This request was updated by another staff member. Reloading latest state..."*, and automatically refetches the latest request details.
+- [ ] **Step 16.8**: Click "Release Document".
+- [ ] **Expected**: Release modal appears. For fee-bearing documents, staff can confirm payment collected (with optional OR #) or fee waiver (with required waiver reason). Confirming transitions status to `Released`.
+- [ ] **Step 16.9**: Click "Archive Record".
+- [ ] **Expected**: Transitions terminal request status to `Archived`.
+
+---
+
+### Test Suite 17: Official Certificate Print Layout & Print CSS
+- [ ] **Step 17.1**: From a request in `Ready for Pickup` or `Released` status, click "Print Certificate" or visit `/staff/requests/:id/print`.
+- [ ] **Expected**:
+  - Official Certificate Paper layout renders with Republic of the Philippines, Province, City/Municipality, Barangay Name, and Office of the Barangay Captain.
+  - Citizen name, civil status, address, purpose, and date issued are formatted into official certificate text.
+  - Official cryptographic verification QR code image and verification code are displayed.
+  - Signatory blocks display certified/noted lines with Barangay Secretary and Barangay Captain names.
+  - Top control bar provides "Print Certificate" and "Back to Request" buttons.
+- [ ] **Step 17.2**: Click "Print Certificate" or trigger browser print preview (`Ctrl+P` / `Cmd+P`).
+- [ ] **Expected**:
+  - All navigation headers, sidebars, drawers, buttons, and control bars are completely hidden (`display: none !important`).
+  - Only the crisp official certificate paper sheet is formatted for standard print output.
+- [ ] **Step 17.3**: If signatories are not configured in backend settings.
+- [ ] **Expected**: 409 error is caught and a warning alert explains that Barangay Captain and Secretary must be configured in Settings before printing.
+
+---
+
+### Test Suite 18: Staff Walk-In Filing & Resident Search
+- [ ] **Step 18.1**: Navigate to `/staff/requests/walk-in`.
+- [ ] **Expected**: Walk-in form displays Step 1 (Resident Identification), Step 2 (Document Specifications), and Step 3 (Attachments).
+- [ ] **Step 18.2**: In Resident Search input, type fewer than 3 characters.
+- [ ] **Expected**: Search does not trigger.
+- [ ] **Step 18.3**: Type at least 3 characters (e.g. "Mar").
+- [ ] **Expected**: Dropdown list of matching registered resident citizens appears showing full name, email, and phone.
+- [ ] **Step 18.4**: Select a resident.
+- [ ] **Expected**: Selected resident is locked into a resident summary chip with a "Change Resident" button.
+- [ ] **Step 18.5**: Select document type, enter purpose, copies, and optionally drop up to 3 requirement files into `FileDropzone`.
+- [ ] **Step 18.6**: Click "Create Walk-In Request".
+- [ ] **Expected**: Walk-in request is created and user is redirected to the new request detail page.
+
+---
+
+### Test Suite 19: Staff QR Scanner & Audit Verification
+- [ ] **Step 19.1**: Navigate to `/staff/verify`.
+- [ ] **Expected**: Camera scanner prompt and manual verification code input fallback form are displayed.
+- [ ] **Step 19.2**: Click "Start Camera Scanner" on a camera-capable device or enter a valid verification code in the manual input fallback.
+- [ ] **Step 19.3**: Submit code.
+- [ ] **Expected**:
+  - Calls `GET /api/v1/staff/verify/:code`.
+  - Comprehensive audit card renders showing Document Title, Resident Name, Certificate Number, Verification Code, Issuing Staff Member, and Tracking Number.
+  - Validity badge shows `VALID` (green), `EXPIRED` (amber), or `REVOKED` (red).
+  - Status transition audit history timeline is displayed.
+  - "Scan Another Document" button resets the view.
+
+---
+
+### Test Suite 20: Reports & Analytics (PDF, Word, Excel Exports)
+- [ ] **Step 20.1**: Navigate to `/staff/reports`.
+- [ ] **Expected**:
+  - Summary KPI cards display Total Requests, Released Documents, Rejected Requests, Collected Revenue, and Waived Requests.
+  - Breakdown table displays volume and revenue per Document Type.
+  - Top action group contains three export buttons: "Export PDF", "Export Word (.docx)", and "Export Excel (.xlsx)".
+- [ ] **Step 20.2**: Click "Export PDF".
+- [ ] **Expected**: Button shows loading spinner. File downloads automatically with filename `quickfile_export_...pdf`.
+- [ ] **Step 20.3**: Click "Export Word (.docx)".
+- [ ] **Expected**: Downloads Word document (`.docx`).
+- [ ] **Step 20.4**: Click "Export Excel (.xlsx)".
+- [ ] **Expected**: Downloads Excel spreadsheet (`.xlsx`).
+
+---
+
+### Test Suite 21: Historical Records Repository & Archiving
+- [ ] **Step 21.1**: Navigate to `/staff/records`.
+- [ ] **Expected**: Table displays completed and archived records (released and archived statuses only; pending/review never appear).
+- [ ] **Step 21.2**: Filter between "Released Only" and "Archived Only".
+- [ ] **Expected**: List filters accordingly.
+- [ ] **Step 21.3**: For a record in `Released` status, click "Archive".
+- [ ] **Expected**: Record transitions to `Archived` and status badge updates.

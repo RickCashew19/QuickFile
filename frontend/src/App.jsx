@@ -2,7 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PublicRoute } from './components/guards/PublicRoute';
 import { RoleRoute } from './components/guards/RoleRoute';
-import { ROLES } from './config/constants';
+import { PermissionRoute } from './components/guards/PermissionRoute';
+import { ROLES, STAFF_PERMISSIONS } from './config/constants';
 
 // Layout Shells
 import { PublicLayout } from './components/layout/PublicLayout';
@@ -28,6 +29,16 @@ import { CitizenRequestDetailPage } from './pages/citizen/requests/CitizenReques
 import { CitizenEditRequestPage } from './pages/citizen/requests/CitizenEditRequestPage';
 import { CitizenProfilePage } from './pages/citizen/profile/CitizenProfilePage';
 import { CitizenNotificationsPage } from './pages/citizen/notifications/CitizenNotificationsPage';
+
+// Staff Portal Pages
+import { StaffDashboardPage } from './pages/staff/dashboard/StaffDashboardPage';
+import { StaffQueuePage } from './pages/staff/queue/StaffQueuePage';
+import { StaffRequestDetailPage } from './pages/staff/queue/StaffRequestDetailPage';
+import { StaffWalkInPage } from './pages/staff/walkin/StaffWalkInPage';
+import { CertificatePrintPage } from './pages/staff/print/CertificatePrintPage';
+import { StaffRecordsPage } from './pages/staff/records/StaffRecordsPage';
+import { StaffVerifyPage } from './pages/staff/verify/StaffVerifyPage';
+import { StaffReportsPage } from './pages/staff/reports/StaffReportsPage';
 
 export default function App() {
   return (
@@ -103,13 +114,61 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="/staff/dashboard" replace />} />
+          <Route path="dashboard" element={<StaffDashboardPage />} />
           <Route
-            path="dashboard"
+            path="requests"
             element={
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Staff Workspace</h2>
-                <p>Staff document queues and walk-in modules are active in Phase F3.</p>
-              </div>
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS}>
+                <StaffQueuePage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="requests/walk-in"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_PREPARE_DOCUMENTS}>
+                <StaffWalkInPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="requests/:id"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS}>
+                <StaffRequestDetailPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="requests/:id/print"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS}>
+                <CertificatePrintPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="records"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS}>
+                <StaffRecordsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="verify"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_VERIFY_QR}>
+                <StaffVerifyPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <PermissionRoute permission={STAFF_PERMISSIONS.CAN_VIEW_REPORTS}>
+                <StaffReportsPage />
+              </PermissionRoute>
             }
           />
         </Route>

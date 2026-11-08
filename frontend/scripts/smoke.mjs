@@ -460,6 +460,249 @@ function startContractMockServer() {
           return res.end(JSON.stringify({ success: true, message: 'Citizen account deleted successfully.', data: null }));
         }
 
+        // 6. Staff APIs (Phase F3 Contract Mock Handlers)
+        let mockStaffRequestState = {
+          _id: 'mock_staff_req_123',
+          tracking_number: 'QF-2026-STAFF01',
+          status: 'pending',
+          document_type_id: { _id: 'doc_type_clearance', name: 'Barangay Clearance', code: 'BC' },
+          citizen_id: { _id: 'mock_citizen_id', full_name: 'Maria Santos', email: 'citizen@quickfile.gov.ph', phone: '09123456789' },
+          purpose: 'Employment Verification',
+          copies: 1,
+          fee: 50,
+          payment_status: 'unpaid',
+          processing_notes: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        if (url === '/api/v1/staff/dashboard' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Staff dashboard summary retrieved successfully.',
+              data: {
+                kpis: { pending_requests: 1, under_review: 0, in_preparation: 0, ready_for_pickup: 0 },
+                recent_requests: [mockStaffRequestState],
+              },
+            })
+          );
+        }
+
+        if (url === '/api/v1/staff/requests/live-stats' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Live request stats retrieved.',
+              data: { pending: 1, under_review: 0, in_preparation: 0, ready_for_pickup: 0 },
+            })
+          );
+        }
+
+        if ((url.startsWith('/api/v1/staff/requests?') || url === '/api/v1/staff/requests') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Staff document requests retrieved successfully.',
+              data: {
+                requests: [mockStaffRequestState],
+                pagination: { total_items: 1, page: 1, limit: 15, total_pages: 1 },
+              },
+            })
+          );
+        }
+
+        if (url.startsWith('/api/v1/staff/residents') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Matching resident citizens retrieved.',
+              data: [
+                { _id: 'mock_citizen_id', full_name: 'Maria Santos', email: 'citizen@quickfile.gov.ph', phone: '09123456789' },
+              ],
+            })
+          );
+        }
+
+        if (url === '/api/v1/staff/requests/walk-in' && method === 'POST') {
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Walk-in document request created successfully.',
+              data: {
+                _id: 'mock_walkin_req_id',
+                tracking_number: 'QF-2026-WALK01',
+                status: 'pending',
+              },
+            })
+          );
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/notes$/) && method === 'POST') {
+          const parsed = JSON.parse(body || '{}');
+          mockStaffRequestState.processing_notes = `[${new Date().toISOString()}] Staff User: ${parsed.note || ''}`;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Staff note appended successfully.',
+              data: {
+                processing_notes: mockStaffRequestState.processing_notes,
+                appended_note: parsed.note,
+              },
+            })
+          );
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/review$/) && method === 'POST') {
+          mockStaffRequestState.status = 'under_review';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Request moved to UNDER_REVIEW successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/approve$/) && method === 'POST') {
+          mockStaffRequestState.status = 'approved';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Request APPROVED successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/prepare$/) && method === 'POST') {
+          mockStaffRequestState.status = 'in_preparation';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Request moved to IN_PREPARATION successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/issue$/) && method === 'POST') {
+          mockStaffRequestState.status = 'ready_for_pickup';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Document issued successfully and marked READY_FOR_PICKUP.',
+              data: {
+                request: mockStaffRequestState,
+                issued_document: {
+                  certificate_number: 'BC-2026-0001',
+                  verification_code: 'SMOKE-VERIFY-1234567890',
+                },
+              },
+            })
+          );
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/print-data$/) && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Official certificate print data retrieved successfully.',
+              data: {
+                barangay: {
+                  barangay_name: 'San Isidro',
+                  city_municipality: 'Makati City',
+                  province: 'Metro Manila',
+                  office_name: 'Office of the Barangay Captain',
+                  captain_name: 'Capt Antonio Luna',
+                  secretary_name: 'Sec Emilio Aguinaldo',
+                },
+                citizen: { full_name: 'Maria Santos' },
+                document: { name: 'Barangay Clearance' },
+                issued_document: {
+                  certificate_number: 'BC-2026-0001',
+                  verification_code: 'SMOKE-VERIFY-1234567890',
+                  qr_code_image: 'data:image/png;base64,mockQr',
+                },
+              },
+            })
+          );
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/release$/) && method === 'POST') {
+          mockStaffRequestState.status = 'released';
+          mockStaffRequestState.payment_status = 'paid';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Document request RELEASED successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+\/archive$/) && method === 'POST') {
+          mockStaffRequestState.status = 'archived';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Document request ARCHIVED successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.match(/\/api\/v1\/staff\/requests\/[^/?#]+$/) && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Staff request details retrieved successfully.', data: mockStaffRequestState }));
+        }
+
+        if (url.startsWith('/api/v1/staff/records') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Archived and released records retrieved successfully.',
+              data: {
+                requests: [mockStaffRequestState],
+                pagination: { total_items: 1, page: 1, limit: 15, total_pages: 1 },
+              },
+            })
+          );
+        }
+
+        if (url.startsWith('/api/v1/staff/verify/') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Staff document verification verified and logged.',
+              data: {
+                certificate_number: 'BC-2026-0001',
+                verification_code: 'SMOKE-VERIFY-1234567890',
+                validity_status: 'valid',
+                document_name: 'Barangay Clearance',
+                issued_to_name: 'Maria Santos',
+                tracking_number: 'QF-2026-STAFF01',
+                issuing_staff_name: 'Staff User',
+              },
+            })
+          );
+        }
+
+        if (url.startsWith('/api/v1/staff/reports/export') && method === 'GET') {
+          const format = url.includes('format=docx') ? 'docx' : url.includes('format=xlsx') ? 'xlsx' : 'pdf';
+          const mimeTypes = {
+            pdf: 'application/pdf',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          };
+          res.setHeader('Content-Type', mimeTypes[format]);
+          res.setHeader('Content-Disposition', `attachment; filename="quickfile_export.${format}"`);
+          res.writeHead(200);
+          return res.end(Buffer.from(`Mock ${format} export content`));
+        }
+
+        if (url.startsWith('/api/v1/staff/reports') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Aggregated reports generated successfully.',
+              data: {
+                summary: { total_requests: 10, released_count: 8, rejected_count: 1, total_revenue: 500, waived_count: 1, waived_amount: 50 },
+                by_document_type: [
+                  { document_code: 'BC', document_name: 'Barangay Clearance', count: 10, unit_fee: 50, collected_amount: 450 },
+                ],
+                by_status: [{ status: 'released', count: 8 }],
+              },
+            })
+          );
+        }
+
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, message: 'Not found' }));
       });
@@ -639,6 +882,7 @@ async function main() {
   const throwawayEmail = `smoke_citizen_${randomSuffix}@quickfile.gov.ph`;
   let throwawayToken = null;
   let throwawayUserId = null;
+  let firstDocTypeId = null;
   let createdTrackingNumber = null;
   let attachmentStoredName = null;
 
@@ -662,6 +906,7 @@ async function main() {
     const { res, json } = await api('/citizen/catalog', 'GET', null, throwawayToken);
     if (!res.ok || !Array.isArray(json.data)) throw new Error('Failed to retrieve catalog');
     if (json.data.length === 0) throw new Error('Catalog is empty');
+    firstDocTypeId = json.data[0]._id || json.data[0].id;
   });
 
   await runCheck('GET /citizen/profile returns profile & completeness score', async () => {
@@ -789,6 +1034,181 @@ async function main() {
   await runCheck('DELETE /admin/citizens/:id cleans up throwaway resident account', async () => {
     const { res, json } = await api(`/admin/citizens/${throwawayUserId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
     if (!res.ok || json.success !== true) throw new Error(`Admin delete citizen failed: ${json?.message}`);
+  });
+
+  // ==========================================
+  // 4. Staff Portal Operations & Full Lifecycle Workflow
+  // ==========================================
+  console.log('\n--- 4. Staff Portal Operations & Full Lifecycle Workflow ---');
+
+  await runCheck('GET /staff/dashboard returns KPI summary and recent requests', async () => {
+    const { res, json } = await api('/staff/dashboard', 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!json.data?.kpis) throw new Error('Missing kpis on staff dashboard');
+  });
+
+  await runCheck('GET /staff/requests/live-stats returns real-time count metrics', async () => {
+    const { res, json } = await api('/staff/requests/live-stats', 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (json.data?.pending === undefined) throw new Error('Missing pending count in live-stats');
+  });
+
+  await runCheck('GET /staff/requests lists requests with status and pagination filters', async () => {
+    const { res, json } = await api('/staff/requests?page=1&limit=15&status=all', 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!Array.isArray(json.data?.requests)) throw new Error('requests expected to be an array');
+  });
+
+  await runCheck('GET /staff/residents searches active residents (min 3 chars)', async () => {
+    const { res, json } = await api('/staff/residents?search=Maria', 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!Array.isArray(json.data)) throw new Error('Residents expected to be an array');
+  });
+
+  let staffWorkflowReqId = null;
+  await runCheck('POST /staff/requests/walk-in files walk-in request on behalf of resident', async () => {
+    // If running against real backend, look up an existing citizen; fallback to mock_citizen_id
+    const resRes = await api('/staff/residents?search=Maria', 'GET', null, staffToken);
+    const residentCitizenId = resRes.json?.data?.[0]?._id || 'mock_citizen_id';
+
+    const catRes = await api('/citizen/catalog', 'GET', null, staffToken);
+    const catalogDocTypeId = catRes.json?.data?.[0]?._id || firstDocTypeId || 'doc_type_clearance';
+
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
+    const bodyBuffer = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="citizen_id"\r\n\r\n${residentCitizenId}\r\n` +
+      `--${boundary}\r\nContent-Disposition: form-data; name="document_type_id"\r\n\r\n${catalogDocTypeId}\r\n` +
+      `--${boundary}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\nWalk-In Job Application Purpose\r\n` +
+      `--${boundary}\r\nContent-Disposition: form-data; name="copies"\r\n\r\n1\r\n` +
+      `--${boundary}--\r\n`,
+      'utf-8'
+    );
+
+    const res = await fetch(`${targetUrl}/staff/requests/walk-in`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Authorization': `Bearer ${staffToken}`,
+      },
+      body: bodyBuffer,
+    });
+    const json = await res.json();
+    if (!res.ok || json.success !== true) throw new Error(`Create walk-in failed (${res.status}): ${json?.message}`);
+    staffWorkflowReqId = json.data._id;
+  });
+
+  // Seeded request workflow: detail -> notes -> review -> approve -> prepare -> issue -> print-data -> release -> archive
+  await runCheck('GET /staff/requests/:id returns staff details with internal notes', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}`, 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Get staff request details failed: ${json?.message}`);
+  });
+
+  await runCheck('POST /staff/requests/:id/notes appends internal processing note', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/notes`, 'POST', {
+      note: 'Verified requirements against resident physical records.',
+    }, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Append note failed: ${json?.message}`);
+  });
+
+  await runCheck('POST /staff/requests/:id/review transitions pending -> under_review', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/review`, 'POST', {}, staffToken);
+    if (!res.ok || json.data?.status !== 'under_review') throw new Error(`Review failed: ${json?.message}`);
+  });
+
+  await runCheck('POST /staff/requests/:id/approve transitions under_review -> approved', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/approve`, 'POST', {}, staffToken);
+    if (!res.ok || json.data?.status !== 'approved') throw new Error(`Approve failed: ${json?.message}`);
+  });
+
+  await runCheck('POST /staff/requests/:id/prepare transitions approved -> in_preparation', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/prepare`, 'POST', {}, staffToken);
+    if (!res.ok || json.data?.status !== 'in_preparation') throw new Error(`Prepare failed: ${json?.message}`);
+  });
+
+  let issuedCertCode = null;
+  await runCheck('POST /staff/requests/:id/issue transitions in_preparation -> ready_for_pickup and generates certificate', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/issue`, 'POST', {}, staffToken);
+    if (!res.ok || json.data?.request?.status !== 'ready_for_pickup') throw new Error(`Issue failed: ${json?.message}`);
+    issuedCertCode = json.data?.issued_document?.verification_code;
+    if (!issuedCertCode) throw new Error('Issued document verification code is missing');
+  });
+
+  await runCheck('GET /staff/requests/:id/print-data returns official certificate layout, signatories, and QR code', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/print-data`, 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Print data failed: ${json?.message}`);
+    if (!json.data?.barangay || !json.data?.issued_document?.qr_code_image) {
+      throw new Error('Print data missing barangay or qr_code_image');
+    }
+  });
+
+  await runCheck('POST /staff/requests/:id/release transitions ready_for_pickup -> released with payment record', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/release`, 'POST', {
+      payment_status: 'paid',
+      payment_reference: 'OR-SMOKE-2026',
+    }, staffToken);
+    if (!res.ok || json.data?.status !== 'released') throw new Error(`Release failed: ${json?.message}`);
+  });
+
+  await runCheck('POST /staff/requests/:id/archive transitions released -> archived', async () => {
+    const targetId = staffWorkflowReqId || 'mock_staff_req_123';
+    const { res, json } = await api(`/staff/requests/${targetId}/archive`, 'POST', {}, staffToken);
+    if (!res.ok || json.data?.status !== 'archived') throw new Error(`Archive failed: ${json?.message}`);
+  });
+
+  await runCheck('GET /staff/records returns completed and archived records repository', async () => {
+    const { res, json } = await api('/staff/records?status=archived', 'GET', null, staffToken);
+    if (!res.ok || !Array.isArray(json.data?.requests)) throw new Error(`List records failed: ${json?.message}`);
+  });
+
+  await runCheck('GET /staff/verify/:code performs staff QR code verification with full audit details', async () => {
+    const code = issuedCertCode || 'SMOKE-VERIFY-1234567890';
+    const { res, json } = await api(`/staff/verify/${code}`, 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Staff verify failed: ${json?.message}`);
+    if (json.data?.validity_status !== 'valid') throw new Error(`Expected valid validity_status`);
+  });
+
+  await runCheck('GET /staff/reports returns aggregated summary and document breakdown', async () => {
+    const { res, json } = await api('/staff/reports', 'GET', null, staffToken);
+    if (!res.ok || json.success !== true) throw new Error(`Staff reports failed: ${json?.message}`);
+    if (!json.data?.summary || !Array.isArray(json.data?.by_document_type)) {
+      throw new Error('Reports data missing summary or by_document_type');
+    }
+  });
+
+  // Report Exports (One per format: PDF, DOCX, XLSX)
+  await runCheck('GET /staff/reports/export?format=pdf exports PDF with Content-Disposition and CORS headers', async () => {
+    const { res } = await api('/staff/reports/export?format=pdf', 'GET', null, staffToken);
+    if (!res.ok) throw new Error(`PDF export failed with status ${res.status}`);
+    const cType = res.headers.get('content-type') || '';
+    if (!cType.includes('application/pdf')) throw new Error(`Invalid PDF Content-Type: ${cType}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
+  });
+
+  await runCheck('GET /staff/reports/export?format=docx exports Word document with Content-Disposition', async () => {
+    const { res } = await api('/staff/reports/export?format=docx', 'GET', null, staffToken);
+    if (!res.ok) throw new Error(`DOCX export failed with status ${res.status}`);
+    const cType = res.headers.get('content-type') || '';
+    if (!cType.includes('officedocument') && !cType.includes('word')) throw new Error(`Invalid DOCX Content-Type: ${cType}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
+  });
+
+  await runCheck('GET /staff/reports/export?format=xlsx exports Excel spreadsheet with Content-Disposition', async () => {
+    const { res } = await api('/staff/reports/export?format=xlsx', 'GET', null, staffToken);
+    if (!res.ok) throw new Error(`XLSX export failed with status ${res.status}`);
+    const cType = res.headers.get('content-type') || '';
+    if (!cType.includes('officedocument') && !cType.includes('sheet')) throw new Error(`Invalid XLSX Content-Type: ${cType}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
   });
 
   // ==========================================

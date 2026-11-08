@@ -79,3 +79,17 @@ export const STATUS_METADATA = Object.freeze({
     description: 'Cancelled by resident prior to review.',
   },
 });
+
+export const PAYMENT_STATUSES = Object.freeze({
+  UNPAID: 'unpaid',
+  PAID: 'paid',
+  WAIVED: 'waived',
+  FREE: 'free',
+});
+
+export const VALIDITY_STATUSES = Object.freeze({
+  VALID: 'valid',
+  EXPIRED: 'expired',
+  REVOKED: 'revoked',
+});
+

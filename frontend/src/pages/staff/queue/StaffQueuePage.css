@@ -1,0 +1,68 @@
+.qf-queue-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .qf-queue-page {
+    padding: var(--space-6);
+    gap: var(--space-6);
+  }
+}
+
+.qf-queue-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.qf-queue-filters {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.qf-queue-filters__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 600px) {
+  .qf-queue-filters__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .qf-queue-filters__grid {
+    grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr;
+  }
+}
+
+.qf-queue-filters__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.qf-queue-pagination {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4) 0;
+}

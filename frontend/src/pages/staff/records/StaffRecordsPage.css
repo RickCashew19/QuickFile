@@ -1,0 +1,44 @@
+.qf-staff-records-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .qf-staff-records-page {
+    padding: var(--space-6);
+    gap: var(--space-6);
+  }
+}
+
+.qf-records-filter-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.qf-records-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 600px) {
+  .qf-records-filter-grid {
+    grid-template-columns: 2fr 1fr 1.5fr;
+  }
+}
+
+.qf-records-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
