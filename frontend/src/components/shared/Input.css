@@ -1,0 +1,116 @@
+.qf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  width: 100%;
+}
+
+.qf-field__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qf-field__label {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+}
+
+.qf-field__required {
+  color: var(--color-danger);
+  margin-left: var(--space-1);
+}
+
+.qf-field__input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.qf-field__input {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.qf-field__input:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+}
+
+.qf-field__input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.qf-field__input:disabled {
+  background-color: var(--color-surface-hover);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.qf-field__input--has-prefix {
+  padding-left: var(--space-10);
+}
+
+.qf-field__input--has-suffix {
+  padding-right: var(--space-10);
+}
+
+.qf-field__input--error {
+  border-color: var(--color-danger);
+}
+
+.qf-field__input--error:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-bg);
+}
+
+.qf-field__prefix,
+.qf-field__suffix {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-10);
+  height: 100%;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.qf-field__prefix {
+  left: 0;
+}
+
+.qf-field__suffix {
+  right: 0;
+  pointer-events: auto;
+}
+
+.qf-field__suffix button {
+  min-height: 36px;
+  min-width: 36px;
+  color: var(--color-text-secondary);
+}
+
+.qf-field__helper {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+}
+
+.qf-field__error {
+  font-size: var(--font-xs);
+  color: var(--color-danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}

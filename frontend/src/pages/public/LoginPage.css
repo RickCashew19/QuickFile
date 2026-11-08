@@ -1,0 +1,103 @@
+.qf-auth-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  background-color: var(--color-bg);
+}
+
+.qf-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-6);
+  box-shadow: var(--shadow-md);
+}
+
+.qf-auth-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.qf-auth-header__logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.qf-auth-header__title {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.qf-auth-header__subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.qf-auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.qf-auth-forgot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+  margin-bottom: var(--space-4);
+}
+
+.qf-auth-forgot a {
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-medium);
+}
+
+.qf-auth-divider {
+  display: flex;
+  align-items: center;
+  margin: var(--space-6) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+}
+
+.qf-auth-divider::before,
+.qf-auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qf-auth-divider span {
+  padding: 0 var(--space-3);
+}
+
+.qf-google-btn-container {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  margin-bottom: var(--space-4);
+}
+
+.qf-auth-footer {
+  text-align: center;
+  margin-top: var(--space-6);
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.qf-auth-footer a {
+  font-weight: var(--font-semibold);
+}

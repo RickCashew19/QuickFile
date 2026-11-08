@@ -1,0 +1,106 @@
+.qf-verify-container {
+  max-width: 600px;
+  margin: var(--space-8) auto;
+  padding: 0 var(--space-4);
+}
+
+.qf-verify-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md);
+}
+
+.qf-verify-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.qf-verify-header__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.qf-verify-header__title {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.qf-verify-header__subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.qf-verify-form {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 480px) {
+  .qf-verify-form {
+    flex-direction: column;
+  }
+}
+
+.qf-verify-result {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.qf-verify-badge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+}
+
+.qf-verify-badge-container .qf-status-badge {
+  font-size: var(--font-sm);
+  padding: var(--space-1) var(--space-4);
+}
+
+.qf-verify-details {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.qf-verify-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qf-verify-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.qf-verify-label {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-normal);
+}
+
+.qf-verify-value {
+  color: var(--color-text);
+  font-weight: var(--font-semibold);
+  text-align: right;
+}
