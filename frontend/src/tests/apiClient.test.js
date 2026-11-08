@@ -70,48 +70,234 @@ describe('ApiClient Service Suite', () => {
     });
   });
 
-  it('handles 401 Unauthorized by clearing tokens and dispatching quickfile:auth:expired', async () => {
-    authStorage.setToken('expired_token');
-    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+  describe('401 Session Expiration Logic', () => {
+    it('does NOT treat 401 on POST /auth/login as expired session (wrong password)', async () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+      authStorage.setToken('existing_token');
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      headers: new Headers({ 'content-type': 'application/json' }),
-      json: async () => ({
-        success: false,
-        message: 'Token expired',
-        code: 'TOKEN_EXPIRED',
-      }),
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          message: 'Invalid email or password.',
+        }),
+      });
+
+      await expect(apiClient.post('/auth/login', { email: 'user@test.ph', password: 'bad' })).rejects.toThrow(
+        ApiError
+      );
+
+      // Must NOT clear token and must NOT dispatch expired event
+      expect(authStorage.getToken()).toBe('existing_token');
+      expect(dispatchSpy).not.toHaveBeenCalled();
     });
 
-    await expect(apiClient.get('/secured')).rejects.toThrow(ApiError);
-    expect(authStorage.getToken()).toBeNull();
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'quickfile:auth:expired',
-      })
-    );
+    it('does NOT treat 401 on other auth endpoints as expired session', async () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          message: 'Unauthorized register attempt.',
+        }),
+      });
+
+      await expect(apiClient.post('/auth/register', {})).rejects.toThrow(ApiError);
+      await expect(apiClient.post('/auth/forgot-password', {})).rejects.toThrow(ApiError);
+      await expect(apiClient.post('/auth/reset-password', {})).rejects.toThrow(ApiError);
+      await expect(apiClient.post('/auth/google', {})).rejects.toThrow(ApiError);
+
+      expect(dispatchSpy).not.toHaveBeenCalled();
+    });
+
+    it('treats 401 as expired session on authenticated routes when token was sent', async () => {
+      authStorage.setToken('expired_token');
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          message: 'Session has ended.',
+        }),
+      });
+
+      await expect(apiClient.get('/citizen/profile')).rejects.toThrow(ApiError);
+      expect(authStorage.getToken()).toBeNull();
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'quickfile:auth:expired',
+        })
+      );
+    });
+
+    it('treats 401 with explicit TOKEN_EXPIRED or TOKEN_INVALID code as expired session', async () => {
+      authStorage.setToken('stale_token');
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          code: 'TOKEN_INVALIDATED',
+          message: 'Token has been revoked.',
+        }),
+      });
+
+      await expect(apiClient.get('/data')).rejects.toThrow(ApiError);
+      expect(authStorage.getToken()).toBeNull();
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'quickfile:auth:expired',
+        })
+      );
+    });
+
+    it('does NOT trigger session expired when no token was sent', async () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          message: 'Unauthorized access.',
+        }),
+      });
+
+      await expect(apiClient.get('/public-view')).rejects.toThrow(ApiError);
+      expect(dispatchSpy).not.toHaveBeenCalled();
+    });
   });
 
-  it('parses Retry-After header on 429 Too Many Requests response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      headers: new Headers({
-        'content-type': 'application/json',
-        'Retry-After': '45',
-      }),
-      json: async () => ({
-        success: false,
-        message: 'Rate limit exceeded.',
-      }),
+  describe('429 Rate Limiting', () => {
+    it('extracts retryAfter from response body before checking headers', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({
+          'content-type': 'application/json',
+          'Retry-After': '99',
+        }),
+        json: async () => ({
+          success: false,
+          message: 'Rate limit exceeded.',
+          retryAfter: 25,
+        }),
+      });
+
+      await expect(apiClient.get('/limited')).rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+        data: { retryAfterSeconds: 25 },
+      });
     });
 
-    await expect(apiClient.get('/limited')).rejects.toMatchObject({
-      status: 429,
-      code: 'RATE_LIMITED',
-      data: { retryAfterSeconds: 45 },
+    it('falls back to Retry-After header when body retryAfter is missing', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({
+          'content-type': 'application/json',
+          'Retry-After': '45',
+        }),
+        json: async () => ({
+          success: false,
+          message: 'Rate limit exceeded.',
+        }),
+      });
+
+      await expect(apiClient.get('/limited')).rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+        data: { retryAfterSeconds: 45 },
+      });
+    });
+
+    it('defaults retryAfter to 60 when neither body nor header specifies a value', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({
+          'content-type': 'application/json',
+        }),
+        json: async () => ({
+          success: false,
+          message: 'Too many requests.',
+        }),
+      });
+
+      await expect(apiClient.get('/limited')).rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+        data: { retryAfterSeconds: 60 },
+      });
+    });
+  });
+
+  describe('download() error and stream handling', () => {
+    it('handles 401 during download and dispatches expired event when token sent', async () => {
+      authStorage.setToken('valid_token');
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: false, message: 'Expired during download' }),
+      });
+
+      await expect(apiClient.download('/files/export.pdf')).rejects.toThrow(ApiError);
+      expect(authStorage.getToken()).toBeNull();
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'quickfile:auth:expired' })
+      );
+    });
+
+    it('handles 429 rate limit during download', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({
+          'content-type': 'application/json',
+          'Retry-After': '30',
+        }),
+        json: async () => ({ success: false, message: 'Download quota exceeded' }),
+      });
+
+      await expect(apiClient.download('/files/report.xlsx')).rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+        data: { retryAfterSeconds: 30 },
+      });
+    });
+
+    it('successfully extracts filename and blob from successful download response', async () => {
+      const mockBlob = new Blob(['sample-data'], { type: 'application/pdf' });
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'Content-Disposition': 'attachment; filename="barangay_clearance.pdf"',
+          'X-Export-Truncated': 'false',
+        }),
+        blob: async () => mockBlob,
+      });
+
+      const result = await apiClient.download('/files/attachment.pdf');
+      expect(result.filename).toBe('barangay_clearance.pdf');
+      expect(result.truncated).toBe(false);
+      expect(result.blob).toBe(mockBlob);
     });
   });
 

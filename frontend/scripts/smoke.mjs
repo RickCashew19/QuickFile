@@ -81,6 +81,11 @@ function startContractMockServer() {
       });
 
       req.on('end', () => {
+        if (req.headers.origin) {
+          res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-Export-Truncated, Retry-After');
+        }
+
         // 1. Health
         if (url === '/api/v1/health' && method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -467,8 +472,8 @@ function startContractMockServer() {
   });
 }
 
-async function api(path, method = 'GET', body = null, token = null, isMultipart = false) {
-  const headers = {};
+async function api(path, method = 'GET', body = null, token = null, isMultipart = false, customHeaders = {}) {
+  const headers = { ...customHeaders };
   if (!isMultipart && body && typeof body === 'object') {
     headers['Content-Type'] = 'application/json';
   }
@@ -512,6 +517,20 @@ async function main() {
     const { res, json } = await api('/health');
     if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
     if (json.data !== null && json.data !== undefined) recordDiff('/health', 'data expected to be null');
+  });
+
+  await runCheck('CORS Origin request exposes Content-Disposition, X-Export-Truncated, and Retry-After', async () => {
+    const { res } = await api('/health', 'GET', null, null, false, { Origin: 'http://localhost:3000' });
+    const exposed = (res.headers.get('access-control-expose-headers') || '').toLowerCase();
+    if (
+      !exposed.includes('content-disposition') ||
+      !exposed.includes('x-export-truncated') ||
+      !exposed.includes('retry-after')
+    ) {
+      throw new Error(
+        `Expected access-control-expose-headers to expose Content-Disposition, X-Export-Truncated, and Retry-After; got "${res.headers.get('access-control-expose-headers')}"`
+      );
+    }
   });
 
   await runCheck('GET /public/config returns valid branding and integration flags', async () => {

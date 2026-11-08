@@ -14,6 +14,92 @@ export class ApiError extends Error {
 }
 
 /**
+ * Common response error handler for request() and download()
+ */
+function handleCommonErrors(response, body, endpoint, options, tokenSent) {
+  // 1. Handle Rate Limiting (429)
+  if (response.status === 429) {
+    let retryAfterSeconds = 60;
+    if (body) {
+      const bodyVal =
+        body.retryAfter ??
+        body.retry_after ??
+        (body.data && (body.data.retryAfter ?? body.data.retry_after ?? body.data.retryAfterSeconds));
+      if (typeof bodyVal === 'number' && !isNaN(bodyVal)) {
+        retryAfterSeconds = bodyVal;
+      } else if (typeof bodyVal === 'string' && !isNaN(parseInt(bodyVal, 10))) {
+        retryAfterSeconds = parseInt(bodyVal, 10);
+      } else {
+        const headerVal = response.headers.get('Retry-After');
+        if (headerVal && !isNaN(parseInt(headerVal, 10))) {
+          retryAfterSeconds = parseInt(headerVal, 10);
+        }
+      }
+    } else {
+      const headerVal = response.headers.get('Retry-After');
+      if (headerVal && !isNaN(parseInt(headerVal, 10))) {
+        retryAfterSeconds = parseInt(headerVal, 10);
+      }
+    }
+    const msg = (body && body.message) || 'Too many requests. Please wait a moment before trying again.';
+    throw new ApiError(msg, 429, 'RATE_LIMITED', { retryAfterSeconds });
+  }
+
+  // 2. Handle 401 Unauthorized
+  if (response.status === 401) {
+    const code = (body && (body.code || (body.data && body.data.code))) || 'UNAUTHORIZED';
+    const method = (options.method || 'GET').toUpperCase();
+    const isAuthExempt =
+      method === 'POST' &&
+      (endpoint.includes('/auth/login') ||
+        endpoint.includes('/auth/register') ||
+        endpoint.includes('/auth/forgot-password') ||
+        endpoint.includes('/auth/reset-password') ||
+        endpoint.includes('/auth/google'));
+
+    const isExplicitTokenErrorCode = ['TOKEN_EXPIRED', 'TOKEN_INVALID', 'TOKEN_INVALIDATED'].includes(code);
+    const isAuthEndpoint =
+      endpoint.includes('/auth/login') ||
+      endpoint.includes('/auth/register') ||
+      endpoint.includes('/auth/forgot-password') ||
+      endpoint.includes('/auth/reset-password') ||
+      endpoint.includes('/auth/google');
+
+    // Treat as expired session ONLY when token was sent AND (code is token error OR endpoint is not auth endpoint)
+    const isExpiredSession = !isAuthExempt && tokenSent && (isExplicitTokenErrorCode || !isAuthEndpoint);
+
+    if (isExpiredSession) {
+      authStorage.clearAll();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('quickfile:auth:expired', {
+            detail: {
+              message: (body && body.message) || 'Your session has expired. Please log in again.',
+              code,
+            },
+          })
+        );
+      }
+    }
+    throw new ApiError((body && body.message) || 'Unauthorized.', 401, code);
+  }
+
+  // 3. Handle Resource Conflict (409)
+  if (response.status === 409) {
+    const msg = (body && body.message) || 'This record was recently modified. Please refresh and try again.';
+    throw new ApiError(msg, 409, 'CONFLICT', body ? body.data : null);
+  }
+
+  // 4. Handle Other HTTP Error Statuses
+  if (!response.ok) {
+    const message = (body && body.message) || `Request failed with status ${response.status}.`;
+    const code = (body && body.code) || null;
+    const errors = (body && body.errors) || null;
+    throw new ApiError(message, response.status, code, body ? body.data : null, errors);
+  }
+}
+
+/**
  * Native Fetch HTTP Client
  */
 async function request(endpoint, options = {}) {
@@ -67,44 +153,8 @@ async function request(endpoint, options = {}) {
     }
   }
 
-  // Handle Rate Limiting (429)
-  if (response.status === 429) {
-    const retryAfterHeader = response.headers.get('Retry-After');
-    const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 60;
-    const msg = (body && body.message) || 'Too many requests. Please wait a moment before trying again.';
-    throw new ApiError(msg, 429, 'RATE_LIMITED', { retryAfterSeconds });
-  }
-
-  // Handle Token Invalidation / Expiration (401)
-  if (response.status === 401) {
-    const code = (body && body.code) || 'UNAUTHORIZED';
-    authStorage.clearAll();
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('quickfile:auth:expired', {
-          detail: {
-            message: (body && body.message) || 'Your session has expired. Please log in again.',
-            code,
-          },
-        })
-      );
-    }
-    throw new ApiError((body && body.message) || 'Unauthorized.', 401, code);
-  }
-
-  // Handle Resource Conflict (409)
-  if (response.status === 409) {
-    const msg = (body && body.message) || 'This record was recently modified. Please refresh and try again.';
-    throw new ApiError(msg, 409, 'CONFLICT', body ? body.data : null);
-  }
-
-  // Handle Other HTTP Error Statuses
-  if (!response.ok) {
-    const message = (body && body.message) || `Request failed with status ${response.status}.`;
-    const code = (body && body.code) || null;
-    const errors = (body && body.errors) || null;
-    throw new ApiError(message, response.status, code, body ? body.data : null, errors);
-  }
+  // Evaluate error status codes (401, 409, 429, 500, etc.)
+  handleCommonErrors(response, body, endpoint, options, Boolean(headers['Authorization'] || token));
 
   // Return standard unwrap
   return body ? body.data : null;
@@ -131,15 +181,18 @@ async function download(endpoint, options = {}) {
     throw new ApiError('File download failed. Check network connection.', 0, 'NETWORK_ERROR');
   }
 
+  // If response is not ok, attempt to parse JSON body for error details
   if (!response.ok) {
-    let msg = `Download failed (${response.status})`;
-    try {
-      const errJson = await response.json();
-      if (errJson && errJson.message) msg = errJson.message;
-    } catch {
-      // Ignore text parse error
+    let body = null;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
     }
-    throw new ApiError(msg, response.status);
+    handleCommonErrors(response, body, endpoint, options, Boolean(headers['Authorization'] || token));
   }
 
   const disposition = response.headers.get('Content-Disposition');

@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { publicService } from '../../services/publicService';
+import { getSafeRedirect } from '../../utils/urlHelper';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
@@ -25,19 +28,20 @@ export function LoginPage() {
   const recaptchaRef = useRef(null);
   const googleBtnRef = useRef(null);
 
-  // Extract redirect parameter
+  // Validate redirect parameter against open redirect attacks
   const searchParams = new URLSearchParams(location.search);
-  const redirectParam = searchParams.get('redirect') || location.state?.from?.pathname;
+  const rawRedirect = searchParams.get('redirect') || location.state?.from;
+  const safeRedirect = getSafeRedirect(rawRedirect);
 
   const handleLoginSuccess = useCallback(
     (user) => {
-      if (redirectParam) {
-        navigate(redirectParam, { replace: true });
+      if (safeRedirect) {
+        navigate(safeRedirect, { replace: true });
         return;
       }
 
       if (user.role === ROLES.CITIZEN) {
-        navigate('/citizen/requests', { replace: true });
+        navigate('/citizen/dashboard', { replace: true });
       } else if (user.role === ROLES.STAFF) {
         navigate('/staff/dashboard', { replace: true });
       } else if (user.role === ROLES.ADMIN) {
@@ -46,60 +50,49 @@ export function LoginPage() {
         navigate('/', { replace: true });
       }
     },
-    [redirectParam, navigate]
+    [safeRedirect, navigate]
   );
 
   useEffect(() => {
     publicService.getConfig().then((data) => {
       setConfig(data);
-
-      // Initialize reCAPTCHA v2 if enabled
-      if (data?.integrations?.recaptcha_enabled && data.recaptcha_site_key) {
-        publicService.loadRecaptchaScript().then(() => {
-          if (recaptchaRef.current && window.grecaptcha) {
-            try {
-              window.grecaptcha.render(recaptchaRef.current, {
-                sitekey: data.recaptcha_site_key,
-                callback: (token) => setRecaptchaToken(token),
-                'expired-callback': () => setRecaptchaToken(null),
-              });
-            } catch {
-              // Ignore if already rendered
-            }
-          }
-        });
-      }
-
-      // Initialize Google OAuth if enabled
-      if (data?.integrations?.google_login_enabled && data.google_client_id) {
-        publicService.loadGoogleScript().then((google) => {
-          if (google && google.accounts && googleBtnRef.current) {
-            google.accounts.id.initialize({
-              client_id: data.google_client_id,
-              callback: async (response) => {
-                try {
-                  setLoading(true);
-                  setErrorMessage(null);
-                  const res = await loginWithGoogle(response.credential);
-                  handleLoginSuccess(res.user);
-                } catch (err) {
-                  setErrorMessage(err.message || 'Google sign-in failed.');
-                } finally {
-                  setLoading(false);
-                }
-              },
-            });
-            google.accounts.id.renderButton(googleBtnRef.current, {
-              theme: 'outline',
-              size: 'large',
-              width: 380,
-              text: 'signin_with',
-            });
-          }
-        });
-      }
     });
-  }, [loginWithGoogle, handleLoginSuccess]);
+  }, []);
+
+  // Initialize reCAPTCHA v2 with safe lifecycle & widgetId reset
+  const { loadError: recaptchaError, reset: resetRecaptcha } = useRecaptcha({
+    containerRef: recaptchaRef,
+    siteKey: config?.recaptcha_site_key,
+    enabled: Boolean(config?.integrations?.recaptcha_enabled && config?.recaptcha_site_key),
+    onVerify: (token) => setRecaptchaToken(token),
+    onExpire: () => setRecaptchaToken(null),
+  });
+
+  // Handle Google OAuth authentication
+  const handleGoogleCredential = useCallback(
+    async (credential) => {
+      try {
+        setLoading(true);
+        setErrorMessage(null);
+        clearExpiredMessage();
+        const res = await loginWithGoogle(credential);
+        handleLoginSuccess(res.user);
+      } catch (err) {
+        setErrorMessage(err.message || 'Google sign-in failed.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loginWithGoogle, handleLoginSuccess, clearExpiredMessage]
+  );
+
+  // Initialize Google Identity Services OAuth with single-render guarantee
+  const { loadError: googleError } = useGoogleSignIn({
+    containerRef: googleBtnRef,
+    clientId: config?.google_client_id,
+    enabled: Boolean(config?.integrations?.google_login_enabled && config?.google_client_id),
+    onCredential: handleGoogleCredential,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -122,15 +115,8 @@ export function LoginPage() {
       handleLoginSuccess(res.user);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to sign in. Please verify your credentials.');
-      // Reset reCAPTCHA on failed attempt if rendered
-      if (window.grecaptcha && recaptchaRef.current) {
-        try {
-          window.grecaptcha.reset();
-          setRecaptchaToken(null);
-        } catch {
-          // Ignore
-        }
-      }
+      setRecaptchaToken(null);
+      resetRecaptcha();
     } finally {
       setLoading(false);
     }
@@ -144,12 +130,11 @@ export function LoginPage() {
             <Icon name="building" size={26} />
           </Link>
           <h1 className="qf-auth-header__title">Welcome Back</h1>
-          <p className="qf-auth-header__subtitle">
-            Sign in to access your QuickFile portal
-          </p>
+          <p className="qf-auth-header__subtitle">Sign in to access your QuickFile portal</p>
         </div>
 
-        {sessionExpiredMessage && (
+        {/* Expired session warning (only shown on genuine session expiries, never on failed login attempts) */}
+        {sessionExpiredMessage && !errorMessage && (
           <Alert variant="warning" onDismiss={clearExpiredMessage}>
             {sessionExpiredMessage}
           </Alert>
@@ -160,6 +145,9 @@ export function LoginPage() {
             {errorMessage}
           </Alert>
         )}
+
+        {recaptchaError && <Alert variant="warning">{recaptchaError}</Alert>}
+        {googleError && <Alert variant="warning">{googleError}</Alert>}
 
         <form onSubmit={handleSubmit} className="qf-auth-form" noValidate>
           <Input
