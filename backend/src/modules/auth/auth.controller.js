@@ -134,10 +134,29 @@ const forgotPassword = asyncHandler(async (req, res) => {
   // Verify reCAPTCHA if enabled
   await verifyRecaptcha(recaptcha_token, req.ip);
 
+  // Extract client origin if available from payload, Origin header, or Referer header
+  const originCandidate =
+    req.body?.client_app_url ||
+    req.get('Origin') ||
+    req.get('Referer');
+
+  let clientOrigin = null;
+  if (originCandidate && typeof originCandidate === 'string') {
+    try {
+      const parsed = new URL(originCandidate);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        clientOrigin = parsed.origin;
+      }
+    } catch {
+      clientOrigin = null;
+    }
+  }
+
   const result = await authService.requestPasswordReset(
     email,
     req.ip,
-    req.get('User-Agent')
+    req.get('User-Agent'),
+    clientOrigin
   );
 
   return res.status(200).json({

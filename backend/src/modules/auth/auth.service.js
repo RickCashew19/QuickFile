@@ -341,7 +341,7 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
  * Sends a password reset email with a single-use token hash
  * Prevents timing attacks and account enumeration by not awaiting the email send
  */
-async function requestPasswordReset(email, ipAddress, userAgent) {
+async function requestPasswordReset(email, ipAddress, userAgent, clientOrigin) {
   const normalizedEmail = (email || '').toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
 
@@ -362,8 +362,31 @@ async function requestPasswordReset(email, ipAddress, userAgent) {
       used: false,
     });
 
-    // 4. Construct reset link using PUBLIC_APP_URL from config
-    const resetUrl = `${config.publicAppUrl}/reset-password?token=${rawToken}`;
+    // 4. Construct reset link using resolved client origin or PUBLIC_APP_URL
+    let baseUrl = config.publicAppUrl || 'http://localhost:5173';
+    if (clientOrigin) {
+      try {
+        const parsed = new URL(clientOrigin).origin;
+        const allowedOrigins = (config.frontendUrl || '')
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+
+        const isDevLanOrigin =
+          !config.isProduction &&
+          /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+            parsed
+          );
+
+        if (isDevLanOrigin || allowedOrigins.includes(parsed) || (!config.isProduction && (parsed.startsWith('http://') || parsed.startsWith('https://')))) {
+          baseUrl = parsed;
+        }
+      } catch {
+        // Fallback to configured baseUrl
+      }
+    }
+
+    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
 
     // Fix 7: Do not await email sending so response timing does not leak user existence
     sendMail({

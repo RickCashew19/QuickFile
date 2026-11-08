@@ -18,6 +18,9 @@ export const authService = {
   async forgotPassword(email, recaptchaToken = null) {
     const payload = { email };
     if (recaptchaToken) payload.recaptcha_token = recaptchaToken;
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      payload.client_app_url = window.location.origin;
+    }
     return apiClient.post('/auth/forgot-password', payload);
   },
 
