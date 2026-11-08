@@ -70,18 +70,18 @@ All dependencies are pinned to exact versions for deterministic builds:
 | :--- | :--- | :--- |
 | **react** | `18.3.1` | Modern UI library with concurrent rendering |
 | **react-dom** | `18.3.1` | DOM renderer for React |
-| **react-router-dom** | `6.27.0` | Client-side routing, route guards, and nested layouts |
-| **lucide-react** | `0.454.0` | Accessible, tree-shakeable SVG icon collection |
+| **react-router-dom** | `6.30.6` | Client-side routing, route guards, and nested layouts |
 | **html5-qrcode** | `2.3.8` | Cross-browser HTML5 camera QR scanner with fallback |
-| **vite** | `5.4.10` | Fast development server and production bundler |
-| **@vitejs/plugin-react** | `4.3.3` | Babel-based Fast Refresh plugin for Vite |
-| **vitest** | `2.1.4` | Vite-native unit and integration test runner |
+| **vite** | `5.4.21` | Fast development server and production bundler |
+| **@vitejs/plugin-react** | `4.3.4` | Babel-based Fast Refresh plugin for Vite |
+| **vitest** | `2.1.9` | Vite-native unit and integration test runner |
 | **@testing-library/react**| `16.0.1` | DOM testing utilities testing user-centric behavior |
-| **@testing-library/jest-dom** | `6.6.2` | Semantic DOM element assertions (`toBeInTheDocument`, etc.) |
+| **@testing-library/jest-dom** | `6.6.3` | Semantic DOM element assertions (`toBeInTheDocument`, etc.) |
+| **@testing-library/user-event** | `14.5.2` | User event simulation for DOM testing |
 | **jsdom** | `25.0.1` | Pure JavaScript browser environment for tests |
-| **eslint** | `9.14.0` | Code quality and React hooks linter |
+| **eslint** | `8.57.1` | Code quality and React hooks linter |
 
-*No heavy CSS frameworks (e.g. Tailwind, Bootstrap) are used.* Styling is built on pure semantic CSS custom properties for optimal performance and zero bundle bloat.
+*Zero third-party icon libraries (no lucide-react, font-awesome, or material icons) are used.* All icons are lightweight, accessible SVGs encapsulated in `components/shared/Icon.jsx`. Zero heavy CSS frameworks (no Tailwind, Bootstrap) are used. Styling is built on pure semantic CSS custom properties for optimal performance and zero bundle bloat.
 
 ---
 

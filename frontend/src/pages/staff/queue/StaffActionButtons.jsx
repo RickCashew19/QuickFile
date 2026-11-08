@@ -3,6 +3,12 @@ import { Button } from '../../../components/shared/Button';
 import { getAvailableActions } from '../../../utils/actionLogic';
 import { STAFF_PERMISSIONS } from '../../../config/constants';
 
+/**
+ * Staff Action Buttons Bar
+ * Driven directly by the getAvailableActions pure function.
+ * Completely free of inline status checks; dynamically renders transition
+ * buttons and link actions strictly matching backend permissions.
+ */
 export function StaffActionButtons({
   request,
   hasPermission,
@@ -29,95 +35,55 @@ export function StaffActionButtons({
       }
     : permissions;
 
-  const available = getAvailableActions(request, resolvedPerms, role);
+  const actions = getAvailableActions(request, resolvedPerms, role);
+
+  if (!actions || actions.length === 0) {
+    return null;
+  }
+
+  const handlers = {
+    review: onReview,
+    approve: onApprove,
+    reject: onOpenReject,
+    prepare: onPrepare,
+    issue: onIssue,
+    release: onOpenRelease,
+    archive: onArchive,
+  };
+
+  const requestId = request?._id || request?.id;
 
   return (
     <div className="qf-staff-actions-bar" role="toolbar" aria-label="Request Workflow Actions">
-      {available.includes('review') && (
-        <Button
-          variant="primary"
-          onClick={onReview}
-          loading={loadingAction === 'review'}
-          disabled={Boolean(loadingAction)}
-        >
-          Start Review
-        </Button>
-      )}
+      {actions.map((act) => {
+        if (act.kind === 'link') {
+          const href = act.href || (requestId ? `/staff/requests/${requestId}/print` : '#');
+          return (
+            <Link
+              key={act.id}
+              to={href}
+              className={`qf-btn qf-btn--${act.variant || 'secondary'}`}
+              aria-label="Open Certificate Print View"
+            >
+              {act.label}
+            </Link>
+          );
+        }
 
-      {available.includes('approve') && (
-        <Button
-          variant="primary"
-          onClick={onApprove}
-          loading={loadingAction === 'approve'}
-          disabled={Boolean(loadingAction)}
-        >
-          Approve Application
-        </Button>
-      )}
-
-      {available.includes('reject') && (
-        <Button
-          variant="danger"
-          onClick={onOpenReject}
-          disabled={Boolean(loadingAction)}
-        >
-          Reject
-        </Button>
-      )}
-
-      {available.includes('prepare') && (
-        <Button
-          variant="primary"
-          onClick={onPrepare}
-          loading={loadingAction === 'prepare'}
-          disabled={Boolean(loadingAction)}
-        >
-          Prepare Document
-        </Button>
-      )}
-
-      {available.includes('issue') && (
-        <Button
-          variant="primary"
-          onClick={onIssue}
-          loading={loadingAction === 'issue'}
-          disabled={Boolean(loadingAction)}
-        >
-          Issue & Generate Certificate
-        </Button>
-      )}
-
-      {available.includes('print') && (
-        <Link
-          to={`/staff/requests/${request?._id}/print`}
-          className="qf-btn qf-btn--secondary"
-          aria-label="Open Certificate Print View"
-        >
-          Print Certificate
-        </Link>
-      )}
-
-      {available.includes('release') && (
-        <Button
-          variant="primary"
-          onClick={onOpenRelease}
-          loading={loadingAction === 'release'}
-          disabled={Boolean(loadingAction)}
-        >
-          Release Document
-        </Button>
-      )}
-
-      {available.includes('archive') && (
-        <Button
-          variant="outline"
-          onClick={onArchive}
-          loading={loadingAction === 'archive'}
-          disabled={Boolean(loadingAction)}
-        >
-          Archive Record
-        </Button>
-      )}
+        const handler = handlers[act.id];
+        return (
+          <Button
+            key={act.id}
+            variant={act.variant || 'primary'}
+            onClick={handler}
+            loading={loadingAction === act.id}
+            disabled={Boolean(loadingAction)}
+            aria-label={act.label}
+          >
+            {act.label}
+          </Button>
+        );
+      })}
     </div>
   );
 }

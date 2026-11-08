@@ -1,0 +1,78 @@
+{
+  "ALLOWED_STATUS_TRANSITIONS": {
+    "pending": ["under_review", "rejected", "cancelled"],
+    "under_review": ["approved", "rejected"],
+    "approved": ["in_preparation", "rejected"],
+    "in_preparation": ["ready_for_pickup"],
+    "ready_for_pickup": ["released"],
+    "released": ["archived"],
+    "rejected": ["archived"],
+    "cancelled": ["archived"],
+    "archived": []
+  },
+  "STAFF_ROUTE_PERMISSIONS": {
+    "review": {
+      "method": "POST",
+      "path": "/requests/:id/review",
+      "permission": "can_review_requests",
+      "kind": "transition",
+      "transitionTo": "under_review",
+      "source": "backend/src/modules/staff/staff.routes.js:64"
+    },
+    "approve": {
+      "method": "POST",
+      "path": "/requests/:id/approve",
+      "permission": "can_review_requests",
+      "kind": "transition",
+      "transitionTo": "approved",
+      "source": "backend/src/modules/staff/staff.routes.js:70"
+    },
+    "reject": {
+      "method": "POST",
+      "path": "/requests/:id/reject",
+      "permission": "can_review_requests",
+      "kind": "transition",
+      "transitionTo": "rejected",
+      "source": "backend/src/modules/staff/staff.routes.js:76"
+    },
+    "prepare": {
+      "method": "POST",
+      "path": "/requests/:id/prepare",
+      "permission": "can_prepare_documents",
+      "kind": "transition",
+      "transitionTo": "in_preparation",
+      "source": "backend/src/modules/staff/staff.routes.js:82"
+    },
+    "issue": {
+      "method": "POST",
+      "path": "/requests/:id/issue",
+      "permission": "can_prepare_documents",
+      "kind": "transition",
+      "transitionTo": "ready_for_pickup",
+      "source": "backend/src/modules/staff/staff.routes.js:88"
+    },
+    "print": {
+      "method": "GET",
+      "path": "/requests/:id/print-data",
+      "permission": "can_print_documents",
+      "kind": "link",
+      "source": "backend/src/modules/staff/staff.routes.js:94"
+    },
+    "release": {
+      "method": "POST",
+      "path": "/requests/:id/release",
+      "permission": "can_release_documents",
+      "kind": "transition",
+      "transitionTo": "released",
+      "source": "backend/src/modules/staff/staff.routes.js:100"
+    },
+    "archive": {
+      "method": "POST",
+      "path": "/requests/:id/archive",
+      "permission": "can_archive_records",
+      "kind": "transition",
+      "transitionTo": "archived",
+      "source": "backend/src/modules/staff/staff.routes.js:106"
+    }
+  }
+}

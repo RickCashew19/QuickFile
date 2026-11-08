@@ -196,15 +196,26 @@ async function main() {
   console.log(`   Target API: ${targetUrl}`);
   console.log('=======================================================\n');
 
-  // Verify backend connectivity
+  // Verify backend connectivity and environment safety gate
   try {
     const health = await fetch(`${targetUrl}/health`, { signal: AbortSignal.timeout(3000) });
     if (!health.ok) {
       throw new Error(`Server returned HTTP ${health.status}`);
     }
+    const healthJson = await health.json();
+    const env = healthJson.environment || healthJson.data?.environment;
+    if (env !== 'test') {
+      console.error(`\n[SMOKE SAFETY REFUSAL] Refusing to run: Backend environment is "${env}".`);
+      console.error('The smoke script performs state transitions and MUST ONLY run against a test backend (environment === "test").');
+      console.error('See frontend/docs/SMOKE.md for the step-by-step PowerShell guide to launch a throwaway test backend.\n');
+      process.exit(1);
+    }
   } catch (err) {
+    if (err.message.includes('SMOKE SAFETY REFUSAL')) {
+      process.exit(1);
+    }
     console.error(`[QuickFile Smoke Error] Backend is NOT reachable at ${targetUrl}: ${err.message}`);
-    console.error('Please ensure the backend is running (e.g. "cd backend && npm run dev") before running smoke.mjs.\n');
+    console.error('Please ensure the backend is running before running smoke.mjs. See frontend/docs/SMOKE.md.\n');
     process.exit(1);
   }
 
@@ -871,6 +882,12 @@ async function main() {
     if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
   });
 
+  await runCheck('GET /auth/me preserves active admin session after 401 setting key rejection', async () => {
+    const { res, json } = await api('/auth/me', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
+    if (json.data?.user?.role !== 'admin') throw new Error(`Expected role admin, got ${json.data?.user?.role}`);
+  });
+
   await runCheck('PATCH /admin/settings updates settings with valid Super Admin Key (never logging key)', async () => {
     const { res, json } = await api('/admin/settings', 'PATCH', {
       su_admin_key: CREDENTIALS.suAdminKey,
@@ -906,6 +923,123 @@ async function main() {
     assertShape(json.data, ['summary.total_requests', 'by_document_type', 'by_status', 'transactions.items'], 'GET /admin/reports');
     saveFixture('adminReports', json.data);
   });
+
+  // ==========================================
+  // 6. Negative Security Checks & Permission Gating
+  // ==========================================
+  console.log('\n--- 6. Negative Security Checks & Permission Gating ---');
+
+  let zeroPermStaffId = null;
+  let zeroPermToken = null;
+  const zeroPermEmail = `noperms_${Date.now()}@quickfile.ph`;
+  const zeroPermPassword = 'Password@1234';
+
+  await runCheck('Admin provisions zero-permissions staff user for negative checks', async () => {
+    const { res, json } = await api('/admin/staff', 'POST', {
+      email: zeroPermEmail,
+      password: zeroPermPassword,
+      full_name: 'Zero Permissions Officer',
+      phone: '09170000000',
+      employee_id: `EMP-${Date.now().toString().slice(-6)}`,
+      position: 'Trainee',
+      department: 'Probation',
+      permissions: {
+        can_review_requests: false,
+        can_prepare_documents: false,
+        can_print_documents: false,
+        can_release_documents: false,
+        can_verify_qr: false,
+        can_view_reports: false,
+        can_archive_records: false,
+      },
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    zeroPermStaffId = json.data._id || json.data.id;
+  });
+
+  if (zeroPermStaffId) {
+    await runCheck('Zero-permissions staff authenticates to acquire session JWT', async () => {
+      const { res, json } = await api('/auth/login', 'POST', {
+        email: zeroPermEmail,
+        password: zeroPermPassword,
+      });
+      if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+      zeroPermToken = json.data.access_token;
+    });
+
+    if (zeroPermToken) {
+      const dummyId = seededRequestId || '6aeff952cb1d415793f07e4e';
+
+      await runCheck('GET /staff/requests returns 403 when lacking can_review_requests', async () => {
+        const { res } = await api('/staff/requests', 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('GET /staff/records returns 403 when lacking can_archive_records', async () => {
+        const { res } = await api('/staff/records', 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('GET /staff/residents returns 403 when lacking can_prepare_documents', async () => {
+        const { res } = await api('/staff/residents?search=juan', 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('GET /staff/reports returns 403 when lacking can_view_reports', async () => {
+        const { res } = await api('/staff/reports', 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('GET /staff/verify/:code returns 403 when lacking can_verify_qr', async () => {
+        const { res } = await api('/staff/verify/TESTCODE123', 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('POST /staff/requests/:id/review returns 403 when lacking can_review_requests', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/review`, 'POST', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('POST /staff/requests/:id/prepare returns 403 when lacking can_prepare_documents', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/prepare`, 'POST', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('POST /staff/requests/:id/issue returns 403 when lacking can_prepare_documents', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/issue`, 'POST', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('GET /staff/requests/:id/print-data returns 403 when lacking can_print_documents', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/print-data`, 'GET', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('POST /staff/requests/:id/release returns 403 when lacking can_release_documents', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/release`, 'POST', { payment_received: true }, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+
+      await runCheck('POST /staff/requests/:id/archive returns 403 when lacking can_archive_records', async () => {
+        const { res } = await api(`/staff/requests/${dummyId}/archive`, 'POST', null, zeroPermToken);
+        if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+      });
+    }
+
+    // Teardown zero-permissions staff user
+    await runCheck('Admin permanently deletes zero-permissions test staff user via typed DELETE', async () => {
+      const { res, json } = await api(`/admin/staff/${zeroPermStaffId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
+      if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    });
+  }
+
+  // Teardown throwaway citizen user if created
+  if (throwawayCitizenId) {
+    await runCheck('Admin cleans up throwaway test citizen account via typed DELETE', async () => {
+      const { res } = await api(`/admin/citizens/${throwawayCitizenId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+    });
+  }
 
   // Final Summary
   console.log('\n========================================');
