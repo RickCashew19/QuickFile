@@ -79,6 +79,11 @@ export function CitizenLayout() {
           >
             <Icon name={item.icon} size={18} />
             <span>{item.label}</span>
+            {item.to === '/citizen/notifications' && unreadCount > 0 && (
+              <span className="qf-bell-count" style={{ position: 'static', marginLeft: 'auto' }}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </NavLink>
         </li>
       ))}

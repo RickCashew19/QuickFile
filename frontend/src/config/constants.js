@@ -2,7 +2,30 @@
  * Application Constants and Enum Mappings
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const envApiUrl = import.meta.env.VITE_API_URL;
+
+function resolveApiBaseUrl() {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    // When accessing via network IP (e.g. 10.x.x.x, 192.168.x.x) on phones/other devices,
+    // dynamically point API requests to the host machine's port 5000 so other devices can connect
+    if (!isLocalhost) {
+      if (envApiUrl && envApiUrl.includes('localhost')) {
+        return envApiUrl.replace('localhost', hostname);
+      }
+      if (envApiUrl && envApiUrl.includes('127.0.0.1')) {
+        return envApiUrl.replace('127.0.0.1', hostname);
+      }
+      if (!envApiUrl) {
+        return `${window.location.protocol}//${hostname}:5000/api/v1`;
+      }
+    }
+  }
+  return envApiUrl || 'http://localhost:5000/api/v1';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const ROLES = Object.freeze({
   CITIZEN: 'citizen',

@@ -42,7 +42,14 @@ const corsOptions = {
       .map((entry) => entry.trim())
       .filter(Boolean);
 
-    if (allowedOrigins.includes(origin)) {
+    // In development mode, allow localhost, 127.0.0.1, and private LAN IP addresses (10.x, 192.168.x, 172.16-31.x)
+    const isDevLanOrigin =
+      !config.isProduction &&
+      /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+        origin
+      );
+
+    if (allowedOrigins.includes(origin) || isDevLanOrigin) {
       callback(null, true);
     } else {
       const err = new Error(`CORS blocked: Origin ${origin} is not allowed.`);

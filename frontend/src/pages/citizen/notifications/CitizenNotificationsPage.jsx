@@ -58,7 +58,10 @@ export function CitizenNotificationsPage() {
     try {
       await notificationService.markRead(id);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, is_read: true } : n))
+        prev.map((n) => {
+          const nid = n._id || n.id;
+          return (nid === id || String(nid) === String(id)) ? { ...n, is_read: true } : n;
+        })
       );
     } catch (err) {
       setErrorMessage(err.message || 'Failed to mark notification as read.');
@@ -80,7 +83,12 @@ export function CitizenNotificationsPage() {
   const handleDeleteOne = async (id) => {
     try {
       await notificationService.deleteNotification(id);
-      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      setNotifications((prev) =>
+        prev.filter((n) => {
+          const nid = n._id || n.id;
+          return nid !== id && String(nid) !== String(id);
+        })
+      );
     } catch (err) {
       setErrorMessage(err.message || 'Failed to delete notification.');
     }

@@ -4,6 +4,7 @@ import { Icon } from '../../../components/shared/Icon';
 import { formatDate } from '../../../utils/formatters';
 
 export function NotificationCard({ notification, onMarkRead, onDelete }) {
+  const notifId = notification._id || notification.id;
   const isUnread = !notification.is_read;
   const trackingNumber = notification.metadata?.tracking_number;
 
@@ -43,7 +44,7 @@ export function NotificationCard({ notification, onMarkRead, onDelete }) {
               to={`/citizen/requests/${encodeURIComponent(trackingNumber)}`}
               onClick={() => {
                 if (isUnread && onMarkRead) {
-                  onMarkRead(notification._id);
+                  onMarkRead(notifId);
                 }
               }}
             >
@@ -60,7 +61,7 @@ export function NotificationCard({ notification, onMarkRead, onDelete }) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onMarkRead(notification._id)}
+              onClick={() => onMarkRead(notifId)}
               iconLeft={<Icon name="check" size={14} />}
             >
               Mark Read
@@ -70,7 +71,7 @@ export function NotificationCard({ notification, onMarkRead, onDelete }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDelete(notification._id)}
+            onClick={() => onDelete(notifId)}
             iconLeft={<Icon name="trash" size={14} />}
             aria-label="Delete notification"
           >

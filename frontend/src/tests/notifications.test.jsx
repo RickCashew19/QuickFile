@@ -135,6 +135,43 @@ describe('Citizen Notifications', () => {
 
     await waitFor(() => {
       expect(notificationService.markAllRead).toHaveBeenCalled();
+      expect(screen.getByText('Unread (0)')).toBeInTheDocument();
+    });
+  });
+
+  it('marks notification as read when clicking tracking number link', async () => {
+    notificationService.listNotifications.mockResolvedValueOnce({
+      notifications: [
+        {
+          _id: 'notif-tracking',
+          title: 'Request Ready',
+          message: 'Ready for pickup',
+          type: 'info',
+          is_read: false,
+          created_at: new Date().toISOString(),
+          metadata: { tracking_number: 'QF-20261108-999999' },
+        },
+      ],
+      unread_count: 1,
+    });
+    notificationService.markRead.mockResolvedValueOnce({ success: true });
+
+    render(
+      <MemoryRouter>
+        <CitizenNotificationsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('View Request QF-20261108-999999')).toBeInTheDocument();
+    });
+
+    const trackingLink = screen.getByText('View Request QF-20261108-999999');
+    fireEvent.click(trackingLink);
+
+    await waitFor(() => {
+      expect(notificationService.markRead).toHaveBeenCalledWith('notif-tracking');
+      expect(screen.getByText('Unread (0)')).toBeInTheDocument();
     });
   });
 
