@@ -264,3 +264,71 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Expected**: List filters accordingly.
 - [ ] **Step 21.3**: For a record in `Released` status, click "Archive".
 - [ ] **Expected**: Record transitions to `Archived` and status badge updates.
+
+---
+
+### Test Suite 22: Admin Executive Dashboard & Real-Time Live Stats Polling
+- [ ] **Step 22.1**: Log in as an Administrator (`admin@quickfile.gov.ph` / `Admin@123456`).
+- [ ] **Step 22.2**: Navigate to `/admin/dashboard`.
+- [ ] **Expected**:
+  - Executive stat cards display Today's Collections, Active Citizens, Staff Accounts, and Queue Backlog.
+  - Document Demand Breakdown table displays requests count and revenue collected per document type.
+  - Recent Citizen Requests table displays recent filings with clickable tracking numbers.
+  - Real-time polling runs automatically every 15 seconds without rate limiting errors.
+
+---
+
+### Test Suite 23: Staff Management, Granular Permissions & Password Reset
+- [ ] **Step 23.1**: Navigate to `/admin/staff`.
+- [ ] **Step 23.2**: Click "Provision Staff Account". Fill out full name, email, employee ID, position, and initial password.
+- [ ] **Expected**: Account is created and appears in the staff directory table.
+- [ ] **Step 23.3**: Click "Permissions" on a staff account.
+- [ ] **Expected**: Permissions modal opens showing 7 granular checkboxes (`Review Requests`, `Prepare Documents`, `Print Certificates`, `Release Documents`, `Verify QR Codes`, `View & Export Reports`, `Archive Records`).
+- [ ] **Step 23.4**: Toggle permissions and click "Update Permissions".
+- [ ] **Expected**: Permissions save successfully and apply immediately.
+- [ ] **Step 23.5**: Click "Reset PW" on a staff account. Enter a new password.
+- [ ] **Expected**: Password resets and active sessions are invalidated.
+- [ ] **Step 23.6**: Click the red trash icon on a staff member account.
+- [ ] **Expected**: `TypedDeleteModal` opens. Confirm button is disabled until exact word `DELETE` is typed. Typing `DELETE` and confirming deletes the account.
+
+---
+
+### Test Suite 24: Citizen Registry & Typed DELETE Safeguards
+- [ ] **Step 24.1**: Navigate to `/admin/citizens`.
+- [ ] **Step 24.2**: Use the search input to filter by resident name or phone number.
+- [ ] **Step 24.3**: Click "Profile" on a citizen.
+- [ ] **Expected**: Resident profile modal opens with Purok/Zone, civil status, voter status, registered date, and total filings count.
+- [ ] **Step 24.4**: Click "Deactivate" / "Activate".
+- [ ] **Expected**: Status pill toggles between Active (green) and Inactive (red).
+- [ ] **Step 24.5**: Click the red trash icon to delete a citizen.
+- [ ] **Expected**: `TypedDeleteModal` opens with warning that all filed requests and uploaded attachments will be expunged. Typing `DELETE` enables the button and permanently cleans up the account.
+
+---
+
+### Test Suite 25: Document Types Catalog
+- [ ] **Step 25.1**: Navigate to `/admin/document-types`.
+- [ ] **Step 25.2**: Click "New Document Type". Enter document name, code, fee, processing days, and add requirement items (e.g. "Valid Government ID").
+- [ ] **Expected**: New document type is created and appears in the catalog table.
+- [ ] **Step 25.3**: Click "Edit" to modify fee or turnaround time.
+- [ ] **Expected**: Changes save and reflect immediately.
+- [ ] **Step 25.4**: Click "Deactivate" to remove from citizen catalog without deleting records.
+
+---
+
+### Test Suite 26: System Settings, Masked Secrets, Super Admin Key Flow & 423 Lockout
+- [ ] **Step 26.1**: Navigate to `/admin/settings`.
+- [ ] **Expected**:
+  - Integration cards render for Google OAuth, PhilSMS, SMTP Mailer, and Google reCAPTCHA.
+  - Secret keys are masked (`••••••••`).
+  - Source badges indicate `DEFAULT` (subtle gray) or `CUSTOM` (accent badge).
+- [ ] **Step 26.2**: Enter a new Custom Google Client ID in the input field and click "Save Settings".
+- [ ] **Expected**: `SuperAdminKeyModal` opens requesting Super Admin Key.
+- [ ] **Step 26.3**: Enter an invalid key and click "Authorize & Save".
+- [ ] **Expected**: Modal displays error showing remaining attempts before lockout. Key is cleared from memory.
+- [ ] **Step 26.4**: Enter the valid Super Admin Key and click "Authorize & Save".
+- [ ] **Expected**: Settings save successfully, source badge updates to `CUSTOM`, and success alert appears.
+- [ ] **Step 26.5**: Click "Reset to Default" on the custom integration.
+- [ ] **Expected**: Prompts Super Admin Key modal. Submitting valid key resets credentials to system defaults.
+- [ ] **Step 26.6**: (Simulated 423 Lockout): If failed key attempts exceed limit, server returns 423 Locked.
+- [ ] **Expected**: Modal closes and a prominent red alert banner displays "Super Admin Key Lockout Active: ...".
+

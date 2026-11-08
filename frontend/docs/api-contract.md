@@ -96,30 +96,30 @@ This document provides the definitive REST API contract between the QuickFile Re
 | `PUT` | `/api/v1/admin/staff/:id` | `requireRole("admin")` | `{ full_name, position, department, phone }` | Updated staff profile | Admin Edit Staff Modal |
 | `PATCH` | `/api/v1/admin/staff/:id/status` | `requireRole("admin")` | `{ is_active: boolean }` | `{ is_active: boolean }` | Staff Deactivate / Reactivate Action |
 | `PUT` | `/api/v1/admin/staff/:id/permissions` | `requireRole("admin")` | `{ can_review_requests, can_prepare_documents, can_print_documents, can_release_documents, can_verify_qr, can_view_reports, can_archive_records }` | Updated `StaffPermission` object | Staff Permission Editor Matrix |
-| `POST` | `/api/v1/admin/staff/:id/reset-password` | `requireRole("admin")` | `{ new_password: string }` | `{ message: "Password reset successful" }` | Admin Reset Staff Password Action |
-| `DELETE` | `/api/v1/admin/staff/:id` | `requireRole("admin")` | None | `{ message: "Staff account deleted successfully" }` | Delete Staff Account |
-| `GET` | `/api/v1/admin/citizens` | `requireRole("admin")` | Query: `?page=1&limit=10&search=` | `{ citizens: [ ... ], pagination: { ... } }` | Admin Citizen Directory Screen |
+| `POST` | `/api/v1/admin/staff/:id/reset-password` | `requireRole("admin")` | `{ new_password: string }` | `{ email: string }` | Admin Reset Staff Password Action |
+| `DELETE` | `/api/v1/admin/staff/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Staff member deleted successfully.") | Delete Staff Account (Typed DELETE) |
+| `GET` | `/api/v1/admin/citizens` | `requireRole("admin")` | Query: `?page=1&limit=10&search=&is_active=&verification_status=` | `{ citizens: [ ... ], pagination: { ... } }` | Admin Citizen Directory Screen |
 | `PATCH` | `/api/v1/admin/citizens/:id/status` | `requireRole("admin")` | `{ is_active: boolean }` | `{ is_active: boolean }` | Citizen Deactivate / Reactivate Action |
-| `DELETE` | `/api/v1/admin/citizens/:id` | `requireRole("admin")` | None | `{ message: "Citizen account deleted successfully" }` | Delete Citizen Record |
-| `GET` | `/api/v1/admin/records` | `requireRole("admin")` | Query: `?page=1&limit=10&status=&search=` | `{ records: [ ... ], pagination: { ... } }` | Admin All Historical Records Screen |
-| `GET` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | None | Complete request document including all metadata | Admin View Request Details |
-| `DELETE` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | None | `{ message: "Request purged successfully" }` | Admin Hard Delete Request |
-| `GET` | `/api/v1/admin/issued-documents` | `requireRole("admin")` | Query: `?page=1&limit=10&status=&search=` | `{ documents: [ ... ], pagination: { ... } }` | Admin Issued Certificates Registry |
-| `POST` | `/api/v1/admin/issued-documents/:id/revoke` | `requireRole("admin")` | `{ reason: string }` | `{ validity_status: "revoked", revocation_reason }` | Revoke Certificate Action |
+| `DELETE` | `/api/v1/admin/citizens/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Citizen account and associated request records deleted successfully.") | Delete Citizen Record (Typed DELETE) |
+| `GET` | `/api/v1/admin/records` | `requireRole("admin")` | Query: `?page=1&limit=15&status=&search=&from=&to=&document_type_id=` | `{ requests: [ ... ], pagination: { ... } }` | Admin Master Request Records Screen |
+| `GET` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | None | Complete request document including processing notes & audit history | Admin View Request Details Modal |
+| `DELETE` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Document request deleted successfully.") | Admin Delete Request (Typed DELETE) |
+| `GET` | `/api/v1/admin/issued-documents` | `requireRole("admin")` | Query: `?page=1&limit=10&status=valid|expired|revoked&search=` | `{ documents: [ ... ], pagination: { ... } }` | Admin Issued Certificates Registry |
+| `POST` | `/api/v1/admin/issued-documents/:id/revoke` | `requireRole("admin")` | `{ reason: string }` (5-200 chars) | `{ validity_status: "revoked", revoked_reason }` | Revoke Certificate Action |
 | `POST` | `/api/v1/admin/issued-documents/:id/reinstate` | `requireRole("admin")` | None | `{ validity_status: "valid" }` | Reinstate Certificate Action |
-| `DELETE` | `/api/v1/admin/issued-documents/:id` | `requireRole("admin")` | None | `{ message: "Issued document purged" }` | Purge Certificate Record |
-| `GET` | `/api/v1/admin/audit-logs` | `requireRole("admin")` | Query: `?page=1&limit=20&module=&actor=&action=&from=&to=` | `{ logs: [ { timestamp, actor_name, action, module, details, ip_address } ], pagination: { ... } }` | Admin Append-Only Audit Trail Screen |
-| `GET` | `/api/v1/admin/document-types` | `requireRole("admin")` | Query: `?include_inactive=true` | `[ { _id, name, code, fee, processing_days, requirements, is_active } ]` | Document Types Configuration Screen |
-| `POST` | `/api/v1/admin/document-types` | `requireRole("admin")` | `{ name, code, fee, processing_days, requirements, form_schema, is_active }` | Created document type | Add Document Type Modal |
+| `DELETE` | `/api/v1/admin/issued-documents/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Issued document record deleted successfully.") | Delete Certificate Record (Typed DELETE) |
+| `GET` | `/api/v1/admin/audit-logs` | `requireRole("admin")` | Query: `?page=1&limit=20&module=&actor_name=&action=&from=&to=` | `{ logs: [ { timestamp, actor_name, action, module, details, ip_address } ], pagination: { ... } }` | Admin Append-Only Audit Trail Screen |
+| `GET` | `/api/v1/admin/document-types` | `requireRole("admin")` | None | `[ { _id, name, code, fee, processing_days, requirements, is_active } ]` | Document Types Catalog Screen |
+| `POST` | `/api/v1/admin/document-types` | `requireRole("admin")` | `{ name, code, fee, processing_days, requirements, is_active, description }` | Created document type | Add Document Type Modal |
 | `GET` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | None | Full DocumentType object | Edit Document Type Form |
-| `PUT` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | `{ name, code, fee, processing_days, requirements, form_schema, is_active }` | Updated document type | Save Document Type Updates |
-| `DELETE` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | None | `{ message: "Document type deleted" }` | Delete Document Type |
-| `GET` | `/api/v1/admin/settings` | `requireRole("admin")` | None | Complete system settings dictionary (safe masked values for secrets) | System Settings Management Screen |
-| `PATCH` | `/api/v1/admin/settings` | `requireRole("admin")` + `suKeyLimiter` | `{ super_admin_key: string, updates: { [key]: value } }` | Updated settings | Save Super Admin Protected Settings |
+| `PUT` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | `{ name, code, fee, processing_days, requirements, is_active, description }` | Updated document type | Save Document Type Updates |
+| `DELETE` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Document type deleted successfully.") | Delete Document Type (Typed DELETE) |
+| `GET` | `/api/v1/admin/settings` | `requireRole("admin")` | None | `{ integrations: { google, sms, smtp, recaptcha, rest_api }, app_settings: [ ... ] }` (masked values) | System Settings Screen |
+| `PATCH` | `/api/v1/admin/settings` | `requireRole("admin")` + `suKeyLimiter` | `{ su_admin_key: string, settings: object, reset_keys: string[] }` | `{ modified_keys: string[], integrations: object }` (or 401 invalid key / 423 locked) | Save / Reset Super Admin Protected Settings |
 | `PATCH` | `/api/v1/admin/settings/toggles` | `requireRole("admin")` | `{ enable_google_login?, enable_recaptcha?, enable_sms_notifications?, enable_email_notifications?, enable_rest_api_gateway? }` | Updated feature toggles | Instant Toggle Switches |
-| `PATCH` | `/api/v1/admin/settings/general` | `requireRole("admin")` | `{ system_name?, barangay_name?, city_municipality?, province?, contact_email?, contact_phone? }` | Updated general settings | Save General Info Form |
-| `GET` | `/api/v1/admin/reports` | `requireRole("admin")` | Query: `?from=&to=&document_type=&staff_id=` | Executive reports, financial revenue, SLA metrics | Admin Reports Dashboard |
-| `GET` | `/api/v1/admin/reports/export` | `exportLimiter` | Query: `?format=pdf|xlsx|docx&from=&to=` | Binary file stream (`Content-Type: application/pdf`, etc.) | Export Executive Report Download |
+| `PATCH` | `/api/v1/admin/settings/general` | `requireRole("admin")` | `{ system_name?, contact_email?, contact_phone?, office_name?, barangay_captain?, barangay_secretary? }` | Updated general settings | Save General Info Form |
+| `GET` | `/api/v1/admin/reports` | `requireRole("admin")` | Query: `?from=&to=&document_type_id=` | Executive reports, financial revenue, SLA metrics | Admin Reports Dashboard |
+| `GET` | `/api/v1/admin/reports/export` | `exportLimiter` | Query: `?format=pdf|xlsx|docx&from=&to=&document_type_id=` | Binary file stream (`Content-Type: application/pdf`, etc.) | Export Executive Report Download |
 
 ---
 

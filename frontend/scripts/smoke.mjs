@@ -703,6 +703,387 @@ function startContractMockServer() {
           );
         }
 
+        // ==============================================================
+        // 7. Admin APIs (Phase F4 Contract Mock Handlers)
+        // ==============================================================
+        let mockStaffDirectory = [
+          {
+            _id: 'mock_staff_01',
+            email: 'staff@quickfile.gov.ph',
+            full_name: 'Barangay Staff',
+            phone: '09171234567',
+            role: 'staff',
+            is_active: true,
+            detail: { employee_id: 'EMP-2026-001', position: 'Desk Officer', department: 'General Services' },
+            permissions: { can_review_requests: true, can_prepare_documents: true },
+          },
+        ];
+
+        let mockDocTypes = [
+          {
+            _id: 'dt_01',
+            name: 'Barangay Clearance',
+            code: 'BC',
+            fee: 50,
+            processing_days: 1,
+            is_active: true,
+            requirements: ['Valid Government ID'],
+          },
+        ];
+
+        if (url === '/api/v1/admin/live-stats' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Live stats retrieved successfully.',
+              data: {
+                queue: { pending: 1, under_review: 0, approved: 0, in_preparation: 0, ready_for_pickup: 0 },
+                today_requests_count: 5,
+                today_revenue: 250,
+                timestamp: new Date().toISOString(),
+              },
+            })
+          );
+        }
+
+        if (url === '/api/v1/admin/dashboard' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Admin dashboard metrics retrieved successfully.',
+              data: {
+                status_counts: { pending: 1, under_review: 0, approved: 0, in_preparation: 0, ready_for_pickup: 0, released: 8, archived: 1 },
+                revenue_today: 250,
+                revenue_this_month: 2500,
+                active_citizens_count: 10,
+                active_staff_count: 2,
+                demand_by_type: [{ document_type_id: 'dt_01', name: 'Barangay Clearance', code: 'BC', count: 10, collected_revenue: 500 }],
+                recent_requests: [mockStaffRequestState],
+              },
+            })
+          );
+        }
+
+        // Staff CRUD
+        if (url.startsWith('/api/v1/admin/staff') && method === 'POST') {
+          const parsed = JSON.parse(body || '{}');
+          const newStaff = {
+            _id: `mock_staff_${Date.now()}`,
+            email: parsed.email,
+            full_name: parsed.full_name,
+            phone: parsed.phone || '',
+            role: 'staff',
+            is_active: true,
+            detail: { employee_id: parsed.employee_id || '', position: parsed.position || 'Staff', department: parsed.department || 'General' },
+            permissions: parsed.permissions || {},
+          };
+          mockStaffDirectory.push(newStaff);
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Staff member account created successfully.', data: newStaff }));
+        }
+
+        if (url.startsWith('/api/v1/admin/staff?') || url === '/api/v1/admin/staff') {
+          if (method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(
+              JSON.stringify({
+                success: true,
+                message: 'Staff directory retrieved successfully.',
+                data: {
+                  staff: mockStaffDirectory,
+                  pagination: { total: mockStaffDirectory.length, page: 1, limit: 10, totalPages: 1 },
+                },
+              })
+            );
+          }
+        }
+
+        const staffIdMatch = url.match(/\/api\/v1\/admin\/staff\/([^/?#]+)/);
+        if (staffIdMatch) {
+          const staffId = staffIdMatch[1];
+          if (url.endsWith('/status') && method === 'PATCH') {
+            const parsed = JSON.parse(body || '{}');
+            const target = mockStaffDirectory.find((s) => s._id === staffId);
+            if (target) target.is_active = parsed.is_active;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff status updated.', data: target }));
+          }
+          if (url.endsWith('/permissions') && method === 'PUT') {
+            const parsed = JSON.parse(body || '{}');
+            const target = mockStaffDirectory.find((s) => s._id === staffId);
+            if (target) target.permissions = parsed;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff permissions updated.', data: parsed }));
+          }
+          if (url.endsWith('/reset-password') && method === 'POST') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff password reset.', data: { email: 'staff@example.com' } }));
+          }
+          if (method === 'GET') {
+            const target = mockStaffDirectory.find((s) => s._id === staffId) || mockStaffDirectory[0];
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff details retrieved.', data: target }));
+          }
+          if (method === 'PUT') {
+            const parsed = JSON.parse(body || '{}');
+            const target = mockStaffDirectory.find((s) => s._id === staffId) || mockStaffDirectory[0];
+            Object.assign(target, parsed);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff member updated.', data: target }));
+          }
+          if (method === 'DELETE') {
+            const parsed = JSON.parse(body || '{}');
+            if (parsed.confirm !== 'DELETE') {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              return res.end(JSON.stringify({ success: false, message: 'Confirmation required. Request body must contain { confirm: "DELETE" }.' }));
+            }
+            mockStaffDirectory = mockStaffDirectory.filter((s) => s._id !== staffId);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Staff member deleted successfully.', data: null }));
+          }
+        }
+
+        // Citizens Management
+        if (url.startsWith('/api/v1/admin/citizens?') || url === '/api/v1/admin/citizens') {
+          if (method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(
+              JSON.stringify({
+                success: true,
+                message: 'Citizen directory retrieved successfully.',
+                data: {
+                  citizens: [
+                    {
+                      _id: 'citizen_01',
+                      full_name: 'Maria Santos',
+                      email: 'citizen@quickfile.gov.ph',
+                      phone: '09123456789',
+                      is_active: true,
+                      profile: { purok_zone: 'Purok 1', is_registered_voter: true },
+                      request_count: 1,
+                    },
+                  ],
+                  pagination: { total: 1, page: 1, limit: 10, totalPages: 1 },
+                },
+              })
+            );
+          }
+        }
+
+        if (url.match(/\/api\/v1\/admin\/citizens\/[^/?#]+\/status$/) && method === 'PATCH') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Citizen status updated.', data: { is_active: true } }));
+        }
+
+        // Document Types CRUD
+        if (url === '/api/v1/admin/document-types' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Document types retrieved.', data: mockDocTypes }));
+        }
+        if (url === '/api/v1/admin/document-types' && method === 'POST') {
+          const parsed = JSON.parse(body || '{}');
+          const newDocType = {
+            _id: `dt_${Date.now()}`,
+            name: parsed.name,
+            code: parsed.code,
+            fee: parsed.fee || 0,
+            processing_days: parsed.processing_days || 1,
+            requirements: parsed.requirements || [],
+            is_active: parsed.is_active !== undefined ? parsed.is_active : true,
+          };
+          mockDocTypes.push(newDocType);
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Document type created.', data: newDocType }));
+        }
+        const dtIdMatch = url.match(/\/api\/v1\/admin\/document-types\/([^/?#]+)$/);
+        if (dtIdMatch) {
+          const dtId = dtIdMatch[1];
+          if (method === 'GET') {
+            const dt = mockDocTypes.find((d) => d._id === dtId) || mockDocTypes[0];
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Document type retrieved.', data: dt }));
+          }
+          if (method === 'PUT') {
+            const parsed = JSON.parse(body || '{}');
+            const dt = mockDocTypes.find((d) => d._id === dtId) || mockDocTypes[0];
+            Object.assign(dt, parsed);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Document type updated.', data: dt }));
+          }
+          if (method === 'DELETE') {
+            mockDocTypes = mockDocTypes.filter((d) => d._id !== dtId);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, message: 'Document type deleted successfully.', data: null }));
+          }
+        }
+
+        // Records & Issued Documents
+        if (url.startsWith('/api/v1/admin/records') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Records retrieved successfully.',
+              data: { requests: [mockStaffRequestState], pagination: { total: 1, page: 1, limit: 15, totalPages: 1 } },
+            })
+          );
+        }
+
+        if (url.startsWith('/api/v1/admin/issued-documents') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Issued documents retrieved successfully.',
+              data: {
+                documents: [
+                  {
+                    _id: 'cert_01',
+                    certificate_number: 'BC-2026-0001',
+                    issued_to_name: 'Maria Santos',
+                    document_name: 'Barangay Clearance',
+                    validity_status: 'valid',
+                    issued_at: new Date().toISOString(),
+                    expires_at: null,
+                  },
+                ],
+                pagination: { total: 1, page: 1, limit: 10, totalPages: 1 },
+              },
+            })
+          );
+        }
+
+        if (url.match(/\/api\/v1\/admin\/issued-documents\/[^/?#]+\/revoke$/) && method === 'POST') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Issued document revoked successfully.', data: { validity_status: 'revoked' } }));
+        }
+
+        if (url.match(/\/api\/v1\/admin\/issued-documents\/[^/?#]+\/reinstate$/) && method === 'POST') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Issued document reinstated successfully.', data: { validity_status: 'valid' } }));
+        }
+
+        if (url.match(/\/api\/v1\/admin\/issued-documents\/[^/?#]+$/) && method === 'DELETE') {
+          const parsed = JSON.parse(body || '{}');
+          if (parsed.confirm !== 'DELETE') {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: false, message: 'Confirmation required.' }));
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Issued document deleted.', data: null }));
+        }
+
+        // Audit Logs
+        if (url.startsWith('/api/v1/admin/audit-logs') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Audit logs retrieved successfully.',
+              data: {
+                logs: [
+                  {
+                    _id: 'log_01',
+                    action: 'AUTH_LOGIN_SUCCESS',
+                    module: 'AUTH',
+                    actor_name: 'Admin User',
+                    target_type: 'User',
+                    details: { role: 'admin' },
+                    ip_address: '127.0.0.1',
+                    created_at: new Date().toISOString(),
+                  },
+                ],
+                pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+              },
+            })
+          );
+        }
+
+        // Settings (Super Admin Key Protected)
+        if (url === '/api/v1/admin/settings' && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Settings retrieved successfully.',
+              data: {
+                integrations: {
+                  google: { source: 'default', client_id: '••••••••••••.apps.googleusercontent.com', client_secret: '••••••••' },
+                  sms: { source: 'default', gateway_url: 'https://app.philsms.com/api/v3/sms/send', api_token: '••••••••' },
+                  smtp: { source: 'default', host: 'smtp.gmail.com', user: '••••••••', pass: '••••••••' },
+                  recaptcha: { source: 'default', site_key: '••••••••', secret_key: '••••••••' },
+                  rest_api: { source: 'default', secret_key: '••••••••' },
+                },
+                app_settings: [
+                  { key: 'system_name', value: 'QuickFile' },
+                  { key: 'barangay_captain', value: 'Hon. Barangay Captain' },
+                  { key: 'enable_google_login', value: false },
+                ],
+              },
+            })
+          );
+        }
+
+        if (url === '/api/v1/admin/settings' && method === 'PATCH') {
+          const parsed = JSON.parse(body || '{}');
+          if (!parsed.su_admin_key || parsed.su_admin_key === 'invalid_key') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: false, message: 'Invalid Super Admin Key. 4 attempt(s) remaining before lockout.', data: null }));
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Integration settings updated successfully.',
+              data: {
+                modified_keys: Object.keys(parsed.settings || {}),
+                integrations: {
+                  google: { source: 'custom', client_id: 'custom-id', client_secret: '••••••••' },
+                },
+              },
+            })
+          );
+        }
+
+        if (url === '/api/v1/admin/settings/toggles' && method === 'PATCH') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'Feature toggles updated successfully.', data: JSON.parse(body || '{}') }));
+        }
+
+        if (url === '/api/v1/admin/settings/general' && method === 'PATCH') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, message: 'General settings updated successfully.', data: JSON.parse(body || '{}') }));
+        }
+
+        if (url.startsWith('/api/v1/admin/reports/export') && method === 'GET') {
+          const format = url.includes('format=docx') ? 'docx' : url.includes('format=xlsx') ? 'xlsx' : 'pdf';
+          const mimeTypes = {
+            pdf: 'application/pdf',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          };
+          res.setHeader('Content-Type', mimeTypes[format]);
+          res.setHeader('Content-Disposition', `attachment; filename="admin_report.${format}"`);
+          res.writeHead(200);
+          return res.end(Buffer.from(`Mock admin ${format} report`));
+        }
+
+        if (url.startsWith('/api/v1/admin/reports') && method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(
+            JSON.stringify({
+              success: true,
+              message: 'Admin reports generated successfully.',
+              data: {
+                summary: { total_requests: 15, completed_requests: 12, rejected_requests: 1, total_revenue: 750 },
+                by_document_type: [{ code: 'BC', name: 'Barangay Clearance', count: 15, revenue: 750 }],
+              },
+            })
+          );
+        }
+
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, message: 'Not found' }));
       });
@@ -1207,6 +1588,244 @@ async function main() {
     if (!res.ok) throw new Error(`XLSX export failed with status ${res.status}`);
     const cType = res.headers.get('content-type') || '';
     if (!cType.includes('officedocument') && !cType.includes('sheet')) throw new Error(`Invalid XLSX Content-Type: ${cType}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
+  });
+
+  // ==========================================
+  // 5. Admin Portal Management & Super Admin Flow
+  // ==========================================
+  console.log('\n--- 5. Admin Portal Management & Super Admin Flow ---');
+
+  await runCheck('GET /admin/dashboard returns executive KPIs, revenue, and queue breakdown', async () => {
+    const { res, json } = await api('/admin/dashboard', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (json.data?.revenue_today === undefined || !json.data?.status_counts) {
+      throw new Error('Missing revenue_today or status_counts on admin dashboard');
+    }
+  });
+
+  await runCheck('GET /admin/live-stats returns high-frequency real-time metrics', async () => {
+    const { res, json } = await api('/admin/live-stats', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (json.data?.today_requests_count === undefined) throw new Error('Missing today_requests_count in live-stats');
+  });
+
+  // Staff Account Lifecycle
+  let throwawayStaffId = null;
+  const staffRand = Math.floor(Math.random() * 900000 + 100000);
+  const throwawayStaffEmail = `smoke_staff_${staffRand}@quickfile.gov.ph`;
+
+  await runCheck('POST /admin/staff provisions a new staff account with granular permissions', async () => {
+    const { res, json } = await api('/admin/staff', 'POST', {
+      email: throwawayStaffEmail,
+      password: 'StaffPassword@1234',
+      full_name: 'Smoke Test Staff',
+      phone: '09181234567',
+      employee_id: `EMP-${staffRand}`,
+      position: 'Junior Desk Officer',
+      department: 'Public Assistance',
+      permissions: {
+        can_review_requests: true,
+        can_prepare_documents: true,
+      },
+    }, adminToken);
+
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    throwawayStaffId = json.data?._id;
+    if (!throwawayStaffId) throw new Error('Staff ID missing in creation response');
+  });
+
+  await runCheck('GET /admin/staff lists staff directory with pagination', async () => {
+    const { res, json } = await api('/admin/staff?page=1&limit=10', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!Array.isArray(json.data?.staff)) throw new Error('Staff expected to be an array');
+  });
+
+  await runCheck('GET /admin/staff/:id retrieves individual staff profile & details', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}`, 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('PUT /admin/staff/:id updates staff basic information', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}`, 'PUT', {
+      full_name: 'Updated Smoke Staff',
+      position: 'Senior Desk Officer',
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('PATCH /admin/staff/:id/status toggles staff active status', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}/status`, 'PATCH', {
+      is_active: true,
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('PUT /admin/staff/:id/permissions updates granular workflow permissions', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}/permissions`, 'PUT', {
+      can_review_requests: true,
+      can_prepare_documents: true,
+      can_print_documents: true,
+      can_release_documents: false,
+      can_verify_qr: true,
+      can_view_reports: false,
+      can_archive_records: false,
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('POST /admin/staff/:id/reset-password resets staff password', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}/reset-password`, 'POST', {
+      new_password: 'NewStaffPassword@5678',
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('DELETE /admin/staff/:id rejects without { confirm: "DELETE" }', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res } = await api(`/admin/staff/${targetId}`, 'DELETE', {}, adminToken);
+    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+  });
+
+  await runCheck('DELETE /admin/staff/:id cleans up throwaway staff account with confirmation', async () => {
+    const targetId = throwawayStaffId || 'mock_staff_01';
+    const { res, json } = await api(`/admin/staff/${targetId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Delete staff failed: ${json?.message}`);
+  });
+
+  // Citizen Admin Management
+  await runCheck('GET /admin/citizens lists citizen registry with filters', async () => {
+    const { res, json } = await api('/admin/citizens?page=1&limit=10', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!Array.isArray(json.data?.citizens)) throw new Error('Citizens expected to be an array');
+  });
+
+  // Document Types Lifecycle
+  let throwawayDocTypeId = null;
+  const docTypeRand = Math.floor(Math.random() * 9000 + 1000);
+  const testDocTypeCode = `TC${docTypeRand}`;
+
+  await runCheck('POST /admin/document-types creates a new catalog document definition', async () => {
+    const { res, json } = await api('/admin/document-types', 'POST', {
+      name: `Test Certificate ${docTypeRand}`,
+      code: testDocTypeCode,
+      description: 'Temporary document type for contract smoke testing',
+      fee: 75,
+      processing_days: 2,
+      requirements: ['Valid Government ID', 'Proof of Residency'],
+      is_active: true,
+    }, adminToken);
+
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    throwawayDocTypeId = json.data?._id;
+  });
+
+  await runCheck('GET /admin/document-types lists all document catalog items', async () => {
+    const { res, json } = await api('/admin/document-types', 'GET', null, adminToken);
+    if (!res.ok || !Array.isArray(json.data)) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('PUT /admin/document-types/:id updates document catalog item', async () => {
+    const targetId = throwawayDocTypeId || 'dt_01';
+    const { res, json } = await api(`/admin/document-types/${targetId}`, 'PUT', {
+      fee: 100,
+      processing_days: 3,
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('DELETE /admin/document-types/:id deletes catalog item', async () => {
+    const targetId = throwawayDocTypeId || 'dt_01';
+    const { res, json } = await api(`/admin/document-types/${targetId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  // Records & Issued Documents
+  await runCheck('GET /admin/records returns master transaction archives', async () => {
+    const { res, json } = await api('/admin/records?page=1&limit=10', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('GET /admin/issued-documents lists issued certificates registry', async () => {
+    const { res, json } = await api('/admin/issued-documents?page=1&limit=10', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('GET /admin/audit-logs returns read-only security event ledger', async () => {
+    const { res, json } = await api('/admin/audit-logs?page=1&limit=10', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!Array.isArray(json.data?.logs)) throw new Error('logs expected to be an array');
+  });
+
+  // Settings & Super Admin Key Protection
+  const resolvedSuAdminKey = process.env.SU_ADMIN_KEY || 'SuperAdmin@123456';
+
+  await runCheck('GET /admin/settings returns masked integration summaries and app configs', async () => {
+    const { res, json } = await api('/admin/settings', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+    if (!json.data?.integrations || !Array.isArray(json.data?.app_settings)) {
+      throw new Error('Settings missing integrations or app_settings');
+    }
+  });
+
+  await runCheck('PATCH /admin/settings rejects invalid Super Admin Key with 401', async () => {
+    const { res, json } = await api('/admin/settings', 'PATCH', {
+      su_admin_key: 'invalid_key',
+      settings: {},
+    }, adminToken);
+    if (res.status !== 401 && res.status !== 423) {
+      throw new Error(`Expected 401 or 423 for invalid Super Admin Key, got ${res.status}`);
+    }
+  });
+
+  await runCheck('PATCH /admin/settings updates settings with valid Super Admin Key (never logging key)', async () => {
+    // Sourced securely without logging
+    const { res, json } = await api('/admin/settings', 'PATCH', {
+      su_admin_key: resolvedSuAdminKey,
+      settings: {},
+      reset_keys: [],
+    }, adminToken);
+    if (!res.ok || json.success !== true) {
+      throw new Error(`Update settings failed with status ${res.status}: ${json?.message}`);
+    }
+  });
+
+  await runCheck('PATCH /admin/settings/general updates barangay info and signatories', async () => {
+    const { res, json } = await api('/admin/settings/general', 'PATCH', {
+      system_name: 'QuickFile System Administration',
+    }, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  // Admin Reports & Exports
+  await runCheck('GET /admin/reports returns aggregated executive summaries', async () => {
+    const { res, json } = await api('/admin/reports', 'GET', null, adminToken);
+    if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+  });
+
+  await runCheck('GET /admin/reports/export?format=pdf exports admin report in PDF', async () => {
+    const { res } = await api('/admin/reports/export?format=pdf', 'GET', null, adminToken);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
+  });
+
+  await runCheck('GET /admin/reports/export?format=docx exports admin report in Word format', async () => {
+    const { res } = await api('/admin/reports/export?format=docx', 'GET', null, adminToken);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const disposition = res.headers.get('content-disposition') || '';
+    if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
+  });
+
+  await runCheck('GET /admin/reports/export?format=xlsx exports admin report in Excel format', async () => {
+    const { res } = await api('/admin/reports/export?format=xlsx', 'GET', null, adminToken);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
     const disposition = res.headers.get('content-disposition') || '';
     if (!disposition.includes('attachment')) throw new Error('Missing attachment Content-Disposition');
   });

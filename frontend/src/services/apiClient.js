@@ -65,8 +65,12 @@ function handleCommonErrors(response, body, endpoint, options, tokenSent) {
       endpoint.includes('/auth/reset-password') ||
       endpoint.includes('/auth/google');
 
+    // Super Admin Key verification on /admin/settings returns 401 on invalid key; this must not invalidate user login
+    const isSuperAdminKeyEndpoint = endpoint.includes('/admin/settings');
+
     // Treat as expired session ONLY when token was sent AND (code is token error OR endpoint is not auth endpoint)
-    const isExpiredSession = !isAuthExempt && tokenSent && (isExplicitTokenErrorCode || !isAuthEndpoint);
+    const isExpiredSession =
+      !isAuthExempt && !isSuperAdminKeyEndpoint && tokenSent && (isExplicitTokenErrorCode || !isAuthEndpoint);
 
     if (isExpiredSession) {
       authStorage.clearAll();
@@ -208,6 +212,13 @@ export const apiClient = {
   post: (url, body, opts) => request(url, { ...opts, method: 'POST', body }),
   put: (url, body, opts) => request(url, { ...opts, method: 'PUT', body }),
   patch: (url, body, opts) => request(url, { ...opts, method: 'PATCH', body }),
-  delete: (url, opts) => request(url, { ...opts, method: 'DELETE' }),
+  delete: (url, bodyOrOpts = {}, opts = {}) => {
+    // If second arg has opts properties (e.g. headers/signal) and no direct body, treat as opts
+    if (bodyOrOpts && (bodyOrOpts.headers || bodyOrOpts.signal || bodyOrOpts.body !== undefined)) {
+      return request(url, { ...bodyOrOpts, method: 'DELETE' });
+    }
+    // Otherwise treat second argument as request body
+    return request(url, { ...opts, method: 'DELETE', body: bodyOrOpts });
+  },
   download,
 };

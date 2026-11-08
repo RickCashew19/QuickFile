@@ -40,6 +40,17 @@ import { StaffRecordsPage } from './pages/staff/records/StaffRecordsPage';
 import { StaffVerifyPage } from './pages/staff/verify/StaffVerifyPage';
 import { StaffReportsPage } from './pages/staff/reports/StaffReportsPage';
 
+// Admin Portal Pages
+import { AdminDashboardPage } from './pages/admin/dashboard/AdminDashboardPage';
+import { AdminStaffPage } from './pages/admin/staff/AdminStaffPage';
+import { AdminCitizensPage } from './pages/admin/citizens/AdminCitizensPage';
+import { AdminDocTypesPage } from './pages/admin/doctypes/AdminDocTypesPage';
+import { AdminRecordsPage } from './pages/admin/records/AdminRecordsPage';
+import { AdminCertificatesPage } from './pages/admin/certificates/AdminCertificatesPage';
+import { AdminAuditLogsPage } from './pages/admin/audit/AdminAuditLogsPage';
+import { AdminSettingsPage } from './pages/admin/settings/AdminSettingsPage';
+import { AdminReportsPage } from './pages/admin/reports/AdminReportsPage';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -183,15 +194,15 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route
-            path="dashboard"
-            element={
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>System Administration</h2>
-                <p>Executive dashboards, settings, and staff accounts management will be active in Phase F4.</p>
-              </div>
-            }
-          />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="staff" element={<AdminStaffPage />} />
+          <Route path="citizens" element={<AdminCitizensPage />} />
+          <Route path="document-types" element={<AdminDocTypesPage />} />
+          <Route path="records" element={<AdminRecordsPage />} />
+          <Route path="issued-documents" element={<AdminCertificatesPage />} />
+          <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
         </Route>
 
         {/* 404 Catch-All */}
