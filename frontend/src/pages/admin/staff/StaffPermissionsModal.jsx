@@ -68,7 +68,7 @@ export function StaffPermissionsModal({ isOpen, onClose, onSave, staff, isSaving
       title={`Permissions: ${staff?.full_name || 'Staff'}`}
       size="md"
       footer={footer}
-      preventBackdropClose={isSaving}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', margin: 0 }}>

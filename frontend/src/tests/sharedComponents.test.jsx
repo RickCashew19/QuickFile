@@ -92,6 +92,53 @@ describe('Shared UI Components Suite', () => {
       fireEvent.keyDown(window, { key: 'Escape' });
       expect(handleClose).toHaveBeenCalledTimes(1);
     });
+
+    it('closes on direct backdrop click when preventBackdropClose is false', () => {
+      const handleClose = vi.fn();
+      const { container } = render(
+        <Modal isOpen={true} onClose={handleClose} title="Test Modal">
+          <p>Body</p>
+        </Modal>
+      );
+
+      const backdrop = container.querySelector('.qf-modal-backdrop');
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+      expect(handleClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT close on backdrop click when preventBackdropClose is true', () => {
+      const handleClose = vi.fn();
+      const { container } = render(
+        <Modal isOpen={true} onClose={handleClose} title="Test Modal" preventBackdropClose={true}>
+          <p>Body</p>
+        </Modal>
+      );
+
+      const backdrop = container.querySelector('.qf-modal-backdrop');
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+      expect(handleClose).not.toHaveBeenCalled();
+    });
+
+    it('does NOT close when mouse drag originates inside modal and ends on backdrop', () => {
+      const handleClose = vi.fn();
+      const { container } = render(
+        <Modal isOpen={true} onClose={handleClose} title="Test Modal">
+          <p>Selectable text</p>
+        </Modal>
+      );
+
+      const modalContent = screen.getByText('Selectable text');
+      const backdrop = container.querySelector('.qf-modal-backdrop');
+
+      // User starts dragging inside the modal dialog
+      fireEvent.mouseDown(modalContent);
+      // Mouse is released outside on the backdrop
+      fireEvent.click(backdrop);
+
+      expect(handleClose).not.toHaveBeenCalled();
+    });
   });
 
   describe('Alert Component', () => {

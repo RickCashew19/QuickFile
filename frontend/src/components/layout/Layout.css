@@ -241,3 +241,28 @@
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
 }
+
+/* Global Print Rules: Hide portal shell chrome during any print operation */
+@media print {
+  .qf-skip-link,
+  .qf-shell-header,
+  .qf-sidebar,
+  .qf-drawer,
+  .qf-drawer-overlay,
+  .qf-hamburger-btn,
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .qf-shell,
+  .qf-shell-body,
+  .qf-shell-main {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+  }
+}

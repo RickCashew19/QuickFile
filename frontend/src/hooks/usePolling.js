@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Custom Polling Hook
@@ -6,9 +6,11 @@ import { useEffect, useRef, useCallback } from 'react';
  * - Respects document visibility (pauses when tab is hidden)
  * - Applies exponential backoff on 429 (rate limits) and 500 errors
  * - Automatically tears down timers on unmount
+ * - Returns { data } for consumers that capture polling results
  */
 export function usePolling(callback, intervalMs = 10000, options = {}) {
   const { enabled = true, maxIntervalMs = 60000 } = options;
+  const [data, setData] = useState(null);
 
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
@@ -32,7 +34,10 @@ export function usePolling(callback, intervalMs = 10000, options = {}) {
 
     inFlightRef.current = true;
     try {
-      await callbackRef.current();
+      const result = await callbackRef.current();
+      if (result !== undefined && isMountedRef.current) {
+        setData(result);
+      }
       // On success, reset interval to original default
       currentIntervalRef.current = intervalMs;
     } catch (err) {
@@ -81,4 +86,6 @@ export function usePolling(callback, intervalMs = 10000, options = {}) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [enabled, executePoll, clearTimer]);
+
+  return { data };
 }

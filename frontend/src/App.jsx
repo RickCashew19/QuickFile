@@ -5,6 +5,8 @@ import { RoleRoute } from './components/guards/RoleRoute';
 import { PermissionRoute } from './components/guards/PermissionRoute';
 import { ROLES, STAFF_PERMISSIONS } from './config/constants';
 
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
+
 // Layout Shells
 import { PublicLayout } from './components/layout/PublicLayout';
 import { CitizenLayout } from './components/layout/CitizenLayout';
@@ -54,7 +56,8 @@ import { AdminReportsPage } from './pages/admin/reports/AdminReportsPage';
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
+      <ErrorBoundary>
+        <Routes>
         {/* Public Routes with Shared Header, Skip Link, and Drawer */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
@@ -208,6 +211,7 @@ export default function App() {
         {/* 404 Catch-All */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-    </AuthProvider>
+    </ErrorBoundary>
+  </AuthProvider>
   );
 }

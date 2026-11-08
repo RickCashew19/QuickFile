@@ -51,7 +51,7 @@ export function StaffPasswordResetModal({ isOpen, onClose, onReset, staff, isRes
       title={`Reset Password: ${staff?.full_name || 'Staff'}`}
       size="sm"
       footer={footer}
-      preventBackdropClose={isResetting}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', margin: 0 }}>

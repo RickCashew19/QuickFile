@@ -63,7 +63,7 @@ export function StaffReleaseModal({
       title="Release Official Document"
       size="md"
       footer={footer}
-      preventBackdropClose={loading}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} className="qf-release-form">
         <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-3)' }}>

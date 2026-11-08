@@ -204,32 +204,173 @@
   font-family: sans-serif;
 }
 
-/* Print CSS */
+/* Print CSS - Document-Specific Formatting */
 @media print {
+  @page {
+    size: portrait;
+    margin: 10mm 15mm;
+  }
+
+  html,
   body {
     background: #ffffff !important;
+    color: #1a1a1a !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
+  /* Hide entire application navigation, header, sidebar, controls and buttons */
+  .qf-skip-link,
   .qf-shell-header,
-  .qf-shell-sidebar,
-  .qf-shell-drawer,
+  .qf-sidebar,
+  .qf-drawer,
+  .qf-drawer-overlay,
+  .qf-hamburger-btn,
+  .qf-print-controls,
   .no-print,
-  .qf-print-controls {
+  .qf-btn,
+  button {
     display: none !important;
+    visibility: hidden !important;
   }
 
+  /* Flatten all parent wrappers to prevent page-overflow or margin artifacts */
+  .qf-shell,
+  .qf-shell-body,
+  .qf-shell-main,
   .qf-print-container {
-    max-width: 100% !important;
-    padding: 0 !important;
+    display: block !important;
     margin: 0 !important;
-  }
-
-  .qf-certificate-sheet {
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 20mm !important;
+    background: transparent !important;
+  }
+
+  /* Render as an authentic, standalone official barangay certificate sheet */
+  .qf-certificate-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    border: 3px double #1a1a1a !important; /* Official government double border */
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 24px 32px !important;
+    margin: 0 auto !important;
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    gap: 16px !important;
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    font-size: 11pt !important;
+  }
+
+  .qf-certificate-header__text p {
+    margin: 1px 0 !important;
+    font-size: 11pt !important;
+  }
+
+  .qf-cert-barangay {
+    font-size: 15pt !important;
+    margin: 3px 0 !important;
+  }
+
+  .qf-cert-office {
+    font-size: 11pt !important;
+  }
+
+  .qf-cert-header-line {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .qf-cert-title-section {
+    margin: 8px 0 !important;
+  }
+
+  .qf-cert-title {
+    font-size: 17pt !important;
+    margin-bottom: 4px !important;
+  }
+
+  .qf-cert-meta {
+    font-size: 10pt !important;
+  }
+
+  .qf-cert-body {
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+  }
+
+  .qf-cert-salutation {
+    margin-bottom: 10px !important;
+  }
+
+  .qf-cert-paragraph {
+    text-indent: 28px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .qf-cert-qr-section {
+    padding: 8px 14px !important;
+    margin: 8px 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #444444 !important;
+    border-radius: 4px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .qf-cert-qr-image {
+    width: 90px !important;
+    height: 90px !important;
+    padding: 2px !important;
+  }
+
+  .qf-cert-qr-title {
+    font-size: 10pt !important;
+  }
+
+  .qf-cert-qr-code {
+    font-size: 9pt !important;
+  }
+
+  .qf-cert-qr-hint {
+    font-size: 8pt !important;
+  }
+
+  .qf-cert-signatures {
+    margin-top: 20px !important;
+    padding-top: 8px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .qf-signature-name {
+    font-size: 11pt !important;
+  }
+
+  .qf-signature-title {
+    font-size: 10pt !important;
+  }
+
+  .qf-signature-role {
+    font-size: 8pt !important;
+  }
+
+  .qf-cert-footer {
+    padding-top: 8px !important;
+    font-size: 8pt !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

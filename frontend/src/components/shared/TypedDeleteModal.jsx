@@ -61,7 +61,7 @@ export function TypedDeleteModal({
       title={title}
       size="sm"
       footer={footer}
-      preventBackdropClose={isDeleting}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <Alert variant="danger">

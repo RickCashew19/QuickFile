@@ -57,7 +57,11 @@ function sanitizeUser(user) {
 // ==============================================================================
 
 async function getDashboard() {
-  const { todayStart, todayEnd, monthStart, monthEnd } = getDateRanges();
+  const { startOfToday, endOfToday, startOfMonth, endOfMonth, todayStart, todayEnd, monthStart, monthEnd } = getDateRanges();
+  const effectiveTodayStart = todayStart || startOfToday;
+  const effectiveTodayEnd = todayEnd || endOfToday;
+  const effectiveMonthStart = monthStart || startOfMonth;
+  const effectiveMonthEnd = monthEnd || endOfMonth;
 
   // 1. Request counts across all 9 statuses
   const statusCountsRaw = await DocumentRequest.aggregate([
@@ -78,7 +82,7 @@ async function getDashboard() {
     {
       $match: {
         payment_status: PAYMENT_STATUSES.PAID,
-        paid_at: { $gte: todayStart, $lte: todayEnd },
+        paid_at: { $gte: effectiveTodayStart, $lte: effectiveTodayEnd },
       },
     },
     { $group: { _id: null, total: { $sum: '$fee' } } },
@@ -89,7 +93,7 @@ async function getDashboard() {
     {
       $match: {
         payment_status: PAYMENT_STATUSES.PAID,
-        paid_at: { $gte: monthStart, $lte: monthEnd },
+        paid_at: { $gte: effectiveMonthStart, $lte: effectiveMonthEnd },
       },
     },
     { $group: { _id: null, total: { $sum: '$fee' } } },
@@ -162,7 +166,8 @@ async function getDashboard() {
 }
 
 async function getLiveStats() {
-  const { todayStart } = getDateRanges();
+  const { startOfToday, todayStart } = getDateRanges();
+  const effectiveTodayStart = todayStart || startOfToday;
 
   const liveStatuses = [
     REQUEST_STATUSES.PENDING,
@@ -186,14 +191,14 @@ async function getLiveStats() {
   }
 
   const todayRequestsCount = await DocumentRequest.countDocuments({
-    created_at: { $gte: todayStart },
+    created_at: { $gte: effectiveTodayStart },
   });
 
   const todayRevenueAgg = await DocumentRequest.aggregate([
     {
       $match: {
         payment_status: PAYMENT_STATUSES.PAID,
-        paid_at: { $gte: todayStart },
+        paid_at: { $gte: effectiveTodayStart },
       },
     },
     { $group: { _id: null, total: { $sum: '$fee' } } },

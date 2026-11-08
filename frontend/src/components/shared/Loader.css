@@ -7,6 +7,11 @@
   padding: var(--space-4);
 }
 
+.qf-loader-container--fullpage {
+  min-height: 60vh;
+  width: 100%;
+}
+
 .qf-loader {
   display: inline-block;
   border: 3px solid var(--color-border);

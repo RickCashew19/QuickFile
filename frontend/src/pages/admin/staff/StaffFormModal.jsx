@@ -93,7 +93,7 @@ export function StaffFormModal({ isOpen, onClose, onSave, staff = null, isSaving
       title={isEditing ? 'Edit Staff Account' : 'Provision Staff Account'}
       size="md"
       footer={footer}
-      preventBackdropClose={isSaving}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {error && <Alert variant="danger">{error}</Alert>}

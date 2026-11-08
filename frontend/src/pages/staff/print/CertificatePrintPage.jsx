@@ -36,6 +36,20 @@ export function CertificatePrintPage() {
     loadPrintData();
   }, [loadPrintData]);
 
+  // Set document title so print preview and "Save as PDF" use the official certificate title
+  useEffect(() => {
+    if (printData) {
+      const prevTitle = document.title;
+      const certName = printData.document?.name || 'Barangay Certificate';
+      const citizenName = printData.citizen?.full_name || '';
+      const certNo = printData.issued_document?.certificate_number || '';
+      document.title = [certName, citizenName, certNo].filter(Boolean).join(' - ');
+      return () => {
+        document.title = prevTitle;
+      };
+    }
+  }, [printData]);
+
   const handlePrint = () => {
     printService.print();
   };

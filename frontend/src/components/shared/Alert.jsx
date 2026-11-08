@@ -6,8 +6,10 @@ export function Alert({
   title = null,
   children,
   onDismiss = null,
+  onClose = null,
   className = '',
 }) {
+  const handleDismiss = onDismiss || onClose;
   const getIconName = () => {
     switch (variant) {
       case 'success':
@@ -37,10 +39,10 @@ export function Alert({
         <div>{children}</div>
       </div>
 
-      {onDismiss && (
+      {handleDismiss && (
         <button
           type="button"
-          onClick={onDismiss}
+          onClick={handleDismiss}
           className="qf-alert__close"
           aria-label="Dismiss alert"
         >

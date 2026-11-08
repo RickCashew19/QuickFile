@@ -13,6 +13,7 @@ export function Modal({
   className = '',
 }) {
   const modalRef = useRef(null);
+  const mouseDownTargetRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,14 +39,28 @@ export function Modal({
 
   if (!isOpen) return null;
 
+  const handleBackdropMouseDown = (e) => {
+    mouseDownTargetRef.current = e.target;
+  };
+
   const handleBackdropClick = (e) => {
-    if (!preventBackdropClose && modalRef.current && !modalRef.current.contains(e.target)) {
+    // Only close if backdrop close is enabled AND both mousedown and click originated
+    // directly on the backdrop overlay itself (preventing text-drag releases from closing)
+    if (
+      !preventBackdropClose &&
+      e.target === e.currentTarget &&
+      mouseDownTargetRef.current === e.currentTarget
+    ) {
       onClose();
     }
   };
 
   return (
-    <div className="qf-modal-backdrop" onClick={handleBackdropClick}>
+    <div
+      className="qf-modal-backdrop"
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
+    >
       <div
         ref={modalRef}
         role="dialog"

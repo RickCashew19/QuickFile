@@ -41,7 +41,7 @@ export function StaffRejectModal({ isOpen, onClose, onConfirm, loading = false }
       title="Reject Document Request"
       size="md"
       footer={footer}
-      preventBackdropClose={loading}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} className="qf-reject-form">
         <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-3)' }}>

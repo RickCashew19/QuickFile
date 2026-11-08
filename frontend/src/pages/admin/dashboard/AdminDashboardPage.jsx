@@ -14,6 +14,7 @@ export function AdminDashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [liveStats, setLiveStats] = useState(null);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -32,11 +33,19 @@ export function AdminDashboardPage() {
   }, [fetchDashboard]);
 
   // Real-time live stats polling (15s interval)
-  const pollLiveStats = useCallback(async () => {
-    return adminService.getLiveStats();
-  }, []);
-
-  const { data: liveStats } = usePolling(pollLiveStats, 15000);
+  usePolling(
+    async () => {
+      try {
+        const stats = await adminService.getLiveStats();
+        if (stats) setLiveStats(stats);
+        return stats;
+      } catch {
+        // Polling errors fail silently and back off automatically
+      }
+    },
+    15000,
+    { enabled: !loading }
+  );
 
   if (loading) {
     return <Loader label="Loading executive administration dashboard..." fullPage />;

@@ -75,7 +75,7 @@ export function SuperAdminKeyModal({
       title={title}
       size="sm"
       footer={footer}
-      preventBackdropClose={isSubmitting}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', margin: 0 }}>

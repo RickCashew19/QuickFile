@@ -50,7 +50,7 @@ export function RevokeModal({ isOpen, onClose, onRevoke, cert, isRevoking = fals
       title={`Revoke Certificate: ${cert?.certificate_number}`}
       size="sm"
       footer={footer}
-      preventBackdropClose={isRevoking}
+      preventBackdropClose={true}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', margin: 0 }}>

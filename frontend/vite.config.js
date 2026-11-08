@@ -19,10 +19,14 @@ function productionCspPlugin(mode) {
       const apiUrl = env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
       let apiOrigin = 'http://localhost:5000';
-      try {
-        apiOrigin = new URL(apiUrl).origin;
-      } catch {
-        apiOrigin = 'http://localhost:5000';
+      if (apiUrl.startsWith('http')) {
+        try {
+          apiOrigin = new URL(apiUrl).origin;
+        } catch {
+          apiOrigin = 'http://localhost:5000';
+        }
+      } else {
+        apiOrigin = "'self'";
       }
 
       const cspDirectives = [
@@ -33,7 +37,7 @@ function productionCspPlugin(mode) {
         "img-src 'self' data: blob: https://*.googleusercontent.com https://www.gstatic.com",
         "media-src 'self' blob:",
         "frame-src 'self' https://accounts.google.com/gsi/ https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/",
-        `connect-src 'self' ${apiOrigin} https://accounts.google.com/gsi/`,
+        `connect-src 'self' ${apiOrigin === "'self'" ? '' : apiOrigin} https://accounts.google.com/gsi/`.replace(/\s+/g, ' ').trim(),
       ];
 
       const metaTag = `    <meta http-equiv="Content-Security-Policy" content="${cspDirectives.join('; ')};" />`;
@@ -46,7 +50,7 @@ function productionCspPlugin(mode) {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), productionCspPlugin(mode)].filter(Boolean),
   server: {
-    port: 3000,
+    port: 5173,
     open: false,
     host: true,
   },
