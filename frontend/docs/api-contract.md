@@ -63,23 +63,23 @@ This document provides the definitive REST API contract between the QuickFile Re
 | Method | Path | Auth / Permission Guard | Request Payload | Response Data Shape | Screen / Feature |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/staff/requests/live-stats` | `pollingLimiter` (120 req / 15m) | None | `{ pending, under_review, approved, in_preparation, ready_for_pickup, released, total_active }` | Staff Dashboard Live Polling Badge |
-| `GET` | `/api/v1/staff/dashboard` | `role(staff, admin)` | None | `{ pending_count, under_review_count, approved_count, in_preparation_count, ready_count, today_released, recent_activity }` | Staff Dashboard Summary |
-| `GET` | `/api/v1/staff/requests` | `can_review_requests` | Query: `?page=1&limit=10&status=&search=` | `{ requests: [ ... ], pagination: { ... } }` | Staff Request Queue Screen |
+| `GET` | `/api/v1/staff/dashboard` | `role(staff, admin)` | None | `{ kpis: { pending, under_review, in_preparation, ready_for_pickup, released_today, total_processed, avg_turnaround_hours }, pending_queue: [ ... ] }` | Staff Dashboard Summary |
+| `GET` | `/api/v1/staff/requests` | `can_review_requests` | Query: `?page=1&limit=10&status=&search=` | `{ items: [ ... ], pagination: { total, page, limit, total_pages } }` | Staff Request Queue Screen |
 | `GET` | `/api/v1/staff/requests/:id` | `can_review_requests` | None | Full request record including citizen details, internal processing notes, attachments, history | Staff Request Detail Modal / Page |
 | `POST` | `/api/v1/staff/requests/:id/notes` | `can_review_requests` | `{ note: string }` | Updated request with appended note & staff attribution | Staff Internal Notes Drawer |
 | `POST` | `/api/v1/staff/requests/:id/review` | `can_review_requests` | None | Updated request (`status: "under_review"`) | Action: Start Review |
 | `POST` | `/api/v1/staff/requests/:id/approve` | `can_review_requests` | None | Updated request (`status: "approved"`) | Action: Approve Request |
 | `POST` | `/api/v1/staff/requests/:id/reject` | `can_review_requests` | `{ rejection_reason: string }` | Updated request (`status: "rejected"`) | Action: Reject Request Modal |
 | `POST` | `/api/v1/staff/requests/:id/prepare` | `can_prepare_documents` | None | Updated request (`status: "in_preparation"`) | Action: Mark in Preparation |
-| `POST` | `/api/v1/staff/requests/:id/issue` | `can_prepare_documents` | `{ remarks?: string }` | Updated request (`status: "ready_for_pickup"`) + Generated IssuedDocument certificate | Action: Issue Certificate |
-| `GET` | `/api/v1/staff/requests/:id/print-data` | `can_print_documents` | None | `{ tracking_number, document_name, certificate_number, citizen_name, address, purpose, issued_date, official_signatory, verification_url, qr_code_data }` | Staff Document Print Preview / Action |
+| `POST` | `/api/v1/staff/requests/:id/issue` | `can_prepare_documents` | `{ remarks?: string }` | `{ request: { ... status: "ready_for_pickup" }, issued_document: { certificate_number, verification_code, ... } }` | Action: Issue Certificate |
+| `GET` | `/api/v1/staff/requests/:id/print-data` | `can_print_documents` | None | `{ request, citizen, document_type, issued_document, signatories: { barangay_captain, barangay_secretary } }` | Staff Document Print Preview / Action |
 | `POST` | `/api/v1/staff/requests/:id/release` | `can_release_documents` | `{ payment_received: boolean, or_number?: string }` | Updated request (`status: "released"`) | Action: Release Document Modal |
 | `POST` | `/api/v1/staff/requests/:id/archive` | `can_archive_records` | `{ archive_reason?: string }` | Updated request (`status: "archived"`) | Action: Archive Request |
-| `GET` | `/api/v1/staff/records` | `can_archive_records` | Query: `?page=1&limit=10&status=released,archived,rejected` | `{ records: [ ... ], pagination: { ... } }` | Staff Archive / Historical Records Screen |
+| `GET` | `/api/v1/staff/records` | `can_archive_records` | Query: `?page=1&limit=10&status=released,archived,rejected` | `{ items: [ ... ], pagination: { total, page, limit, total_pages } }` | Staff Archive / Historical Records Screen |
 | `GET` | `/api/v1/staff/residents` | `can_prepare_documents` | Query: `?search=juan` | `[ { _id, full_name, email, phone, address, birthdate } ]` | Walk-In Resident Autocomplete |
 | `POST` | `/api/v1/staff/requests/walk-in` | `can_prepare_documents` (`multipart`) | `citizen_id`, `document_type_id`, `purpose`, `copies`, `form_data`, `attachments` | Created request with tracking number | Staff Walk-in Filing Screen |
-| `GET` | `/api/v1/staff/verify/:code` | `can_verify_qr` | None | `{ certificate_number, document_name, citizen_name, validity_status, issued_at, expires_at, verified_by, scans_count }` | Staff QR Scanner Screen |
-| `GET` | `/api/v1/staff/reports` | `can_view_reports` | Query: `?from=&to=&document_type=&status=` | Aggregated metrics, status breakdowns, revenue summary | Staff Reports & Analytics Screen |
+| `GET` | `/api/v1/staff/verify/:code` | `can_verify_qr` | None | `{ certificate_number, verification_code, validity_status, document_name, issued_to_name, purpose, issued_at, expires_at, verified_by_staff_name, tracking_number }` | Staff QR Scanner Screen |
+| `GET` | `/api/v1/staff/reports` | `can_view_reports` | Query: `?from=&to=&document_type=&status=` | `{ summary: { total_requests, released_count, rejected_count, total_revenue, waived_count }, by_status: object, by_document_type: array, transactions: array, pagination: { total, page, limit, total_pages } }` | Staff Reports & Analytics Screen |
 | `GET` | `/api/v1/staff/reports/export` | `can_view_reports` + `exportLimiter` | Query: `?format=pdf|xlsx|docx&from=&to=` | Binary file stream (`Content-Type: application/pdf`, etc.) | Export Staff Report Download |
 
 ---
@@ -101,14 +101,14 @@ This document provides the definitive REST API contract between the QuickFile Re
 | `GET` | `/api/v1/admin/citizens` | `requireRole("admin")` | Query: `?page=1&limit=10&search=&is_active=&verification_status=` | `{ citizens: [ ... ], pagination: { ... } }` | Admin Citizen Directory Screen |
 | `PATCH` | `/api/v1/admin/citizens/:id/status` | `requireRole("admin")` | `{ is_active: boolean }` | `{ is_active: boolean }` | Citizen Deactivate / Reactivate Action |
 | `DELETE` | `/api/v1/admin/citizens/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Citizen account and associated request records deleted successfully.") | Delete Citizen Record (Typed DELETE) |
-| `GET` | `/api/v1/admin/records` | `requireRole("admin")` | Query: `?page=1&limit=15&status=&search=&from=&to=&document_type_id=` | `{ requests: [ ... ], pagination: { ... } }` | Admin Master Request Records Screen |
+| `GET` | `/api/v1/admin/records` | `requireRole("admin")` | Query: `?page=1&limit=15&status=&search=&from=&to=&document_type_id=` | `{ items: [ ... ], pagination: { total, page, limit, total_pages } }` | Admin Master Request Records Screen |
 | `GET` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | None | Complete request document including processing notes & audit history | Admin View Request Details Modal |
 | `DELETE` | `/api/v1/admin/requests/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Document request deleted successfully.") | Admin Delete Request (Typed DELETE) |
 | `GET` | `/api/v1/admin/issued-documents` | `requireRole("admin")` | Query: `?page=1&limit=10&status=valid|expired|revoked&search=` | `{ documents: [ ... ], pagination: { ... } }` | Admin Issued Certificates Registry |
 | `POST` | `/api/v1/admin/issued-documents/:id/revoke` | `requireRole("admin")` | `{ reason: string }` (5-200 chars) | `{ validity_status: "revoked", revoked_reason }` | Revoke Certificate Action |
 | `POST` | `/api/v1/admin/issued-documents/:id/reinstate` | `requireRole("admin")` | None | `{ validity_status: "valid" }` | Reinstate Certificate Action |
 | `DELETE` | `/api/v1/admin/issued-documents/:id` | `requireRole("admin")` | `{ confirm: "DELETE" }` | `null` (message: "Issued document record deleted successfully.") | Delete Certificate Record (Typed DELETE) |
-| `GET` | `/api/v1/admin/audit-logs` | `requireRole("admin")` | Query: `?page=1&limit=20&module=&actor_name=&action=&from=&to=` | `{ logs: [ { timestamp, actor_name, action, module, details, ip_address } ], pagination: { ... } }` | Admin Append-Only Audit Trail Screen |
+| `GET` | `/api/v1/admin/audit-logs` | `requireRole("admin")` | Query: `?page=1&limit=20&module=&actor_name=&action=&from=&to=` | `{ items: [ { timestamp, actor_name, action, module, details, ip_address } ], pagination: { total, page, limit, total_pages } }` | Admin Append-Only Audit Trail Screen |
 | `GET` | `/api/v1/admin/document-types` | `requireRole("admin")` | None | `[ { _id, name, code, fee, processing_days, requirements, is_active } ]` | Document Types Catalog Screen |
 | `POST` | `/api/v1/admin/document-types` | `requireRole("admin")` | `{ name, code, fee, processing_days, requirements, is_active, description }` | Created document type | Add Document Type Modal |
 | `GET` | `/api/v1/admin/document-types/:id` | `requireRole("admin")` | None | Full DocumentType object | Edit Document Type Form |

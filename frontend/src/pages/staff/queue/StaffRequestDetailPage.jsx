@@ -7,19 +7,22 @@ import { StaffActionButtons } from './StaffActionButtons';
 import { StaffNotesSection } from './StaffNotesSection';
 import { StaffRejectModal } from './StaffRejectModal';
 import { StaffReleaseModal } from './StaffReleaseModal';
+import { ApplicantInfoCard } from './ApplicantInfoCard';
+import { RequestSpecsCard } from './RequestSpecsCard';
+import { PaymentIssuanceCard } from './PaymentIssuanceCard';
+import { AttachmentListCard } from './AttachmentListCard';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
-import { Icon } from '../../../components/shared/Icon';
 import { formatDate, formatCurrency } from '../../../utils/formatters';
 import './StaffRequestDetailPage.css';
 
 export function StaffRequestDetailPage() {
   const { id } = useParams();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [request, setRequest] = useState(null);
+  const [detailData, setDetailData] = useState(null);
   const [error, setError] = useState(null);
   const [conflictNotice, setConflictNotice] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -30,8 +33,9 @@ export function StaffRequestDetailPage() {
 
   const fetchRequestDetails = useCallback(async () => {
     try {
+      // Backend returns { request, citizen_profile, issued_document }
       const data = await staffService.getRequest(id);
-      setRequest(data);
+      setDetailData(data);
     } catch (err) {
       setError(err.message || 'Failed to load request details.');
     } finally {
@@ -43,9 +47,6 @@ export function StaffRequestDetailPage() {
     fetchRequestDetails();
   }, [fetchRequestDetails]);
 
-  /**
-   * Universal action wrapper: handles state transitions and 409 conflict reload
-   */
   const handleWorkflowAction = async (actionFn, actionName, successText) => {
     setLoadingAction(actionName);
     setError(null);
@@ -70,57 +71,29 @@ export function StaffRequestDetailPage() {
   };
 
   const handleReview = () =>
-    handleWorkflowAction(
-      () => staffService.reviewRequest(id),
-      'review',
-      'Request moved to Under Review.'
-    );
+    handleWorkflowAction(() => staffService.reviewRequest(id), 'review', 'Request moved to Under Review.');
 
   const handleApprove = () =>
-    handleWorkflowAction(
-      () => staffService.approveRequest(id),
-      'approve',
-      'Request approved successfully.'
-    );
+    handleWorkflowAction(() => staffService.approveRequest(id), 'approve', 'Request approved successfully.');
 
-  const handleRejectConfirm = (rejectionReason) => {
+  const handleRejectConfirm = (reason) => {
     setRejectModalOpen(false);
-    return handleWorkflowAction(
-      () => staffService.rejectRequest(id, rejectionReason),
-      'reject',
-      'Request has been rejected.'
-    );
+    return handleWorkflowAction(() => staffService.rejectRequest(id, reason), 'reject', 'Request has been rejected.');
   };
 
   const handlePrepare = () =>
-    handleWorkflowAction(
-      () => staffService.prepareRequest(id),
-      'prepare',
-      'Request moved to In Preparation.'
-    );
+    handleWorkflowAction(() => staffService.prepareRequest(id), 'prepare', 'Request moved to In Preparation.');
 
   const handleIssue = () =>
-    handleWorkflowAction(
-      () => staffService.issueRequest(id),
-      'issue',
-      'Document issued and marked Ready for Pickup.'
-    );
+    handleWorkflowAction(() => staffService.issueRequest(id), 'issue', 'Document issued and marked Ready for Pickup.');
 
   const handleReleaseConfirm = (paymentData) => {
     setReleaseModalOpen(false);
-    return handleWorkflowAction(
-      () => staffService.releaseRequest(id, paymentData),
-      'release',
-      'Document officially released.'
-    );
+    return handleWorkflowAction(() => staffService.releaseRequest(id, paymentData), 'release', 'Document officially released.');
   };
 
   const handleArchive = () =>
-    handleWorkflowAction(
-      () => staffService.archiveRequest(id),
-      'archive',
-      'Document archived into historical records.'
-    );
+    handleWorkflowAction(() => staffService.archiveRequest(id), 'archive', 'Document archived into historical records.');
 
   const handleAddNote = async (noteText) => {
     setError(null);
@@ -131,9 +104,7 @@ export function StaffRequestDetailPage() {
       return true;
     } catch (err) {
       if (err.status === 409 || err.code === 'CONFLICT') {
-        setConflictNotice(
-          'This request was updated by another staff member. Reloading latest state...'
-        );
+        setConflictNotice('This request was updated by another staff member. Reloading latest state...');
         await fetchRequestDetails();
       } else {
         setError(err.message || 'Failed to append note.');
@@ -150,13 +121,16 @@ export function StaffRequestDetailPage() {
     );
   }
 
-  if (!request) {
+  // Unpack backend response shape: { request, citizen_profile, issued_document }
+  const request = detailData?.request || detailData;
+  const citizenProfile = detailData?.citizen_profile || {};
+  const issuedDocument = detailData?.issued_document || null;
+
+  if (!request || !request._id) {
     return (
       <div className="qf-staff-detail-page">
         <Alert variant="danger">Request not found or unavailable.</Alert>
-        <Link to="/staff/requests" className="qf-btn qf-btn--secondary">
-          Back to Queue
-        </Link>
+        <Link to="/staff/requests" className="qf-btn qf-btn--secondary">Back to Queue</Link>
       </div>
     );
   }
@@ -167,28 +141,12 @@ export function StaffRequestDetailPage() {
   return (
     <div className="qf-staff-detail-page">
       <div className="qf-detail-breadcrumb">
-        <Link to="/staff/requests" className="qf-back-link">
-          &larr; Back to Queue
-        </Link>
+        <Link to="/staff/requests" className="qf-back-link">&larr; Back to Queue</Link>
       </div>
 
-      {conflictNotice && (
-        <Alert variant="warning" onClose={() => setConflictNotice(null)}>
-          {conflictNotice}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert variant="danger" onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      {successMessage && (
-        <Alert variant="success" onClose={() => setSuccessMessage(null)}>
-          {successMessage}
-        </Alert>
-      )}
+      {conflictNotice && <Alert variant="warning" onClose={() => setConflictNotice(null)}>{conflictNotice}</Alert>}
+      {error && <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert>}
+      {successMessage && <Alert variant="success" onClose={() => setSuccessMessage(null)}>{successMessage}</Alert>}
 
       {/* Header Banner */}
       <div className="qf-staff-detail-header">
@@ -207,10 +165,10 @@ export function StaffRequestDetailPage() {
           </div>
         </div>
 
-        {/* Action Buttons Bar */}
         <StaffActionButtons
           request={request}
           hasPermission={hasPermission}
+          role={user?.role}
           onReview={handleReview}
           onApprove={handleApprove}
           onOpenReject={() => setRejectModalOpen(true)}
@@ -225,84 +183,13 @@ export function StaffRequestDetailPage() {
       <div className="qf-staff-detail-layout">
         {/* Main Application Details Column */}
         <div className="qf-staff-detail-column-main">
-          {/* Resident Details Card */}
-          <div className="qf-staff-card">
-            <h2 className="qf-staff-card-title">
-              <Icon name="user" size={18} /> Applicant Information
-            </h2>
-            <div className="qf-staff-grid-2">
-              <div>
-                <span className="qf-field-label">Full Name</span>
-                <span className="qf-field-value">{citizen.full_name || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="qf-field-label">Email Address</span>
-                <span className="qf-field-value">{citizen.email || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="qf-field-label">Contact Phone</span>
-                <span className="qf-field-value">{citizen.phone || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="qf-field-label">Purok / Zone</span>
-                <span className="qf-field-value">{citizen.purok_zone || 'Not Specified'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Document & Form Data Card */}
-          <div className="qf-staff-card">
-            <h2 className="qf-staff-card-title">
-              <Icon name="file" size={18} /> Request Specifications
-            </h2>
-            <div className="qf-staff-grid-2">
-              <div>
-                <span className="qf-field-label">Stated Purpose</span>
-                <span className="qf-field-value">{request.purpose}</span>
-              </div>
-              <div>
-                <span className="qf-field-label">Number of Copies</span>
-                <span className="qf-field-value">{request.copies || 1}</span>
-              </div>
-            </div>
-
-            {request.form_data && Object.keys(request.form_data).length > 0 && (
-              <div className="qf-staff-custom-fields">
-                <span className="qf-field-label">Additional Form Fields</span>
-                <div className="qf-custom-fields-table">
-                  {Object.entries(request.form_data).map(([key, val]) => (
-                    <div key={key} className="qf-custom-field-row">
-                      <span className="qf-custom-field-key">{key}:</span>
-                      <span className="qf-custom-field-val">{String(val)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Attachments Card */}
-          {request.attachments && request.attachments.length > 0 && (
-            <div className="qf-staff-card">
-              <h2 className="qf-staff-card-title">
-                <Icon name="upload" size={18} /> Uploaded Requirements
-              </h2>
-              <ul className="qf-staff-attachments-list">
-                {request.attachments.map((att, i) => (
-                  <li key={i} className="qf-staff-attachment-item">
-                    <Icon name="file" size={16} />
-                    <span className="qf-attachment-name">{att.original_name}</span>
-                    <span className="qf-attachment-meta">
-                      ({Math.round((att.file_size || 0) / 1024)} KB)
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ApplicantInfoCard citizen={citizen} citizenProfile={citizenProfile} />
+          <RequestSpecsCard request={request} />
+          <PaymentIssuanceCard request={request} issuedDocument={issuedDocument} />
+          <AttachmentListCard attachments={request.attachments} />
         </div>
 
-        {/* Sidebar Column: Processing Notes & Audit Timeline */}
+        {/* Sidebar Column: Processing Notes */}
         <div className="qf-staff-detail-column-side">
           <StaffNotesSection
             notes={request.processing_notes}
@@ -312,7 +199,6 @@ export function StaffRequestDetailPage() {
         </div>
       </div>
 
-      {/* Reject Modal */}
       <StaffRejectModal
         isOpen={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
@@ -320,7 +206,6 @@ export function StaffRequestDetailPage() {
         loading={loadingAction === 'reject'}
       />
 
-      {/* Release Modal */}
       <StaffReleaseModal
         isOpen={releaseModalOpen}
         onClose={() => setReleaseModalOpen(false)}

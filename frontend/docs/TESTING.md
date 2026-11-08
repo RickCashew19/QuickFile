@@ -145,40 +145,49 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 #### Test 3.2: Walk-In Resident Filing (`/staff/requests/walk-in`)
 1. Navigate to `/staff/requests/walk-in`.
 2. In the resident search input, type `Maria` (min 3 characters).
-3. **Verify**: Autocomplete dropdown populates with resident profiles. Select a resident.
-4. Select Document Type: `Barangay Clearance`.
-5. Enter Purpose: `Local Employment`.
+   - Use keyboard arrow keys (`ArrowDown`, `ArrowUp`) and `Enter` or click to select from the accessible `role="listbox"` autocomplete dropdown.
+3. Select Document Type: `Barangay Clearance`.
+4. Enter Purpose: `Local Employment` and specify copies.
+5. Optionally upload supporting documents via `FileDropzone` (drag & drop or file picker).
 6. Click "Submit Walk-In Filing".
-7. **Expected**: Filing is created instantly with a generated tracking number and redirected to its detail view.
+7. **Expected**:
+   - Filing is created instantly.
+   - UI renders a dedicated in-page success confirmation screen displaying the generated tracking number (e.g. `QF-2026-XXXX`), applicant name, document type, copies, and fee.
+   - If staff member possesses `can_review_requests`, a "Process Request Now" primary button links straight to the request detail page.
+   - Secondary action buttons allow staff to "File Another Walk-In" or "Return to Dashboard".
 
 #### Test 3.3: Full Lifecycle Processing (`/staff/requests/:id`)
 1. Open the created request in the Review Queue.
 2. In the Staff Notes section, type `Verified resident physical ID and voter registration records.` and click "Append Processing Note".
 3. **Verify**: Note appears in internal notes history with staff name and timestamp.
-4. Click "Start Review".
-   - Status transitions from `PENDING` to `UNDER_REVIEW`.
-5. Click "Approve Request".
-   - Status transitions to `APPROVED`.
-6. Click "Mark In Preparation".
-   - Status transitions to `IN_PREPARATION`.
-7. Click "Issue Certificate".
-   - Status transitions to `READY_FOR_PICKUP`.
-   - Backend creates an `IssuedDocument` certificate record with certificate number and verification code.
+4. Workflow actions strictly adhere to the 9-status state machine and 7 staff permissions (`getAvailableActions`):
+   - Status `pending`: Staff with `can_review_requests` (or Admin) can click "Start Review" (`under_review`) or "Reject Request" (`rejected`).
+   - Status `under_review`: Staff with `can_review_requests` (or Admin) can click "Approve Request" (`approved`) or "Reject Request" (`rejected`).
+   - Status `approved`: Staff with `can_prepare_documents` (or Admin) can click "Mark In Preparation" (`in_preparation`).
+   - Status `in_preparation`: Staff with `can_print_documents` (or Admin) can click "Issue & Ready for Pickup" (`ready_for_pickup`).
+     - Backend calls `POST /api/v1/staff/requests/:id/issue` and generates an `IssuedDocument` certificate record.
+   - Status `ready_for_pickup`: Staff with `can_release_documents` (or Admin) can click "Release Document".
+     - Prompts payment modal: confirm payment collected (with O.R. #) or fee waiver (with waiver reason). Status transitions to `released`.
+   - Status `released` or `rejected`: Staff with `can_archive_records` (or Admin) can click "Archive Record" (`archived`).
+   - Status `archived` or `cancelled`: Terminal states; no further workflow actions are available.
+5. If another staff member advances the status concurrently, a 409 Conflict triggers an automatic refetch and displays an informative banner.
 
 #### Test 3.4: Official Certificate Printing (`/staff/requests/:id/print`)
 1. Click "Print Certificate" (or navigate to `/staff/requests/:id/print`).
 2. **Verify**:
-   - Clean, official certificate preview displays Barangay seal, City/Province header, recipient name, purpose, certificate number, date, signatories (Barangay Captain and Secretary), and scannable QR code.
-   - Click "Print Certificate".
-   - Print CSS hides navigation bars, buttons, and backgrounds, formatting the certificate for standard letter/A4 paper.
+   - Official certificate paper displays Republic of the Philippines, Province, City/Municipality, Barangay Name, recipient full name, complete address, purpose, certificate number, validity period (`Valid Until: <date>`), official signatories (Barangay Captain and Secretary), and scannable QR verification code.
+   - No unverified text (such as "dry seal" or "Civil Registry System") is rendered.
+   - Click "Print Certificate" &rarr; triggers browser print dialog via `printService.print()` (`window.print()`).
+   - Print CSS hides all navigation, control bars, and action buttons, formatting the document for standard clean paper output.
 
 #### Test 3.5: QR Code Verification with Camera Scanner (`/staff/verify`)
 1. On Device B (Mobile), log in as staff and navigate to `/staff/verify`.
 2. Tap "Start Camera Scanner" and allow browser camera permissions.
-3. Point Device B's camera at the QR code displayed on Device A's certificate print preview.
+3. Point Device B's camera at the QR code displayed on Device A's certificate print preview (or enter verification code manually).
 4. **Verify**:
    - Camera detects QR code within milliseconds and stops scanner.
-   - Detailed audit card renders: Certificate Number, Recipient Name, Document Name, Validity Status (`VALID`), Issuing Staff, and Tracking Number.
+   - Calls `GET /api/v1/staff/verify/:code`.
+   - Detailed audit card renders: Certificate Number, Verification Code, Recipient Name (`issued_to_name`), Document Name, Validity Status (`VALID`), Purpose, Issued Date, Expiry Date, Issuing Staff Name, and Tracking Number.
 
 #### Test 3.6: Release Certificate with Payment Record
 1. On Device A, click "Release Document".
@@ -186,15 +195,23 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
    - Payment Status: `Paid`
    - Payment Reference / O.R. Number: `OR-2026-9901`
 3. Click "Confirm Release".
-4. **Expected**: Status transitions to `RELEASED`. Paid timestamp and fee recorded.
+4. **Expected**: Status transitions to `released`. Paid timestamp and fee recorded.
 
 #### Test 3.7: Archive Record & Reports Export (`/staff/reports`)
 1. Click "Archive Record".
-   - Status transitions to `ARCHIVED`. Record moves from Queue to `/staff/records`.
+   - Status transitions to `archived`. Record moves from Queue to `/staff/records`.
 2. Navigate to `/staff/reports`.
-3. Click "Export PDF". File `quickfile_export_...pdf` downloads.
-4. Click "Export Word (.docx)". File `.docx` downloads.
-5. Click "Export Excel (.xlsx)". File `.xlsx` downloads.
+3. **Verify**:
+   - Date range selector defaults to Asia/Manila current month (`YYYY-MM-01` to current date).
+   - Date range validation enforces `from <= to`, maximum span of 366 days, and requires both dates.
+   - When date range is invalid, inline warning displays and export buttons are disabled.
+   - Summary stat cards display Total Requests, Released, Rejected, Revenue, and Waived.
+   - `by_status` breakdown table renders counts for each status.
+   - Paginated transactions table lists up to 50 records per page.
+   - If transactions reach 1,000, a truncation alert advises narrowing the date range.
+4. Click "Export PDF". File `quickfile_export_...pdf` downloads via streaming blob.
+5. Click "Export Word (.docx)". File `.docx` downloads.
+6. Click "Export Excel (.xlsx)". File `.xlsx` downloads.
 
 ---
 
@@ -216,10 +233,16 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
    - Initial Password: `StaffPassword@123`
    - Click "Provision Account".
 3. On Carlos's row, click "Permissions".
-   - Toggle checkboxes for `Review Requests`, `Prepare Documents`, `Print Certificates`.
-   - Leave `View & Export Reports` unchecked.
-   - Click "Update Permissions".
-4. **Verify**: When logging in as Carlos, the Reports menu is hidden and direct access to `/staff/reports` is blocked by `PermissionRoute`.
+   - Permissions modal exposes 7 exact checkboxes matching backend permission fields:
+     - `can_review_requests` (Review & approve/reject incoming requests)
+     - `can_prepare_documents` (Prepare requests & file walk-in requests)
+     - `can_print_documents` (Issue & print certificates)
+     - `can_release_documents` (Release certificates & collect payments)
+     - `can_verify_qr` (Scan & audit QR verification codes)
+     - `can_view_reports` (View analytics & export PDF/Word/Excel reports)
+     - `can_archive_records` (Archive completed/rejected records & browse archives)
+   - Toggle desired permissions and click "Update Permissions".
+4. **Verify**: When logging in as Carlos, navigation items and workflow action buttons adapt strictly to assigned permissions.
 
 #### Test 4.3: Destructive Actions & Typed `DELETE` Confirmation
 1. On Carlos's row in `/admin/staff`, click the red trash icon.
@@ -245,25 +268,33 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 #### Test 4.5: System Settings & Super Admin Key Flow (`/admin/settings`)
 1. Navigate to `/admin/settings`.
 2. **Verify**:
-   - Cards display for Google OAuth, PhilSMS, SMTP Mailer, and Google reCAPTCHA.
+   - Integration cards render for all 5 integrations:
+     1. Google OAuth (`GOOGLE_CLIENT_ID`)
+     2. SMS Gateway / PhilSMS (`PHILSMS_API_KEY`)
+     3. SMTP Mailer (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`)
+     4. Google reCAPTCHA v2 (`RECAPTCHA_SECRET_KEY`)
+     5. REST API Gateway Security (`CUSTOM_REST_API_SECRET_KEY`)
    - Sensitive credentials show masked strings (`••••••••••••`).
    - Badges indicate `DEFAULT` (subtle gray) or `CUSTOM` (accent blue).
-3. In "Google OAuth", enter a new Custom Google Client ID and click "Save Settings".
+3. In any card, enter a new custom key/credential and click "Save Settings".
 4. **Expected**: `SuperAdminKeyModal` opens.
 5. Enter an invalid key (e.g. `wrong-key`) and click "Authorize & Save".
-6. **Expected**: Modal displays error with remaining attempts before lockout. Key is cleared from memory.
+6. **Expected**:
+   - Modal displays error with remaining attempts before lockout.
+   - Key is cleared immediately from memory.
+   - The admin is NOT logged out (invalid Super Admin Key on `/admin/settings` does not purge the auth session).
 7. Enter the valid Super Admin Key and click "Authorize & Save".
 8. **Expected**:
    - Settings save successfully.
    - Source badge flips to `CUSTOM`.
    - Super Admin Key is immediately cleared and zeroed out from state.
-9. Click "Reset to Default" on Google OAuth.
+9. Click "Reset to Default" on any integration.
    - Prompts `SuperAdminKeyModal`.
    - Enter valid Super Admin Key and confirm.
    - Credentials reset to environment defaults and badge returns to `DEFAULT`.
 
 #### Test 4.6: Simulated 423 Lockout Message
-1. If failed key attempts exceed the configured limit (5 attempts), the backend locks out the Super Admin Key.
+1. If failed key attempts exceed the configured limit (15 attempts within window), the backend locks out the Super Admin Key.
 2. **Expected**:
    - Modal closes automatically.
    - A prominent red alert banner displays: *"Super Admin Key Lockout Active: Super Admin Key is locked due to excessive failed attempts. Try again in 30 minute(s)."*

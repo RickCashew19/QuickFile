@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { staffService } from '../../../services/staffService';
+import { printService } from '../../../services/printService';
 import { Button } from '../../../components/shared/Button';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
@@ -36,9 +37,7 @@ export function CertificatePrintPage() {
   }, [loadPrintData]);
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
+    printService.print();
   };
 
   if (loading) {
@@ -110,6 +109,12 @@ export function CertificatePrintPage() {
           <h1 className="qf-cert-title">{document?.name?.toUpperCase() || 'BARANGAY CERTIFICATION'}</h1>
           <div className="qf-cert-meta">
             <span>Certificate No.: <strong>{issued_document?.certificate_number}</strong></span>
+            {issued_document?.expires_at && (
+              <>
+                <span>&bull;</span>
+                <span>Valid Until: <strong>{formatDate(issued_document.expires_at)}</strong></span>
+              </>
+            )}
           </div>
         </div>
 
@@ -176,9 +181,13 @@ export function CertificatePrintPage() {
 
         {/* Footer */}
         <footer className="qf-cert-footer">
-          <span>QuickFile Automated Barangay Civil Registry System</span>
-          <span>&bull;</span>
-          <span>Not valid without official dry seal</span>
+          <span>Official Barangay Document</span>
+          {issued_document?.expires_at && (
+            <>
+              <span>&bull;</span>
+              <span>Valid Until: {formatDate(issued_document.expires_at)}</span>
+            </>
+          )}
         </footer>
       </div>
     </div>

@@ -148,24 +148,24 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 
 ---
 
-### Test Suite 14: Staff Dashboard & Live 15s Polling
+### Test Suite 14: Staff Dashboard & Live 10s Polling
 - [ ] **Step 14.1**: Log in with staff credentials (`staff@quickfile.gov.ph`). Navigate to `/staff/dashboard`.
 - [ ] **Expected**:
   - Staff workspace header welcomes staff member by full name.
-  - KPI summary stat cards display counts for Pending Review, Under Review, In Preparation, and Ready for Pickup.
+  - KPI summary stat cards display counts from `data.kpis` (Pending Review, Under Review, In Preparation, Ready for Pickup, Released Today).
   - Quick action shortcuts (Review Queue, Walk-In Filing, QR Scanner, Reports) are displayed according to staff permissions.
-  - Recent document requests table is populated.
+  - Pending review queue table is populated from `data.pending_queue`.
 - [ ] **Step 14.2**: In another browser window as citizen, file a new document request.
-- [ ] **Expected**: Within 15 seconds, the staff dashboard live polling updates the pending counter without manual page reload.
+- [ ] **Expected**: Within 10 seconds, the staff dashboard live polling updates the pending queue and KPIs without manual page reload.
 
 ---
 
 ### Test Suite 15: Staff Request Queue & Filtering
 - [ ] **Step 15.1**: Navigate to `/staff/requests`.
-- [ ] **Expected**: Request queue table displays Tracking Number, Resident Name/Email, Document Type, Copies, Status Badge, and Date Requested.
+- [ ] **Expected**: Request queue reads `data.items` and `data.pagination.total`. Displays Tracking Number, Resident Name/Email, Document Type, Copies, Status Badge, and Date Requested.
 - [ ] **Step 15.2**: Filter by status: "Pending".
 - [ ] **Expected**: Only pending applications are listed.
-- [ ] **Step 15.3**: Filter by specific Document Type (e.g. "Barangay Clearance") and search by resident name.
+- [ ] **Step 15.3**: Filter by specific Document Type (e.g. "Barangay Clearance"), search by resident name (clamped to 100 characters max), and select date range (`from <= to`).
 - [ ] **Expected**: List filters dynamically; clicking "Reset Filters" clears all inputs and returns to full listing.
 - [ ] **Step 15.4**: Click "View Details" on any request.
 - [ ] **Expected**: Opens `/staff/requests/:id`.
@@ -175,39 +175,40 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 ### Test Suite 16: Staff Document Processing Workflow & 409 Conflict Handling
 - [ ] **Step 16.1**: Open a pending request at `/staff/requests/:id`.
 - [ ] **Expected**:
-  - Applicant personal details, stated purpose, copies, fee, and attachments are displayed.
-  - Staff Action Bar displays "Start Review" and "Reject" (guarded by `can_review_requests`).
+  - Request detail view renders modular subcomponents: `ApplicantInfoCard` (purok, address, contact, civil status), `RequestSpecsCard` (purpose, copies, custom fields), `PaymentIssuanceCard` (fee, payment status, OR #, certificates), and `AttachmentListCard` (authenticated download via `apiClient.download` with `URL.revokeObjectURL`).
+  - Action buttons are gated strictly by `getAvailableActions`: "Start Review" and "Reject" (guarded by `can_review_requests`).
 - [ ] **Step 16.2**: Click "Start Review".
-- [ ] **Expected**: Status transitions to `Under Review`. Action Bar now shows "Approve Application" and "Reject".
+- [ ] **Expected**: Status transitions to `under_review`. Action Bar now shows "Approve Application" and "Reject" (`can_review_requests`).
 - [ ] **Step 16.3**: Add an internal processing note in the sidebar notes section.
 - [ ] **Expected**: Note is appended with timestamp and staff member attribution; note is flagged as staff-only and never leaked to citizen.
 - [ ] **Step 16.4**: Click "Approve Application".
-- [ ] **Expected**: Status transitions to `Approved`. Action Bar displays "Prepare Document".
+- [ ] **Expected**: Status transitions to `approved`. Action Bar displays "Prepare Document" (`can_prepare_documents`).
 - [ ] **Step 16.5**: Click "Prepare Document".
-- [ ] **Expected**: Status transitions to `In Preparation`. Action Bar displays "Issue & Generate Certificate".
-- [ ] **Step 16.6**: Click "Issue & Generate Certificate".
-- [ ] **Expected**: Status transitions to `Ready for Pickup`. IssuedDocument is created with certificate number and verification QR code.
+- [ ] **Expected**: Status transitions to `in_preparation`. Action Bar displays "Issue & Ready for Pickup" (`can_print_documents`).
+- [ ] **Step 16.6**: Click "Issue & Ready for Pickup".
+- [ ] **Expected**: Status transitions to `ready_for_pickup`. Backend calls `POST /staff/requests/:id/issue` and creates `IssuedDocument` with certificate number and verification QR code.
 - [ ] **Step 16.7 (409 Conflict Recovery)**: In a second tab/session, advance the request state or have another user change it. Return to first tab and click an action.
 - [ ] **Expected**: Catch handler detects 409 Conflict, displays an amber banner: *"This request was updated by another staff member. Reloading latest state..."*, and automatically refetches the latest request details.
 - [ ] **Step 16.8**: Click "Release Document".
-- [ ] **Expected**: Release modal appears. For fee-bearing documents, staff can confirm payment collected (with optional OR #) or fee waiver (with required waiver reason). Confirming transitions status to `Released`.
+- [ ] **Expected**: Release modal appears (guarded by `can_release_documents`). For fee-bearing documents, staff can confirm payment collected (with optional OR #) or fee waiver (with required waiver reason). Confirming transitions status to `released`.
 - [ ] **Step 16.9**: Click "Archive Record".
-- [ ] **Expected**: Transitions terminal request status to `Archived`.
+- [ ] **Expected**: Guarded by `can_archive_records`. Transitions terminal request status to `archived`.
 
 ---
 
 ### Test Suite 17: Official Certificate Print Layout & Print CSS
-- [ ] **Step 17.1**: From a request in `Ready for Pickup` or `Released` status, click "Print Certificate" or visit `/staff/requests/:id/print`.
+- [ ] **Step 17.1**: From a request in `ready_for_pickup` or `released` status, click "Print Certificate" or visit `/staff/requests/:id/print`.
 - [ ] **Expected**:
   - Official Certificate Paper layout renders with Republic of the Philippines, Province, City/Municipality, Barangay Name, and Office of the Barangay Captain.
-  - Citizen name, civil status, address, purpose, and date issued are formatted into official certificate text.
+  - Citizen name, civil status, address, purpose, certificate number, date issued, and validity expiry (`Valid Until: <date>`) are displayed.
   - Official cryptographic verification QR code image and verification code are displayed.
   - Signatory blocks display certified/noted lines with Barangay Secretary and Barangay Captain names.
   - Top control bar provides "Print Certificate" and "Back to Request" buttons.
 - [ ] **Step 17.2**: Click "Print Certificate" or trigger browser print preview (`Ctrl+P` / `Cmd+P`).
 - [ ] **Expected**:
+  - Calls `printService.print()` (`window.print()`).
   - All navigation headers, sidebars, drawers, buttons, and control bars are completely hidden (`display: none !important`).
-  - Only the crisp official certificate paper sheet is formatted for standard print output.
+  - Only the clean official certificate paper sheet is formatted for standard print output.
 - [ ] **Step 17.3**: If signatories are not configured in backend settings.
 - [ ] **Expected**: 409 error is caught and a warning alert explains that Barangay Captain and Secretary must be configured in Settings before printing.
 
@@ -219,12 +220,14 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 18.2**: In Resident Search input, type fewer than 3 characters.
 - [ ] **Expected**: Search does not trigger.
 - [ ] **Step 18.3**: Type at least 3 characters (e.g. "Mar").
-- [ ] **Expected**: Dropdown list of matching registered resident citizens appears showing full name, email, and phone.
+- [ ] **Expected**: Accessible dropdown list (`role="listbox"`) of matching registered resident citizens appears. Supports keyboard navigation (`ArrowDown`, `ArrowUp`, `Enter`, `Escape`).
 - [ ] **Step 18.4**: Select a resident.
 - [ ] **Expected**: Selected resident is locked into a resident summary chip with a "Change Resident" button.
-- [ ] **Step 18.5**: Select document type, enter purpose, copies, and optionally drop up to 3 requirement files into `FileDropzone`.
+- [ ] **Step 18.5**: Select document type, enter purpose, copies, and optionally drop up to 3 requirement files into `FileDropzone` (using `onChange`).
 - [ ] **Step 18.6**: Click "Create Walk-In Request".
-- [ ] **Expected**: Walk-in request is created and user is redirected to the new request detail page.
+- [ ] **Expected**:
+  - Request is created immediately.
+  - In-page success confirmation screen appears displaying tracking number, summary, link to process request (if staff has `can_review_requests`), and buttons to file another or return to dashboard.
 
 ---
 
@@ -235,7 +238,7 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 19.3**: Submit code.
 - [ ] **Expected**:
   - Calls `GET /api/v1/staff/verify/:code`.
-  - Comprehensive audit card renders showing Document Title, Resident Name, Certificate Number, Verification Code, Issuing Staff Member, and Tracking Number.
+  - Comprehensive audit card renders showing Document Title, Resident Name (`issued_to_name`), Certificate Number, Verification Code, Purpose, Issued Date, Expiry Date, Issuing Staff Member, and Tracking Number.
   - Validity badge shows `VALID` (green), `EXPIRED` (amber), or `REVOKED` (red).
   - Status transition audit history timeline is displayed.
   - "Scan Another Document" button resets the view.
@@ -245,8 +248,12 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 ### Test Suite 20: Reports & Analytics (PDF, Word, Excel Exports)
 - [ ] **Step 20.1**: Navigate to `/staff/reports`.
 - [ ] **Expected**:
+  - Date range inputs default to Asia/Manila current month (`YYYY-MM-01` to current date).
+  - Date validation enforces `from <= to`, max 366 days, and requires both dates; export buttons are disabled if invalid.
   - Summary KPI cards display Total Requests, Released Documents, Rejected Requests, Collected Revenue, and Waived Requests.
-  - Breakdown table displays volume and revenue per Document Type.
+  - `by_status` breakdown table displays counts across all statuses.
+  - Paginated transactions table lists up to 50 records per page.
+  - If records reach 1,000, a truncation notice informs the user.
   - Top action group contains three export buttons: "Export PDF", "Export Word (.docx)", and "Export Excel (.xlsx)".
 - [ ] **Step 20.2**: Click "Export PDF".
 - [ ] **Expected**: Button shows loading spinner. File downloads automatically with filename `quickfile_export_...pdf`.
@@ -259,11 +266,11 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 
 ### Test Suite 21: Historical Records Repository & Archiving
 - [ ] **Step 21.1**: Navigate to `/staff/records`.
-- [ ] **Expected**: Table displays completed and archived records (released and archived statuses only; pending/review never appear).
-- [ ] **Step 21.2**: Filter between "Released Only" and "Archived Only".
+- [ ] **Expected**: Reads `data.items` and `data.pagination.total`. Table displays completed and archived records (released and archived statuses only; pending/review never appear).
+- [ ] **Step 21.2**: Filter between "Released Only" and "Archived Only", search resident (max 100 chars), and date range (`from <= to`).
 - [ ] **Expected**: List filters accordingly.
-- [ ] **Step 21.3**: For a record in `Released` status, click "Archive".
-- [ ] **Expected**: Record transitions to `Archived` and status badge updates.
+- [ ] **Step 21.3**: For a record in `released` status, click "Archive".
+- [ ] **Expected**: Record transitions to `archived` and status badge updates.
 
 ---
 
@@ -283,7 +290,14 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 23.2**: Click "Provision Staff Account". Fill out full name, email, employee ID, position, and initial password.
 - [ ] **Expected**: Account is created and appears in the staff directory table.
 - [ ] **Step 23.3**: Click "Permissions" on a staff account.
-- [ ] **Expected**: Permissions modal opens showing 7 granular checkboxes (`Review Requests`, `Prepare Documents`, `Print Certificates`, `Release Documents`, `Verify QR Codes`, `View & Export Reports`, `Archive Records`).
+- [ ] **Expected**: Permissions modal opens showing 7 granular checkboxes:
+  - `can_review_requests`
+  - `can_prepare_documents`
+  - `can_print_documents`
+  - `can_release_documents`
+  - `can_verify_qr`
+  - `can_view_reports`
+  - `can_archive_records`
 - [ ] **Step 23.4**: Toggle permissions and click "Update Permissions".
 - [ ] **Expected**: Permissions save successfully and apply immediately.
 - [ ] **Step 23.5**: Click "Reset PW" on a staff account. Enter a new password.
@@ -293,7 +307,7 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 
 ---
 
-### Test Suite 24: Citizen Registry & Typed DELETE Safeguards
+### Test Suite 24: Citizen Registry & Master Records Search
 - [ ] **Step 24.1**: Navigate to `/admin/citizens`.
 - [ ] **Step 24.2**: Use the search input to filter by resident name or phone number.
 - [ ] **Step 24.3**: Click "Profile" on a citizen.
@@ -302,6 +316,8 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Expected**: Status pill toggles between Active (green) and Inactive (red).
 - [ ] **Step 24.5**: Click the red trash icon to delete a citizen.
 - [ ] **Expected**: `TypedDeleteModal` opens with warning that all filed requests and uploaded attachments will be expunged. Typing `DELETE` enables the button and permanently cleans up the account.
+- [ ] **Step 24.6**: Navigate to `/admin/records` and `/admin/audit-logs`.
+- [ ] **Expected**: Master records and audit logs read `data.items` and `data.pagination.total`. Search input clamped to 100 characters; date range validates `from <= to`.
 
 ---
 
@@ -318,15 +334,18 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 ### Test Suite 26: System Settings, Masked Secrets, Super Admin Key Flow & 423 Lockout
 - [ ] **Step 26.1**: Navigate to `/admin/settings`.
 - [ ] **Expected**:
-  - Integration cards render for Google OAuth, PhilSMS, SMTP Mailer, and Google reCAPTCHA.
-  - Secret keys are masked (`••••••••`).
+  - Integration cards render for 5 integrations: Google OAuth, PhilSMS, SMTP Mailer, Google reCAPTCHA v2, and REST API Gateway Security (`CUSTOM_REST_API_SECRET_KEY`).
+  - Secret keys are masked (`••••••••••••`).
   - Source badges indicate `DEFAULT` (subtle gray) or `CUSTOM` (accent badge).
 - [ ] **Step 26.2**: Enter a new Custom Google Client ID in the input field and click "Save Settings".
 - [ ] **Expected**: `SuperAdminKeyModal` opens requesting Super Admin Key.
 - [ ] **Step 26.3**: Enter an invalid key and click "Authorize & Save".
-- [ ] **Expected**: Modal displays error showing remaining attempts before lockout. Key is cleared from memory.
+- [ ] **Expected**:
+  - Modal displays error showing remaining attempts before lockout.
+  - Key is cleared from memory.
+  - Administrator is NOT logged out (401 on `/admin/settings` without `TOKEN_*` code does not trigger session expiration).
 - [ ] **Step 26.4**: Enter the valid Super Admin Key and click "Authorize & Save".
-- [ ] **Expected**: Settings save successfully, source badge updates to `CUSTOM`, and success alert appears.
+- [ ] **Expected**: Settings save successfully, source badge updates to `CUSTOM`, and success alert appears. Key is cleared from state.
 - [ ] **Step 26.5**: Click "Reset to Default" on the custom integration.
 - [ ] **Expected**: Prompts Super Admin Key modal. Submitting valid key resets credentials to system defaults.
 - [ ] **Step 26.6**: (Simulated 423 Lockout): If failed key attempts exceed limit, server returns 423 Locked.

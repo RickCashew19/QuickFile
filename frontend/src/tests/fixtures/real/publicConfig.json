@@ -1,0 +1,15 @@
+{
+  "system_name": "QuickFile Barangay Portal",
+  "barangay_name": "Barangay San Antonio",
+  "city_municipality": "Pasig City",
+  "province": "Metro Manila",
+  "google_client_id": "1066834813282-5aiav37h4io4ivu3hsgi3eb51a9r0qmi.apps.googleusercontent.com",
+  "recaptcha_site_key": "6LdRyAQuAAAAAF_cCat0qqPkA8JKdci5q_LSJQcE",
+  "integrations": {
+    "google_login_enabled": false,
+    "recaptcha_enabled": false,
+    "sms_notifications_enabled": false,
+    "email_notifications_enabled": false,
+    "rest_api_gateway_enabled": false
+  }
+}

@@ -7,6 +7,7 @@ import { staffService } from '../services/staffService';
 import * as useAuthModule from '../hooks/useAuth';
 import { REQUEST_STATUSES, STAFF_PERMISSIONS } from '../config/constants';
 import { ApiError } from '../services/apiClient';
+import realStaffRequestDetail from './fixtures/real/staffRequestDetail.json';
 
 describe('Staff Action Buttons & Permissions Suite', () => {
   beforeEach(() => {
@@ -197,29 +198,20 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
     vi.restoreAllMocks();
   });
 
-  it('catches 409 Conflict during action, displays reload alert, and refetches request details', async () => {
-    const initialRequest = {
-      _id: 'req-409',
-      tracking_number: 'TRK-2026-TEST',
-      status: REQUEST_STATUSES.PENDING,
-      document_type_id: { name: 'Barangay Clearance' },
-      citizen_id: { full_name: 'Juan Dela Cruz', email: 'juan@example.com' },
-      purpose: 'Job employment',
-      copies: 1,
-      fee: 50,
-      payment_status: 'unpaid',
-      created_at: new Date().toISOString(),
-    };
-
-    const updatedRequest = {
-      ...initialRequest,
-      status: REQUEST_STATUSES.UNDER_REVIEW, // state was changed concurrently
+  it('catches 409 Conflict during action, displays reload alert, and refetches request details using real fixture', async () => {
+    const initialDetail = realStaffRequestDetail;
+    const updatedDetail = {
+      ...realStaffRequestDetail,
+      request: {
+        ...realStaffRequestDetail.request,
+        status: REQUEST_STATUSES.UNDER_REVIEW, // state was changed concurrently
+      },
     };
 
     let fetchCallCount = 0;
     vi.spyOn(staffService, 'getRequest').mockImplementation(async () => {
       fetchCallCount += 1;
-      return fetchCallCount === 1 ? initialRequest : updatedRequest;
+      return fetchCallCount === 1 ? initialDetail : updatedDetail;
     });
 
     // Mock reviewRequest throwing a 409 Conflict
@@ -228,12 +220,12 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
     );
 
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
-      user: { full_name: 'Staff Maria' },
+      user: { full_name: 'Staff Maria', role: 'staff' },
       hasPermission: () => true,
     });
 
     render(
-      <MemoryRouter initialEntries={['/staff/requests/req-409']}>
+      <MemoryRouter initialEntries={[`/staff/requests/${realStaffRequestDetail.request._id}`]}>
         <Routes>
           <Route path="/staff/requests/:id" element={<StaffRequestDetailPage />} />
         </Routes>

@@ -1,0 +1,82 @@
+[
+  {
+    "_id": "6af010b3dad412cef49c26cd",
+    "name": "Throwaway Test Clearance",
+    "code": "TEST_DOC_1663",
+    "description": "Used for smoke test validation",
+    "fee": 75,
+    "processing_days": 2,
+    "requirements": [
+      "Valid Government ID",
+      "Proof of Billing"
+    ],
+    "is_active": true,
+    "created_at": "2026-11-08T06:03:31.678Z",
+    "updated_at": "2026-11-08T06:03:31.678Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aeff953cb1d415793f07e63",
+    "name": "Barangay Business Clearance",
+    "code": "BUS-CLR",
+    "description": "Permit clearance required for local business registration and renewal.",
+    "fee": 150,
+    "processing_days": 2,
+    "requirements": [
+      "DTI / SEC Registration",
+      "Lease Contract or Land Title"
+    ],
+    "is_active": true,
+    "created_at": "2026-11-08T04:23:47.050Z",
+    "updated_at": "2026-11-08T04:23:47.050Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aeff953cb1d415793f07e60",
+    "name": "Certificate of Residency",
+    "code": "COR",
+    "description": "Certificate certifying resident status within the barangay jurisdiction.",
+    "fee": 50,
+    "processing_days": 1,
+    "requirements": [
+      "Valid Government ID",
+      "Utility Bill or Lease Contract"
+    ],
+    "is_active": true,
+    "created_at": "2026-11-08T04:23:47.041Z",
+    "updated_at": "2026-11-08T04:23:47.041Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aeff953cb1d415793f07e5d",
+    "name": "Certificate of Indigency",
+    "code": "COI",
+    "description": "Document verifying indigency for scholarship, medical assistance, or legal aid.",
+    "fee": 0,
+    "processing_days": 1,
+    "requirements": [
+      "Valid Government ID",
+      "Case Assessment / Endorsement"
+    ],
+    "is_active": true,
+    "created_at": "2026-11-08T04:23:47.010Z",
+    "updated_at": "2026-11-08T04:23:47.010Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aeff953cb1d415793f07e5a",
+    "name": "Barangay Clearance",
+    "code": "BC",
+    "description": "Official clearance issued for employment, business, or residency certification purposes.",
+    "fee": 50,
+    "processing_days": 1,
+    "requirements": [
+      "Valid Government ID",
+      "Proof of Residency"
+    ],
+    "is_active": true,
+    "created_at": "2026-11-08T04:23:47.002Z",
+    "updated_at": "2026-11-08T04:23:47.002Z",
+    "__v": 0
+  }
+]

@@ -44,6 +44,13 @@ export function StaffQueuePage() {
   }, []);
 
   const loadRequests = useCallback(async () => {
+    // Validate date range if both dates provided
+    if (filters.from && filters.to && filters.from > filters.to) {
+      setError("Start date ('From') cannot be after end date ('To').");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -51,10 +58,12 @@ export function StaffQueuePage() {
         page,
         limit,
         ...filters,
+        search: (filters.search || '').slice(0, 100),
       });
-      setRequests(response?.requests || []);
+      const list = response?.items || response?.requests || [];
+      setRequests(list);
       setTotalPages(response?.pagination?.total_pages || 1);
-      setTotalItems(response?.pagination?.total_items || 0);
+      setTotalItems(response?.pagination?.total ?? response?.pagination?.total_items ?? 0);
     } catch (err) {
       setError(err.message || 'Failed to retrieve document requests.');
     } finally {

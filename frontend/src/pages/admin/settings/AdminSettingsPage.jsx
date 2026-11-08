@@ -515,6 +515,59 @@ export function AdminSettingsPage() {
               </Button>
             </div>
           </div>
+
+          {/* 5. REST API Gateway */}
+          <div className="qf-integration-card">
+            <div className="qf-integration-card__header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: 'var(--font-base)', fontWeight: 'var(--font-semibold)' }}>
+                  REST API Gateway Security
+                </h3>
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
+                  Shared secret key for external client systems, reporting webhooks, and gateway endpoints.
+                </span>
+              </div>
+              <span className={`qf-source-badge qf-source-badge--${integrations.rest_api?.source || 'default'}`}>
+                {integrations.rest_api?.source === 'custom' ? 'Custom' : 'Default'}
+              </span>
+            </div>
+
+            <div className="qf-masked-preview">
+              <div>Shared Secret Key: <code>{integrations.rest_api?.secret_key || 'Not configured'}</code></div>
+            </div>
+
+            <div>
+              <Input
+                label="Custom REST API Secret Key"
+                type="password"
+                placeholder="Custom API secret key..."
+                value={customDrafts.CUSTOM_REST_API_SECRET_KEY || ''}
+                onChange={(e) => handleDraftChange('CUSTOM_REST_API_SECRET_KEY', e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+              {integrations.rest_api?.source === 'custom' && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    handlePromptReset('REST API Gateway', ['CUSTOM_REST_API_SECRET_KEY'])
+                  }
+                >
+                  Reset to Default
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handlePromptSave('REST API Gateway')}
+                disabled={!customDrafts.CUSTOM_REST_API_SECRET_KEY}
+              >
+                Save Settings
+              </Button>
+            </div>
+          </div>
         </div>
       ) : activeTab === 'general' ? (
         <form onSubmit={handleSaveGeneral} className="qf-integration-card">

@@ -54,3 +54,30 @@ This document records any discrepancies between what frontend screens ideally pr
   If a document type has even one historical filing in the barangay database, the backend blocks hard deletion with a 400 error: *"Cannot delete document type because X existing request(s) reference it. Please deactivate it instead."*
 - **Frontend Workaround**:
   `AdminDocTypesPage` provides an immediate, one-click "Deactivate" / "Activate" toggle button right next to "Edit" and "Delete". In addition, when hard deletion is attempted and rejected by the backend constraint, a descriptive alert recommends deactivating the document type so historical audit integrity is preserved while hiding the certificate from future citizen filings.
+
+---
+
+### Gap 7: Citizen Serialized Request Excludes MongoDB Internal ID
+- **Endpoint**: `GET /api/v1/citizen/requests` and `GET /api/v1/citizen/requests/:trackingNumber`
+- **Observation**:
+  The backend citizen serializer intentionally strips internal database `_id` and handler IDs (*_by) to prevent leaking internals to residents. Document type is serialized as an object `document_type: { id, name, code, processing_days }` rather than a flat `document_type_id`.
+- **Frontend Workaround**:
+  Citizen routes and UI components use `tracking_number` as the primary key. Forms read from `document_type.id` or `document_type.name`.
+
+---
+
+### Gap 8: List Envelope Keys Between Citizen and Staff/Admin Portals
+- **Endpoint**: `GET /api/v1/staff/requests`, `GET /api/v1/staff/records`, `GET /api/v1/admin/records`
+- **Observation**:
+  Staff and Admin lists return records under the key `data.items` with `data.pagination.total`, while citizen list endpoints return `data.requests`.
+- **Frontend Workaround**:
+  Staff and Admin table components resolve `response.items || response.requests || []` and `response.pagination?.total ?? response.pagination?.total_items ?? 0`.
+
+---
+
+### Gap 9: Document Issuance Returns Composite Request and Certificate Object
+- **Endpoint**: `POST /api/v1/staff/requests/:id/issue`
+- **Observation**:
+  Upon transition from `in_preparation` to `ready_for_pickup`, the endpoint returns a composite object `{ request, issued_document }`.
+- **Frontend Workaround**:
+  The frontend unmarshals both `res.request` and `res.issued_document`, updating the request status and displaying the generated certificate details immediately.

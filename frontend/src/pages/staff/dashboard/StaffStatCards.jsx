@@ -2,7 +2,7 @@ import { Icon } from '../../../components/shared/Icon';
 
 export function StaffStatCards({ stats = {}, liveCounts = null }) {
   // Prefer live polling counts if available, falling back to initial dashboard summary
-  const pendingCount = liveCounts?.pending ?? stats?.pending_requests ?? 0;
+  const pendingCount = liveCounts?.pending ?? stats?.pending ?? stats?.pending_requests ?? 0;
   const underReviewCount = liveCounts?.under_review ?? stats?.under_review ?? 0;
   const inPreparationCount = liveCounts?.in_preparation ?? stats?.in_preparation ?? 0;
   const readyCount = liveCounts?.ready_for_pickup ?? stats?.ready_for_pickup ?? 0;

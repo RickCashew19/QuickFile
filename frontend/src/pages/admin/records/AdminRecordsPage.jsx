@@ -41,11 +41,17 @@ export function AdminRecordsPage() {
       const res = await adminService.listRecords({
         page,
         limit: 15,
-        search,
+        search: (search || '').slice(0, 100),
         status: statusFilter,
       });
-      setRecords(res.requests || []);
-      setPagination(res.pagination || { page: 1, limit: 15, totalPages: 1, total: 0 });
+      const list = res.items || res.requests || [];
+      setRecords(list);
+      setPagination({
+        page: res.pagination?.page || page,
+        limit: res.pagination?.limit || 15,
+        totalPages: res.pagination?.total_pages || res.pagination?.totalPages || 1,
+        total: res.pagination?.total ?? res.pagination?.total_items ?? 0,
+      });
     } catch (err) {
       setError(err.message || 'Failed to retrieve records.');
     } finally {

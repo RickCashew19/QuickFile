@@ -1,0 +1,35 @@
+{
+  "barangay": {
+    "barangay_name": "Barangay San Antonio",
+    "city_municipality": "Pasig City",
+    "province": "Metro Manila",
+    "office_name": "Office of the Barangay Captain",
+    "captain_name": "Hon. Raymond C. Lising",
+    "secretary_name": "Sec. Corazon A. Mendoza"
+  },
+  "citizen": {
+    "full_name": "Juan Dela Cruz",
+    "email": "resident@quickfile.ph",
+    "phone": "09170000000",
+    "address": "456 Updated St",
+    "purok_zone": "Zone 2",
+    "civil_status": "married",
+    "birthdate": "1995-06-15T00:00:00.000Z",
+    "voter_status": "registered"
+  },
+  "document": {
+    "name": "Barangay Business Clearance",
+    "code": "BUS-CLR",
+    "purpose": "Updated employment verification purpose",
+    "copies": 1,
+    "fee": 150
+  },
+  "issued_document": {
+    "certificate_number": "BRGY-BUS-CLR-2026-263829",
+    "verification_code": "70B519218C1C3603A94274A1C8A4CBA7",
+    "qr_data": "http://localhost:5173/verify/70B519218C1C3603A94274A1C8A4CBA7",
+    "qr_code_image": "data:image/png;base64,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",
+    "issued_at": "2026-11-08T06:03:28.290Z",
+    "expires_at": "2027-05-07T06:03:28.283Z"
+  }
+}

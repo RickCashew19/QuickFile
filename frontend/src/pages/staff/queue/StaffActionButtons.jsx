@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Button } from '../../../components/shared/Button';
-import { REQUEST_STATUSES, STAFF_PERMISSIONS } from '../../../config/constants';
+import { getAvailableActions } from '../../../utils/actionLogic';
+import { STAFF_PERMISSIONS } from '../../../config/constants';
 
 export function StaffActionButtons({
   request,
   hasPermission,
+  permissions,
+  role = 'staff',
   onReview,
   onApprove,
   onOpenReject,
@@ -14,17 +17,23 @@ export function StaffActionButtons({
   onArchive,
   loadingAction,
 }) {
-  const status = request?.status;
-  const canReview = hasPermission(STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS);
-  const canPrepare = hasPermission(STAFF_PERMISSIONS.CAN_PREPARE_DOCUMENTS);
-  const canPrint = hasPermission(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS);
-  const canRelease = hasPermission(STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS);
-  const canArchive = hasPermission(STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS);
+  const resolvedPerms = typeof hasPermission === 'function'
+    ? {
+        [STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS]: hasPermission(STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS),
+        [STAFF_PERMISSIONS.CAN_PREPARE_DOCUMENTS]: hasPermission(STAFF_PERMISSIONS.CAN_PREPARE_DOCUMENTS),
+        [STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS]: hasPermission(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS),
+        [STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS]: hasPermission(STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS),
+        [STAFF_PERMISSIONS.CAN_VERIFY_QR]: hasPermission(STAFF_PERMISSIONS.CAN_VERIFY_QR),
+        [STAFF_PERMISSIONS.CAN_VIEW_REPORTS]: hasPermission(STAFF_PERMISSIONS.CAN_VIEW_REPORTS),
+        [STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS]: hasPermission(STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS),
+      }
+    : permissions;
+
+  const available = getAvailableActions(request, resolvedPerms, role);
 
   return (
     <div className="qf-staff-actions-bar" role="toolbar" aria-label="Request Workflow Actions">
-      {/* 1. Review Action: pending -> under_review */}
-      {status === REQUEST_STATUSES.PENDING && canReview && (
+      {available.includes('review') && (
         <Button
           variant="primary"
           onClick={onReview}
@@ -35,8 +44,7 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 2. Approve Action: under_review -> approved */}
-      {status === REQUEST_STATUSES.UNDER_REVIEW && canReview && (
+      {available.includes('approve') && (
         <Button
           variant="primary"
           onClick={onApprove}
@@ -47,8 +55,7 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 3. Reject Action: allowed during pending or under_review */}
-      {(status === REQUEST_STATUSES.PENDING || status === REQUEST_STATUSES.UNDER_REVIEW) && canReview && (
+      {available.includes('reject') && (
         <Button
           variant="danger"
           onClick={onOpenReject}
@@ -58,8 +65,7 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 4. Prepare Action: approved -> in_preparation */}
-      {status === REQUEST_STATUSES.APPROVED && canPrepare && (
+      {available.includes('prepare') && (
         <Button
           variant="primary"
           onClick={onPrepare}
@@ -70,8 +76,7 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 5. Issue Action: in_preparation -> ready_for_pickup */}
-      {status === REQUEST_STATUSES.IN_PREPARATION && canPrepare && (
+      {available.includes('issue') && (
         <Button
           variant="primary"
           onClick={onIssue}
@@ -82,10 +87,9 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 6. Print Certificate Page: ready_for_pickup or released */}
-      {(status === REQUEST_STATUSES.READY_FOR_PICKUP || status === REQUEST_STATUSES.RELEASED) && canPrint && (
+      {available.includes('print') && (
         <Link
-          to={`/staff/requests/${request._id}/print`}
+          to={`/staff/requests/${request?._id}/print`}
           className="qf-btn qf-btn--secondary"
           aria-label="Open Certificate Print View"
         >
@@ -93,8 +97,7 @@ export function StaffActionButtons({
         </Link>
       )}
 
-      {/* 7. Release Action: ready_for_pickup -> released */}
-      {status === REQUEST_STATUSES.READY_FOR_PICKUP && canRelease && (
+      {available.includes('release') && (
         <Button
           variant="primary"
           onClick={onOpenRelease}
@@ -105,20 +108,16 @@ export function StaffActionButtons({
         </Button>
       )}
 
-      {/* 8. Archive Action: released, rejected, or cancelled */}
-      {(status === REQUEST_STATUSES.RELEASED ||
-        status === REQUEST_STATUSES.REJECTED ||
-        status === REQUEST_STATUSES.CANCELLED) &&
-        canArchive && (
-          <Button
-            variant="outline"
-            onClick={onArchive}
-            loading={loadingAction === 'archive'}
-            disabled={Boolean(loadingAction)}
-          >
-            Archive Record
-          </Button>
-        )}
+      {available.includes('archive') && (
+        <Button
+          variant="outline"
+          onClick={onArchive}
+          loading={loadingAction === 'archive'}
+          disabled={Boolean(loadingAction)}
+        >
+          Archive Record
+        </Button>
+      )}
     </div>
   );
 }

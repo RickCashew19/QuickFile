@@ -46,6 +46,13 @@ export function StaffRecordsPage() {
   }, []);
 
   const loadRecords = useCallback(async () => {
+    // Validate date range if both dates provided
+    if (filters.from && filters.to && filters.from > filters.to) {
+      setError("Start date ('From') cannot be after end date ('To').");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -53,10 +60,12 @@ export function StaffRecordsPage() {
         page,
         limit,
         ...filters,
+        search: (filters.search || '').slice(0, 100),
       });
-      setRecords(data?.requests || []);
+      const list = data?.items || data?.requests || [];
+      setRecords(list);
       setTotalPages(data?.pagination?.total_pages || 1);
-      setTotalItems(data?.pagination?.total_items || 0);
+      setTotalItems(data?.pagination?.total ?? data?.pagination?.total_items ?? 0);
     } catch (err) {
       setError(err.message || 'Failed to load historical records.');
     } finally {
@@ -69,7 +78,8 @@ export function StaffRecordsPage() {
   }, [loadRecords]);
 
   const handleFilterChange = (field, val) => {
-    setFilters((prev) => ({ ...prev, [field]: val }));
+    const cleanVal = field === 'search' ? (val || '').slice(0, 100) : val;
+    setFilters((prev) => ({ ...prev, [field]: cleanVal }));
     setPage(1);
   };
 

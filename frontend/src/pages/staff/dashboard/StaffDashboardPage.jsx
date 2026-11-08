@@ -34,7 +34,7 @@ export function StaffDashboardPage() {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Poll live stats every 15 seconds (using dedicated polling route exempt from userApiLimiter)
+  // Poll live stats every 10 seconds (using dedicated polling route exempt from userApiLimiter)
   usePolling(
     async () => {
       try {
@@ -44,7 +44,7 @@ export function StaffDashboardPage() {
         // Polling errors fail silently and back off automatically
       }
     },
-    15000,
+    10000,
     { enabled: !loading }
   );
 
@@ -57,7 +57,7 @@ export function StaffDashboardPage() {
   }
 
   const kpis = dashboardData?.kpis || {};
-  const recentRequests = dashboardData?.recent_requests || [];
+  const pendingQueue = dashboardData?.pending_queue || [];
 
   return (
     <div className="qf-staff-dashboard">
@@ -127,17 +127,17 @@ export function StaffDashboardPage() {
         </div>
       </section>
 
-      {/* Recent Requests Queue */}
-      <section className="qf-staff-recent-section" aria-label="Recent Requests">
+      {/* Pending Requests Queue */}
+      <section className="qf-staff-recent-section" aria-label="Pending Requests">
         <div className="qf-staff-recent-header">
-          <h2 className="qf-staff-section-title">Recent Document Requests</h2>
+          <h2 className="qf-staff-section-title">Pending Document Queue</h2>
           {hasPermission(STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS) && (
             <Link to="/staff/requests" className="qf-btn qf-btn--ghost qf-btn--sm">
               View All in Queue &rarr;
             </Link>
           )}
         </div>
-        <StaffRecentTable requests={recentRequests} />
+        <StaffRecentTable requests={pendingQueue} />
       </section>
     </div>
   );

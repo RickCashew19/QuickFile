@@ -19,6 +19,20 @@ export function ResetPasswordPage() {
   const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
+    // Referrer-Policy: no-referrer protection on reset-password page
+    const meta = document.createElement('meta');
+    meta.name = 'referrer';
+    meta.content = 'no-referrer';
+    document.head.appendChild(meta);
+
+    return () => {
+      if (meta.parentNode) {
+        meta.parentNode.removeChild(meta);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     // Extract token from URL
     const params = new URLSearchParams(location.search);
     const rawToken = params.get('token');

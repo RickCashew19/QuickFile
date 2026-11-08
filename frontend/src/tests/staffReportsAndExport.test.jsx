@@ -5,6 +5,7 @@ import { StaffReportsPage } from '../pages/staff/reports/StaffReportsPage';
 import { staffService } from '../services/staffService';
 import { citizenService } from '../services/citizenService';
 import * as downloadHelperModule from '../utils/downloadHelper';
+import realStaffReports from './fixtures/real/staffReports.json';
 
 describe('Staff Reports & Export Helper Suite', () => {
   beforeEach(() => {
@@ -124,38 +125,24 @@ describe('Staff Reports & Export Helper Suite', () => {
     });
   });
 
-  it('StaffReportsPage renders summary KPI cards and breakdown table', async () => {
+  it('StaffReportsPage renders summary KPI cards, breakdown tables, and transactions using real fixture', async () => {
     vi.spyOn(citizenService, 'getCatalog').mockResolvedValue([
-      { _id: 'doc1', name: 'Barangay Clearance', fee: 50 },
+      { _id: '6aeff953cb1d415793f07e63', name: 'Barangay Business Clearance', fee: 150 },
     ]);
 
-    vi.spyOn(staffService, 'getReports').mockResolvedValue({
-      summary: {
-        total_requests: 42,
-        released_count: 35,
-        rejected_count: 4,
-        total_revenue: 1750,
-        waived_count: 3,
-        waived_amount: 150,
-      },
-      by_document_type: [
-        {
-          document_code: 'BC',
-          document_name: 'Barangay Clearance',
-          count: 42,
-          unit_fee: 50,
-          collected_amount: 1750,
-        },
-      ],
-    });
+    vi.spyOn(staffService, 'getReports').mockResolvedValue(realStaffReports);
 
     render(<StaffReportsPage />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('42').length).toBeGreaterThan(0); // Total requests
-      expect(screen.getByText('35')).toBeInTheDocument(); // Released
-      expect(screen.getByText('4')).toBeInTheDocument(); // Rejected
-      expect(screen.getAllByText('Barangay Clearance').length).toBeGreaterThan(0);
+      // Total requests from fixture summary
+      expect(screen.getAllByText(String(realStaffReports.summary.total_requests)).length).toBeGreaterThan(0);
+      // Document name from by_document_type
+      expect(screen.getAllByText('Barangay Business Clearance').length).toBeGreaterThan(0);
+      // Status from by_status & transactions (rendered via StatusBadge with label 'Pending')
+      expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
+      // Total transactions header
+      expect(screen.getByText(/Period Transactions/i)).toBeInTheDocument();
     });
   });
 });

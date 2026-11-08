@@ -1,0 +1,388 @@
+{
+  "logs": [
+    {
+      "_id": "6af010b3dad412cef49c26dc",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "DOCUMENT_TYPE_DELETE",
+      "module": "ADMIN",
+      "target_id": "6af010b3dad412cef49c26cd",
+      "target_type": "DocumentType",
+      "details": {
+        "name": "Updated Throwaway Clearance",
+        "code": "TEST_DOC_1663"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:31.875Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b3dad412cef49c26d6",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "DOCUMENT_TYPE_UPDATE",
+      "module": "ADMIN",
+      "target_id": "6af010b3dad412cef49c26cd",
+      "target_type": "DocumentType",
+      "details": {
+        "name": "Updated Throwaway Clearance",
+        "code": "TEST_DOC_1663",
+        "updated_fields": [
+          "name",
+          "fee"
+        ]
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:31.780Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b3dad412cef49c26cf",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "DOCUMENT_TYPE_CREATE",
+      "module": "ADMIN",
+      "target_id": "6af010b3dad412cef49c26cd",
+      "target_type": "DocumentType",
+      "details": {
+        "name": "Throwaway Test Clearance",
+        "code": "TEST_DOC_1663",
+        "fee": 75
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:31.685Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b3dad412cef49c26c4",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_DELETE",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "User",
+      "details": {
+        "email": "resident@quickfile.ph",
+        "full_name": "Juan Dela Cruz"
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:31.615Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b3dad412cef49c26ba",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_PASSWORD_RESET",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "User",
+      "details": {
+        "email": "resident@quickfile.ph"
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:31.528Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b3dad412cef49c26b5",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_PERMISSIONS_UPDATE",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "StaffPermission",
+      "details": {
+        "updated_permissions": {
+          "can_review_requests": true,
+          "can_prepare_documents": false,
+          "can_print_documents": false,
+          "can_release_documents": false,
+          "can_verify_qr": true,
+          "can_view_reports": false,
+          "can_archive_records": false
+        }
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:31.113Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b2dad412cef49c26b0",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_STATUS_UPDATE",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "User",
+      "details": {
+        "is_active": false
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:30.993Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b2dad412cef49c26aa",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_UPDATE",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "User",
+      "details": {
+        "modified_fields": [
+          "full_name",
+          "phone",
+          "position",
+          "department"
+        ]
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:30.911Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b2dad412cef49c269a",
+      "user_id": "6aeff952cb1d415793f07e4b",
+      "actor_name": "Juan Dela Cruz",
+      "action": "STAFF_CREATE",
+      "module": "STAFF",
+      "target_id": "6af010b2dad412cef49c2694",
+      "target_type": "User",
+      "details": {
+        "email": "resident@quickfile.ph",
+        "full_name": "Juan Dela Cruz",
+        "employee_id": "EMP-0193",
+        "position": "Document Processing Officer"
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:30.483Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b2dad412cef49c2680",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REPORT_EXPORT",
+      "module": "REPORTS",
+      "target_id": "",
+      "target_type": "Report",
+      "details": {
+        "format": "xlsx",
+        "from": "2026-11-01",
+        "to": "2026-11-30",
+        "document_type_id": null,
+        "scope": "staff",
+        "row_count": 7,
+        "truncated": false
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:30.107Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b1dad412cef49c266f",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REPORT_EXPORT",
+      "module": "REPORTS",
+      "target_id": "",
+      "target_type": "Report",
+      "details": {
+        "format": "docx",
+        "from": "2026-11-01",
+        "to": "2026-11-30",
+        "document_type_id": null,
+        "scope": "staff",
+        "row_count": 7,
+        "truncated": false
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:29.674Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b1dad412cef49c265e",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REPORT_EXPORT",
+      "module": "REPORTS",
+      "target_id": "",
+      "target_type": "Report",
+      "details": {
+        "format": "pdf",
+        "from": "2026-11-01",
+        "to": "2026-11-30",
+        "document_type_id": null,
+        "scope": "staff",
+        "row_count": 7,
+        "truncated": false
+      },
+      "ip_address": "",
+      "user_agent": "",
+      "created_at": "2026-11-08T06:03:29.368Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c263d",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "VERIFY_QR_SCAN",
+      "module": "VERIFICATION",
+      "target_id": "6af010b0dad412cef49c2608",
+      "target_type": "IssuedDocument",
+      "details": {
+        "certificate_number": "BRGY-BUS-CLR-2026-263829",
+        "verification_code": "70B519218C1C3603A94274A1C8A4CBA7",
+        "status": "valid"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.540Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c2629",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "released",
+        "to_status": "archived"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.487Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c261f",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "ready_for_pickup",
+        "to_status": "released"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.442Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c260c",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "in_preparation",
+        "to_status": "ready_for_pickup"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.320Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c25fc",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "approved",
+        "to_status": "in_preparation"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.092Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010b0dad412cef49c25f4",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "under_review",
+        "to_status": "approved"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:28.016Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010afdad412cef49c25ec",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_STATUS_CHANGE",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "from_status": "pending",
+        "to_status": "under_review"
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:27.978Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af010afdad412cef49c25e6",
+      "user_id": "6aeff952cb1d415793f07e4e",
+      "actor_name": "Juan Dela Cruz",
+      "action": "REQUEST_NOTE_APPEND",
+      "module": "REQUEST",
+      "target_id": "6af010addad412cef49c2576",
+      "target_type": "DocumentRequest",
+      "details": {
+        "tracking_number": "QF-20261108-086872",
+        "note_length": 63
+      },
+      "ip_address": "::1",
+      "user_agent": "node",
+      "created_at": "2026-11-08T06:03:27.959Z",
+      "__v": 0
+    }
+  ],
+  "pagination": {
+    "total": 120,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 6
+  }
+}

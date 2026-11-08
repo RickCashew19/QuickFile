@@ -6,6 +6,7 @@ import { Loader } from '../../../components/shared/Loader';
 export function ResidentSearchInput({ selectedResident, onSelectResident, error, disabled = false }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
@@ -13,6 +14,7 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
     const trimmed = query.trim();
     if (trimmed.length < 3) {
       setResults([]);
+      setActiveIndex(-1);
       setSearchError(null);
       return;
     }
@@ -23,6 +25,7 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
       try {
         const residents = await staffService.searchResidents(trimmed);
         setResults(residents || []);
+        setActiveIndex(-1);
       } catch (err) {
         setSearchError(err.message || 'Error searching residents.');
       } finally {
@@ -32,6 +35,26 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
 
     return () => clearTimeout(timer);
   }, [query]);
+
+  const handleKeyDown = (e) => {
+    if (results.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && results[activeIndex]) {
+        e.preventDefault();
+        onSelectResident(results[activeIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setResults([]);
+      setActiveIndex(-1);
+    }
+  };
 
   if (selectedResident) {
     return (
@@ -48,6 +71,7 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
           onClick={() => {
             onSelectResident(null);
             setQuery('');
+            setActiveIndex(-1);
           }}
           disabled={disabled}
         >
@@ -58,7 +82,7 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
   }
 
   return (
-    <div className="qf-resident-search-container">
+    <div className="qf-resident-search-container" onKeyDown={handleKeyDown}>
       <Input
         label="Search Resident Citizen (Min 3 characters) *"
         name="residentSearch"
@@ -68,6 +92,9 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
         error={error || searchError}
         disabled={disabled}
         required
+        aria-autocomplete="list"
+        aria-controls="resident-listbox"
+        aria-activedescendant={activeIndex >= 0 ? `resident-option-${activeIndex}` : undefined}
       />
 
       {searching && (
@@ -77,21 +104,32 @@ export function ResidentSearchInput({ selectedResident, onSelectResident, error,
       )}
 
       {results.length > 0 && !searching && (
-        <ul className="qf-resident-search-results" role="listbox">
-          {results.map((res) => (
-            <li
-              key={res._id}
-              className="qf-resident-result-item"
-              role="option"
-              aria-selected={false}
-              onClick={() => onSelectResident(res)}
-            >
-              <span className="qf-resident-name">{res.full_name}</span>
-              <span className="qf-resident-meta">
-                {res.email} {res.phone ? `(${res.phone})` : ''}
-              </span>
-            </li>
-          ))}
+        <ul
+          id="resident-listbox"
+          className="qf-resident-search-results"
+          role="listbox"
+          aria-label="Matching residents"
+        >
+          {results.map((res, idx) => {
+            const isActive = idx === activeIndex;
+            return (
+              <li
+                key={res._id}
+                id={`resident-option-${idx}`}
+                className={`qf-resident-result-item ${isActive ? 'qf-resident-result-item--active' : ''}`}
+                role="option"
+                aria-selected={isActive}
+                style={isActive ? { backgroundColor: 'var(--color-primary-subtle, #e0f2fe)' } : undefined}
+                onClick={() => onSelectResident(res)}
+                onMouseEnter={() => setActiveIndex(idx)}
+              >
+                <span className="qf-resident-name">{res.full_name}</span>
+                <span className="qf-resident-meta">
+                  {res.email} {res.phone ? `(${res.phone})` : ''}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 

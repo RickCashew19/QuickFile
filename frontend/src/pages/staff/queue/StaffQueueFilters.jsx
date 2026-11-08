@@ -27,7 +27,8 @@ export function StaffQueueFilters({
   ];
 
   const handleInputChange = (field, value) => {
-    onChange({ ...filters, [field]: value });
+    const cleanValue = field === 'search' ? (value || '').slice(0, 100) : value;
+    onChange({ ...filters, [field]: cleanValue });
   };
 
   return (
@@ -38,6 +39,7 @@ export function StaffQueueFilters({
           name="search"
           value={filters.search || ''}
           placeholder="e.g. TRK-2026 or Juan..."
+          maxLength={100}
           onChange={(e) => handleInputChange('search', e.target.value)}
           disabled={loading}
         />

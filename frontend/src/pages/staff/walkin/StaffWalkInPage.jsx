@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../../hooks/useAuth';
 import { staffService } from '../../../services/staffService';
 import { citizenService } from '../../../services/citizenService';
+import { STAFF_PERMISSIONS } from '../../../config/constants';
 import { ResidentSearchInput } from './ResidentSearchInput';
 import { Select } from '../../../components/shared/Select';
 import { Input } from '../../../components/shared/Input';
 import { Button } from '../../../components/shared/Button';
 import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Alert } from '../../../components/shared/Alert';
+import { Icon } from '../../../components/shared/Icon';
 import { formatCurrency } from '../../../utils/formatters';
 import './StaffWalkInPage.css';
 
 export function StaffWalkInPage() {
-  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canReview = hasPermission(STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS);
 
   const [documentTypes, setDocumentTypes] = useState([]);
   const [selectedResident, setSelectedResident] = useState(null);
@@ -24,6 +28,7 @@ export function StaffWalkInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [createdResult, setCreatedResult] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,6 +50,16 @@ export function StaffWalkInPage() {
 
   const selectedDocType = documentTypes.find((d) => d._id === documentTypeId);
   const calculatedFee = (selectedDocType?.fee || 0) * (Number(copies) || 1);
+
+  const handleResetForm = () => {
+    setCreatedResult(null);
+    setSelectedResident(null);
+    setPurpose('');
+    setCopies(1);
+    setAttachments([]);
+    setError(null);
+    setFieldErrors({});
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,9 +99,7 @@ export function StaffWalkInPage() {
       });
 
       const result = await staffService.createWalkIn(formData);
-      navigate(`/staff/requests/${result._id}`, {
-        state: { message: `Walk-in request ${result.tracking_number} created successfully.` },
-      });
+      setCreatedResult(result);
     } catch (err) {
       setError(err.message || 'Failed to submit walk-in document request.');
     } finally {
@@ -98,6 +111,66 @@ export function StaffWalkInPage() {
     value: dt._id,
     label: `${dt.name} - ${formatCurrency(dt.fee)}`,
   }));
+
+  // Success Confirmation Screen
+  if (createdResult) {
+    return (
+      <div className="qf-staff-walkin-page">
+        <div className="qf-walkin-success-card">
+          <div className="qf-walkin-success-icon">
+            <Icon name="check" size={40} />
+          </div>
+          <h1 className="qf-page-title" style={{ marginTop: 'var(--space-2)' }}>
+            Walk-In Request Created
+          </h1>
+          <p className="qf-page-subtitle">
+            The document request was successfully registered in the system.
+          </p>
+
+          <div className="qf-walkin-tracking-banner">
+            <span className="qf-walkin-tracking-label">Tracking Number</span>
+            <span className="qf-walkin-tracking-value">{createdResult.tracking_number}</span>
+          </div>
+
+          <div className="qf-walkin-summary-grid">
+            <div>
+              <span className="qf-field-label">Resident</span>
+              <span className="qf-field-value">{selectedResident?.full_name}</span>
+            </div>
+            <div>
+              <span className="qf-field-label">Document</span>
+              <span className="qf-field-value">{selectedDocType?.name}</span>
+            </div>
+            <div>
+              <span className="qf-field-label">Copies</span>
+              <span className="qf-field-value">{copies}</span>
+            </div>
+            <div>
+              <span className="qf-field-label">Total Fee</span>
+              <span className="qf-field-value">{formatCurrency(calculatedFee)}</span>
+            </div>
+          </div>
+
+          <div className="qf-walkin-success-actions">
+            {canReview && (
+              <Link
+                to={`/staff/requests/${createdResult._id}`}
+                className="qf-btn qf-btn--primary"
+              >
+                View & Process Request &rarr;
+              </Link>
+            )}
+            <Button variant="secondary" onClick={handleResetForm}>
+              File Another Walk-In
+            </Button>
+            <Link to="/staff/dashboard" className="qf-btn qf-btn--ghost">
+              Return to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="qf-staff-walkin-page">
@@ -117,26 +190,22 @@ export function StaffWalkInPage() {
       )}
 
       <form onSubmit={handleSubmit} className="qf-walkin-form">
-        {/* Step 1: Resident Search */}
+        {/* Step 1: Resident Citizen Search */}
         <section className="qf-walkin-section">
-          <h2 className="qf-staff-card-title">1. Resident Identification</h2>
+          <h2 className="qf-staff-card-title">1. Resident Applicant</h2>
           <ResidentSearchInput
             selectedResident={selectedResident}
-            onSelectResident={(res) => {
-              setSelectedResident(res);
-              if (fieldErrors.resident) {
-                setFieldErrors((prev) => ({ ...prev, resident: null }));
-              }
-            }}
+            onSelectResident={(res) => setSelectedResident(res)}
             error={fieldErrors.resident}
             disabled={loading}
           />
         </section>
 
-        {/* Step 2: Document Details */}
+        {/* Step 2: Document & Details */}
         <section className="qf-walkin-section">
-          <h2 className="qf-staff-card-title">2. Document Specifications</h2>
-          <div className="qf-walkin-grid-2">
+          <h2 className="qf-staff-card-title">2. Document Details</h2>
+
+          <div className="qf-grid-2col">
             <Select
               label="Document Type *"
               name="documentTypeId"
@@ -187,8 +256,7 @@ export function StaffWalkInPage() {
           <FileDropzone
             maxFiles={3}
             files={attachments}
-            onFilesSelected={(newFiles) => setAttachments(newFiles)}
-            onFileRemove={(index) => setAttachments((prev) => prev.filter((_, i) => i !== index))}
+            onChange={setAttachments}
             disabled={loading}
           />
         </section>

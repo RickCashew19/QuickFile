@@ -28,6 +28,12 @@ export function AdminAuditLogsPage() {
   const [viewedLog, setViewedLog] = useState(null);
 
   const fetchLogs = useCallback(async (page = 1) => {
+    if (fromDate && toDate && fromDate > toDate) {
+      setError("Start date ('From') cannot be after end date ('To').");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);

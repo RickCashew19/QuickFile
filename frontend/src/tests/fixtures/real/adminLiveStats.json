@@ -1,0 +1,12 @@
+{
+  "queue": {
+    "pending": 5,
+    "under_review": 0,
+    "approved": 0,
+    "in_preparation": 0,
+    "ready_for_pickup": 0
+  },
+  "today_requests_count": 0,
+  "today_revenue": 0,
+  "timestamp": "2026-11-08T06:03:30.190Z"
+}

@@ -162,6 +162,49 @@ describe('ApiClient Service Suite', () => {
       );
     });
 
+    it('does NOT treat 401 on /admin/settings without TOKEN_* code as expired session (Super Admin Key failure)', async () => {
+      authStorage.setToken('admin_valid_token');
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          message: 'Invalid Super Admin Key. 4 attempt(s) remaining before lockout.',
+        }),
+      });
+
+      await expect(apiClient.patch('/admin/settings', { su_admin_key: 'wrong_key' })).rejects.toThrow(ApiError);
+      expect(authStorage.getToken()).toBe('admin_valid_token');
+      expect(dispatchSpy).not.toHaveBeenCalled();
+    });
+
+    it('DOES treat 401 on /admin/settings with explicit TOKEN_EXPIRED as expired session', async () => {
+      authStorage.setToken('admin_expired_token');
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          success: false,
+          code: 'TOKEN_EXPIRED',
+          message: 'Admin session expired.',
+        }),
+      });
+
+      await expect(apiClient.patch('/admin/settings', {})).rejects.toThrow(ApiError);
+      expect(authStorage.getToken()).toBeNull();
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'quickfile:auth:expired',
+        })
+      );
+    });
+
     it('does NOT trigger session expired when no token was sent', async () => {
       const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 

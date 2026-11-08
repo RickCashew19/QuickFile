@@ -1,0 +1,23 @@
+{
+  "certificate_number": "BRGY-BUS-CLR-2026-263829",
+  "verification_code": "70B519218C1C3603A94274A1C8A4CBA7",
+  "validity_status": "valid",
+  "revoked_reason": "",
+  "revoked_at": null,
+  "document_name": "Barangay Business Clearance",
+  "issued_to_name": "Maria Santos Clara",
+  "issued_at": "2026-11-08T06:03:28.290Z",
+  "expires_at": "2027-05-07T06:03:28.283Z",
+  "tracking_number": "QF-20261108-086872",
+  "request_id": "6af010addad412cef49c2576",
+  "request_status": "archived",
+  "issuing_staff_name": "Juan Dela Cruz",
+  "status_history": {
+    "created_at": "2026-11-08T06:03:25.296Z",
+    "reviewed_at": "2026-11-08T06:03:27.971Z",
+    "approved_at": "2026-11-08T06:03:28.007Z",
+    "prepared_at": "2026-11-08T06:03:28.078Z",
+    "ready_at": "2026-11-08T06:03:28.311Z",
+    "released_at": "2026-11-08T06:03:28.431Z"
+  }
+}

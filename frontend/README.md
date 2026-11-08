@@ -31,21 +31,28 @@ QuickFile is organized into four distinct role-based portals sharing a unified a
 - **Printable Receipts**: Instant browser printing of request receipts complete with tracking QR codes.
 
 ### 2. Staff Portal (`/staff/*`)
-- **Queue Management**: Filterable, paginated request queue with status-driven actions and 409 Conflict auto-refetching.
-- **Workflow State Machine**: Status actions gated by staff permissions (`can_review`, `can_approve`, `can_issue`, `can_release`):
-  - `PENDING` &rarr; `UNDER_REVIEW` &rarr; `APPROVED` &rarr; `READY_FOR_PAYMENT` &rarr; `PROCESSING` &rarr; `ISSUED` &rarr; `RELEASED` / `REJECTED`.
-- **Live Queue Stats**: Automated 10-second polling for real-time pending, processing, and ready counts.
+- **Queue Management**: Filterable, paginated request queue with status-driven actions and 409 Conflict auto-refetching. Reads `data.items` and `data.pagination.total`.
+- **Workflow State Machine**: Status actions gated by 7 granular staff permissions:
+  - `can_review_requests`: `pending` → `under_review` or `rejected`; `under_review` → `approved` or `rejected`
+  - `can_prepare_documents`: `approved` → `in_preparation`; walk-in filing
+  - `can_print_documents`: `in_preparation` → `ready_for_pickup` (calls `/issue`); browser print preview
+  - `can_release_documents`: `ready_for_pickup` → `released` (fee collection / waiver)
+  - `can_verify_qr`: scan & audit certificate QR codes
+  - `can_view_reports`: view analytics & export PDF / Word / Excel
+  - `can_archive_records`: `released` / `rejected` → `archived`
+  *(System Administrators possess global override across all transitions).*
+- **Live Queue Stats**: Automated 10-second polling for real-time dashboard KPIs (`data.kpis`) and pending review queue (`data.pending_queue`).
 - **QR Code Scanner**: In-browser camera scanning powered by `html5-qrcode` with instant manual code input fallback.
-- **Official Certificate Printing**: Print-isolated styling (`@media print`) rendering official barangay certificate layouts.
+- **Official Certificate Printing**: Isolated browser printing via `printService.print()` (`window.print()`) rendering verified backend certificate details.
 - **Multi-Format Report Exports**: Direct streaming blob downloads for PDF (`.pdf`), Word (`.docx`), and Excel (`.xlsx`) transactions reports.
 
 ### 3. Administrator Portal (`/admin/*`)
 - **System Dashboard**: Live barangay metric cards and dynamic quick-action links.
-- **Staff Management**: Create staff members, toggle active status, and assign granular permission bits (`can_review`, `can_approve`, etc.).
+- **Staff Management**: Create staff members, toggle active status, and assign 7 granular permissions (`can_review_requests`, `can_prepare_documents`, etc.).
 - **Citizen Directory**: Inspect citizen profiles and manage active status with typed `DEACTIVATE` / `ACTIVATE` safety confirmations.
 - **Document Type Catalog**: Create and edit document types, fees, turnaround times, required supporting docs, and printable layouts.
-- **Audit Logs**: Filterable system audit trail with structured JSON metadata inspection modal.
-- **Secure System Settings**: Sensitive configuration protected by the **Super Admin Key flow** (masked values, custom/default badges, 423 lockout countdown handler, and immediate key clearance from memory).
+- **Audit Logs**: Filterable system audit trail with structured JSON metadata inspection modal and date validation (`from <= to`).
+- **Secure System Settings**: Sensitive configuration protected by the **Super Admin Key flow** across 5 integrations (Google OAuth, PhilSMS, SMTP Mailer, Google reCAPTCHA v2, and REST API Gateway Security) with masked values, custom/default badges, 423 lockout countdown handler, and immediate key clearance from memory.
 
 ### 4. Public & Authentication (`/*`)
 - **Public Landing Page**: System benefits, available services, and announcements.
@@ -84,7 +91,6 @@ The frontend strictly adheres to modular, maintainable, and decoupled architectu
 
 ```
 src/
-├── api/             # Central HTTP client (fetch wrapper, bearer tokens, error handling)
 ├── assets/          # Static logos, icons, and illustrations
 ├── components/      # Reusable UI widgets (Button, Modal, Input, Badge, Table, etc.)
 ├── constants/       # Immutable enums, API endpoints, role permissions, storage keys
@@ -92,15 +98,17 @@ src/
 ├── hooks/           # Reusable custom hooks (useAuth, usePolling, useDebounce)
 ├── layouts/         # Role-specific layout shells (Public, Citizen, Staff, Admin)
 ├── pages/           # Routed view orchestration (no direct fetch calls)
-│   ├── admin/       # Admin sub-pages (Dashboard, Staff, Citizens, Types, Settings, Logs)
+│   ├── admin/       # Admin sub-pages (Dashboard, Staff, Citizens, Types, Records, IssuedDocs, Settings, Logs, Reports)
 │   ├── auth/        # Login, Register, ForgotPassword, ResetPassword, GoogleCallback
-│   ├── citizen/     # Catalog, RequestNew, RequestDetail, CitizenDashboard
+│   ├── citizen/     # Catalog, RequestNew, RequestDetail, CitizenDashboard, Notifications, Profile
 │   ├── public/      # LandingPage, VerifyPage, NotFoundPage
-│   └── staff/       # StaffQueue, StaffDetail, PrintCertificate, StaffScanner, StaffReports
+│   └── staff/       # StaffDashboard, StaffQueue, StaffRequestDetail, StaffWalkIn, StaffRecords, StaffVerify, StaffReports, CertificatePrint
 ├── routes/          # Route declarations and ProtectedRoute role gates
-├── services/        # Business API services (authService, citizenService, staffService, etc.)
+├── services/        # Business API services (apiClient, authService, citizenService, staffService, adminService, printService)
 ├── styles/          # Design tokens (tokens.css) and global utility classes (global.css)
-└── utils/           # Pure helpers (formatters, date utils, safe redirects, blob downloads)
+├── tests/           # Vitest unit & component test suites and real API response fixtures
+│   └── fixtures/    # Sanitized real backend fixtures (fixtures/real/*.json)
+└── utils/           # Pure helpers (actionLogic, formatters, date utils, safe redirects, blob downloads)
 ```
 
 ### Core Rules:
@@ -117,15 +125,15 @@ src/
 ```
 frontend/
 ├── docs/
+│   ├── api-contract.md        # Complete API contract specification
 │   ├── backend-gaps.md        # Documented backend-frontend contract discrepancies
-│   ├── CONTRACT.md            # Complete API contract specification
-│   ├── MANUAL_TESTS.md        # Manual QA test scenarios
+│   ├── manual-tests.md        # Manual QA test scenarios
 │   └── TESTING.md             # Multi-role 2-device manual test script & prod build notes
 ├── public/                    # Static assets copied verbatim to build
 ├── scripts/
-│   └── smoke.mjs              # End-to-end backend parity validation script (72 assertions)
+│   └── smoke.mjs              # Live backend parity validation script (70 assertions, 0 mocks)
 ├── src/                       # Application source code
-├── index.html                 # Single-page application root HTML
+├── index.html                 # Single-page application root HTML with CSP & Referrer Policy
 ├── package.json               # Pinned dependencies & npm scripts
 ├── vite.config.js             # Vite configuration with test environment
 └── README.md                  # This document
@@ -189,20 +197,25 @@ npm run preview
 QuickFile employs a multi-tiered verification pipeline:
 
 ### 1. Vitest Unit & Component Tests
-- **22 test suites** covering all critical helpers, custom hooks, and complex component interactions:
-  - Auth token lifecycle and expiration.
+- **23 test suites** covering all critical helpers, custom hooks, and complex component interactions:
+  - Request state machine matrix (`getAvailableActions`) covering all 9 statuses &times; 7 permissions &times; Staff/Admin roles.
+  - Auth token lifecycle, 401 handling, and Super Admin Key exemption in `apiClient`.
   - Safe redirect sanitization (blocking `//`, `/\`, javascript schemes, control chars).
-  - Staff permission action gating (`can_review`, `can_approve`, etc.).
-  - Blob report download helpers.
-  - Super Admin Key settings flow and 423 lockout countdowns.
+  - Isolated browser printing via `printService`.
+  - Blob report download helpers with cleanup.
+  - Super Admin Key settings flow and 423 lockout countdowns across 5 integrations.
   - Destructive action confirmation modals with case-sensitive typed inputs.
+  - Component rendering tested against real, sanitized backend response fixtures (`frontend/src/tests/fixtures/real/*.json`).
 - Run tests via:
   ```bash
   npm --prefix frontend test -- --run
   ```
 
 ### 2. End-to-End Smoke Parity Script (`smoke.mjs`)
-- Automated script exercising **72 live assertions** against the running backend:
+- Automated script exercising **70 live assertions** against the running Express backend:
+  - Zero mock fallbacks: strictly connects to `SMOKE_API_URL` (default `http://localhost:5000/api/v1`) using credentials from environment variables (`SMOKE_ADMIN_EMAIL`, `SMOKE_STAFF_EMAIL`, `SMOKE_CITIZEN_EMAIL`, `SMOKE_SU_ADMIN_KEY`).
+  - Strict shape validation: asserts all expected keys consumed by UI components (`data.kpis`, `data.pending_queue`, `data.items`, `data.pagination.total`, etc.).
+  - Automated fixture generation: dumps sanitized real responses to `src/tests/fixtures/real/*.json` (tokens, emails, passwords, and personal names safely redacted).
   - Tests health, authentication, rate limits, citizen workflow, staff queue transitions, document issuance, certificate print payload, multi-format report exports (PDF, DOCX, XLSX), and admin CRUD.
 - Run smoke test via:
   ```bash
@@ -210,7 +223,7 @@ QuickFile employs a multi-tiered verification pipeline:
   ```
 
 ### 3. Two-Device Manual Testing Script
-- Refer to [`frontend/docs/TESTING.md`](docs/TESTING.md) for a comprehensive 12-step test script exercising real-time interactions across two physical devices (Desktop Staff Portal + Mobile Citizen Portal).
+- Refer to [`frontend/docs/TESTING.md`](docs/TESTING.md) for a comprehensive manual test script exercising real-time interactions across two physical devices (Desktop Staff Portal + Mobile Citizen Portal).
 
 ---
 
@@ -221,6 +234,7 @@ QuickFile employs a multi-tiered verification pipeline:
 - **Accessible Navigation**:
   - `SkipLink` component at the top of all layouts allowing keyboard users to bypass navigation straight to `<main id="main-content">`.
   - Accessible drawer toggles with `aria-expanded` and `aria-label`.
+  - Accessible keyboard navigation on autocomplete search inputs (`role="listbox"`, `ArrowDown`, `ArrowUp`, `Enter`, `Escape`).
   - Visible keyboard focus rings with `:focus-visible` styling throughout.
   - High-contrast color tokens exceeding WCAG 2.1 AA ratios (4.5:1 text, 3:1 graphical elements).
 - **No `dangerouslySetInnerHTML`**: All dynamic data is safely rendered via React JSX escaping.
@@ -238,6 +252,18 @@ The frontend is architected to be packaged into an Android (`.apk`) or iOS app u
 ---
 
 ## Production Deployment & Security
+
+### Content Security Policy (CSP) & Referrer Policy
+The SPA enforces strict client-side security policies configured in `frontend/index.html` and dynamic route guards:
+- **Default Referrer Policy**: `<meta name="referrer" content="strict-origin-when-cross-origin">` ensures sensitive path parameters are omitted across third-party origins.
+- **Dynamic Referrer Downgrade on Password Reset**: On the `/reset-password` screen, a dynamic `<meta name="referrer" content="no-referrer">` tag is injected on mount and restored on unmount to prevent leaking password reset tokens to external services.
+- **Content Security Policy**:
+  - `default-src 'self'`: Restricts defaults to own origin.
+  - `script-src 'self' https://accounts.google.com/gsi/client https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`: Allows only verified scripts for Google Sign-In and reCAPTCHA.
+  - `style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style`: Permits design token styles and Google GIS iframe styling.
+  - `frame-src https://accounts.google.com/gsi/ https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/`: Restricts embedded iframes to official auth and anti-bot providers.
+  - `img-src 'self' data: blob: https://*.googleusercontent.com`: Allows avatars and blob preview URLs for document attachments.
+  - `connect-src 'self' http://localhost:5000 https://accounts.google.com/gsi/`: Restricts network requests strictly to backend APIs and authentication services.
 
 ### Nginx SPA Configuration
 When deploying the `frontend/dist` static build, ensure all routes fall back to `index.html`:
@@ -261,7 +287,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.quickfile.ph; font-src 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/ https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://api.quickfile.ph https://accounts.google.com/gsi/; font-src 'self';" always;
 }
 ```
 

@@ -1,0 +1,38 @@
+{
+  "tracking_number": "QF-20261108-086872",
+  "document_type": {
+    "id": "6aeff953cb1d415793f07e63",
+    "name": "Barangay Business Clearance",
+    "code": "BUS-CLR",
+    "processing_days": 2
+  },
+  "purpose": "Employment verification requirement",
+  "copies": 1,
+  "status": "pending",
+  "unit_fee": 150,
+  "fee": 150,
+  "payment_status": "unpaid",
+  "paid_at": null,
+  "form_data": {},
+  "rejection_reason": "",
+  "cancellation_reason": "",
+  "attachments": [
+    {
+      "original_name": "sample_id.png",
+      "stored_filename": "fac17c962ff957311545f509b1830e87.png",
+      "mime_type": "image/png",
+      "file_size": 70,
+      "uploaded_at": "2026-11-08T06:03:25.280Z"
+    }
+  ],
+  "created_at": "2026-11-08T06:03:25.296Z",
+  "updated_at": "2026-11-08T06:03:25.296Z",
+  "reviewed_at": null,
+  "approved_at": null,
+  "prepared_at": null,
+  "ready_at": null,
+  "released_at": null,
+  "rejected_at": null,
+  "archived_at": null,
+  "cancelled_at": null
+}

@@ -65,12 +65,16 @@ function handleCommonErrors(response, body, endpoint, options, tokenSent) {
       endpoint.includes('/auth/reset-password') ||
       endpoint.includes('/auth/google');
 
-    // Super Admin Key verification on /admin/settings returns 401 on invalid key; this must not invalidate user login
-    const isSuperAdminKeyEndpoint = endpoint.includes('/admin/settings');
+    // Super Admin Key verification on /admin/settings returns 401 on wrong key (without TOKEN_* code).
+    // Only wrong Super Admin Key avoids logout; an expired token (TOKEN_EXPIRED) on /admin/settings must log out.
+    const isWrongSuperAdminKey = endpoint.includes('/admin/settings') && !isExplicitTokenErrorCode;
 
-    // Treat as expired session ONLY when token was sent AND (code is token error OR endpoint is not auth endpoint)
+    // Treat as expired session ONLY when token was sent AND:
+    // 1) Explicit token error code (TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_INVALIDATED), OR
+    // 2) Non-auth endpoint without being an exempt wrong Super Admin Key
     const isExpiredSession =
-      !isAuthExempt && !isSuperAdminKeyEndpoint && tokenSent && (isExplicitTokenErrorCode || !isAuthEndpoint);
+      tokenSent &&
+      (isExplicitTokenErrorCode || (!isAuthExempt && !isAuthEndpoint && !isWrongSuperAdminKey));
 
     if (isExpiredSession) {
       authStorage.clearAll();
