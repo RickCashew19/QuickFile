@@ -1,8 +1,14 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PublicRoute } from './components/guards/PublicRoute';
 import { RoleRoute } from './components/guards/RoleRoute';
 import { ROLES } from './config/constants';
+
+// Layout Shells
+import { PublicLayout } from './components/layout/PublicLayout';
+import { CitizenLayout } from './components/layout/CitizenLayout';
+import { StaffLayout } from './components/layout/StaffLayout';
+import { AdminLayout } from './components/layout/AdminLayout';
 
 // Public Pages
 import { LandingPage } from './pages/public/LandingPage';
@@ -17,8 +23,13 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Public Routes with Shared Header, Skip Link, and Drawer */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/verify/:code?" element={<PublicVerifyPage />} />
+        </Route>
+
+        {/* Standalone Authentication Views */}
         <Route
           path="/login"
           element={
@@ -51,44 +62,77 @@ export default function App() {
             </PublicRoute>
           }
         />
-        <Route path="/verify/:code?" element={<PublicVerifyPage />} />
 
-        {/* Protected Portals (Shells for subsequent phases F2, F3, F4) */}
+        {/* Citizen Portal Shell */}
         <Route
-          path="/citizen/*"
+          path="/citizen"
           element={
             <RoleRoute allowedRoles={[ROLES.CITIZEN]}>
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Citizen Portal</h2>
-                <p>Citizen portal modules will be loaded in Phase F2.</p>
-              </div>
+              <CitizenLayout />
             </RoleRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="/citizen/dashboard" replace />} />
+          <Route
+            path="dashboard"
+            element={
+              <div style={{ padding: 'var(--space-6)' }}>
+                <h2>Citizen Dashboard</h2>
+                <p>Citizen portal modules are being loaded.</p>
+              </div>
+            }
+          />
+          <Route
+            path="requests"
+            element={
+              <div style={{ padding: 'var(--space-6)' }}>
+                <h2>Request History</h2>
+              </div>
+            }
+          />
+        </Route>
 
+        {/* Staff Portal Shell */}
         <Route
-          path="/staff/*"
+          path="/staff"
           element={
             <RoleRoute allowedRoles={[ROLES.STAFF, ROLES.ADMIN]}>
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Staff Portal</h2>
-                <p>Staff processing workspace will be loaded in Phase F3.</p>
-              </div>
+              <StaffLayout />
             </RoleRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="/staff/dashboard" replace />} />
+          <Route
+            path="dashboard"
+            element={
+              <div style={{ padding: 'var(--space-6)' }}>
+                <h2>Staff Workspace</h2>
+                <p>Staff document queues and walk-in modules are active in Phase F3.</p>
+              </div>
+            }
+          />
+        </Route>
 
+        {/* Admin Portal Shell */}
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <RoleRoute allowedRoles={[ROLES.ADMIN]}>
-              <div style={{ padding: 'var(--space-6)' }}>
-                <h2>Admin Portal</h2>
-                <p>System administration workspace will be loaded in Phase F4.</p>
-              </div>
+              <AdminLayout />
             </RoleRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route
+            path="dashboard"
+            element={
+              <div style={{ padding: 'var(--space-6)' }}>
+                <h2>System Administration</h2>
+                <p>Executive dashboards, settings, and staff accounts management will be active in Phase F4.</p>
+              </div>
+            }
+          />
+        </Route>
 
         {/* 404 Catch-All */}
         <Route path="*" element={<NotFoundPage />} />

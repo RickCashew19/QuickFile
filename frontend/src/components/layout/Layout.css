@@ -1,0 +1,243 @@
+/* Skip to content accessible helper */
+.qf-skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-4);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
+  z-index: 9999;
+  transition: top var(--transition-fast);
+}
+
+.qf-skip-link:focus {
+  top: var(--space-4);
+  outline: 3px solid var(--color-accent);
+}
+
+/* Base Layout Structure */
+.qf-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+/* Header */
+.qf-shell-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 var(--space-6);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 100;
+}
+
+.qf-shell-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.qf-shell-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.qf-hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.qf-hamburger-btn:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.qf-user-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+}
+
+.qf-user-role-pill {
+  font-size: var(--font-xs);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  text-transform: capitalize;
+  color: var(--color-text-secondary);
+}
+
+/* Notification Bell */
+.qf-bell-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.qf-bell-btn:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.qf-bell-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Body / Container with Sidebar */
+.qf-shell-body {
+  display: flex;
+  flex: 1;
+  width: 100%;
+}
+
+.qf-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-6) var(--space-3);
+  display: flex;
+  flex-direction: column;
+}
+
+.qf-nav-menu {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qf-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.qf-nav-link:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.qf-nav-link.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: var(--font-semibold);
+}
+
+.qf-shell-main {
+  flex: 1;
+  padding: var(--space-8) var(--space-6);
+  min-width: 0;
+}
+
+/* Mobile Drawer Overlay (<768px) */
+.qf-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  animation: qf-fade-in var(--transition-fast);
+}
+
+.qf-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 280px;
+  max-width: 85vw;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) var(--space-4);
+  animation: qf-slide-in var(--transition-fast);
+}
+
+.qf-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Responsive Breakpoint: 768px */
+@media (max-width: 767px) {
+  .qf-hamburger-btn {
+    display: flex;
+  }
+  .qf-sidebar {
+    display: none;
+  }
+  .qf-shell-header {
+    padding: 0 var(--space-4);
+  }
+  .qf-shell-main {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+
+@keyframes qf-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
