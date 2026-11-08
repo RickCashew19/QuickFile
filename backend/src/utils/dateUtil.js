@@ -30,8 +30,8 @@ function getDateRanges(offsetMinutes = config.appTimezoneOffsetMinutes) {
     // Convenient aliases
     todayStart: startOfToday,
     todayEnd: endOfToday,
-    monthStart,
-    monthEnd,
+    monthStart: startOfMonth,
+    monthEnd: endOfMonth,
   };
 }
 

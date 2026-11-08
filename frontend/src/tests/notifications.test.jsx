@@ -109,6 +109,7 @@ describe('Citizen Notifications', () => {
 
     await waitFor(() => {
       expect(notificationService.markRead).toHaveBeenCalledWith('notif-1');
+      expect(screen.getByText('Unread (0)')).toBeInTheDocument();
     });
   });
 

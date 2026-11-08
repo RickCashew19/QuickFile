@@ -10,18 +10,39 @@ import './CitizenNotificationsPage.css';
 
 export function CitizenNotificationsPage() {
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Directly derive unread count from notifications to guarantee the toggle always decrements
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  // Sync unreadCount with CitizenLayout header bell badge in real-time
+  useEffect(() => {
+    if (!loading) {
+      window.dispatchEvent(
+        new CustomEvent('quickfile:notifications:count', {
+          detail: { unreadCount },
+        })
+      );
+    }
+  }, [unreadCount, loading]);
+
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await notificationService.listNotifications();
-      setNotifications(data?.notifications || []);
-      setUnreadCount(data?.unread_count || 0);
+      const items = data?.notifications || [];
+      setNotifications(items);
+      const count = typeof data?.unread_count === 'number'
+        ? data.unread_count
+        : items.filter((n) => !n.is_read).length;
+      window.dispatchEvent(
+        new CustomEvent('quickfile:notifications:count', {
+          detail: { unreadCount: count },
+        })
+      );
     } catch (err) {
       setErrorMessage(err.message || 'Failed to load notifications.');
     } finally {
@@ -39,7 +60,6 @@ export function CitizenNotificationsPage() {
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, is_read: true } : n))
       );
-      setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {
       setErrorMessage(err.message || 'Failed to mark notification as read.');
     }
@@ -50,7 +70,6 @@ export function CitizenNotificationsPage() {
     try {
       await notificationService.markAllRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to mark all as read.');
     } finally {
@@ -61,13 +80,7 @@ export function CitizenNotificationsPage() {
   const handleDeleteOne = async (id) => {
     try {
       await notificationService.deleteNotification(id);
-      setNotifications((prev) => {
-        const item = prev.find((n) => n._id === id);
-        if (item && !item.is_read) {
-          setUnreadCount((c) => Math.max(0, c - 1));
-        }
-        return prev.filter((n) => n._id !== id);
-      });
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
     } catch (err) {
       setErrorMessage(err.message || 'Failed to delete notification.');
     }
@@ -78,7 +91,6 @@ export function CitizenNotificationsPage() {
     try {
       await notificationService.clearAll();
       setNotifications([]);
-      setUnreadCount(0);
       setClearModalOpen(false);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to clear notifications.');

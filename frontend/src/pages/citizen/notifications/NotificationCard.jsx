@@ -39,7 +39,14 @@ export function NotificationCard({ notification, onMarkRead, onDelete }) {
 
         {trackingNumber && (
           <div className="qf-notif-card__meta-link">
-            <Link to={`/citizen/requests/${encodeURIComponent(trackingNumber)}`}>
+            <Link
+              to={`/citizen/requests/${encodeURIComponent(trackingNumber)}`}
+              onClick={() => {
+                if (isUnread && onMarkRead) {
+                  onMarkRead(notification._id);
+                }
+              }}
+            >
               <span className="qf-notif-card__tracking-badge">
                 <Icon name="file" size={12} />
                 <span>View Request {trackingNumber}</span>

@@ -15,6 +15,17 @@ export function CitizenLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const drawerRef = useRef(null);
 
+  // Synchronize unread count immediately whenever notifications are read, deleted, or cleared
+  useEffect(() => {
+    const handleCountUpdate = (e) => {
+      if (typeof e.detail?.unreadCount === 'number') {
+        setUnreadCount(e.detail.unreadCount);
+      }
+    };
+    window.addEventListener('quickfile:notifications:count', handleCountUpdate);
+    return () => window.removeEventListener('quickfile:notifications:count', handleCountUpdate);
+  }, []);
+
   // Poll notification unread count every 30 seconds
   usePolling(
     async () => {
