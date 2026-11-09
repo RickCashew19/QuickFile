@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('./admin.controller');
+const documentTemplatesController = require('./documentTypes/documentTemplates.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.middleware');
 const { validateObjectIdParam } = require('../../middleware/validateObjectId.middleware');
@@ -51,5 +52,9 @@ router.get('/audit-logs', adminController.listAuditLogs);
 // 8. Reports
 router.get('/reports/export', exportLimiter, adminController.exportAdminReport);
 router.get('/reports', adminController.getReports);
+
+// 9. Document Template Utilities
+router.get('/template-placeholders', documentTemplatesController.getPlaceholders);
+router.get('/template-starter', documentTemplatesController.getStarterTemplate);
 
 module.exports = router;

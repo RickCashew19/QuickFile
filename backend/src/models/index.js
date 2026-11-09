@@ -4,6 +4,7 @@ const StaffDetail = require('./StaffDetail');
 const StaffPermission = require('./StaffPermission');
 const PasswordReset = require('./PasswordReset');
 const DocumentType = require('./DocumentType');
+const DocumentTemplate = require('./DocumentTemplate');
 const DocumentRequest = require('./DocumentRequest');
 const IssuedDocument = require('./IssuedDocument');
 const Notification = require('./Notification');
@@ -18,6 +19,7 @@ module.exports = {
   StaffPermission,
   PasswordReset,
   DocumentType,
+  DocumentTemplate,
   DocumentRequest,
   IssuedDocument,
   Notification,

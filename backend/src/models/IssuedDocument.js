@@ -78,6 +78,19 @@ const issuedDocumentSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    template_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DocumentTemplate',
+      default: null,
+    },
+    template_version: {
+      type: Number,
+      default: null,
+    },
+    render_data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

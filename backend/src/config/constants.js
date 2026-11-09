@@ -115,6 +115,8 @@ const POLLING_LIMIT_MAX = 600; // Lightweight status polling per user (40 polls/
 const USER_API_LIMIT_MAX = 300; // General authenticated requests per user
 const EXPORT_LIMIT_MAX = 10; // Report export operations per user
 const PUBLIC_LIMIT_MAX = 60; // Unauthenticated public requests per IP
+const TEMPLATE_UPLOAD_LIMIT_MAX = 10; // Template upload operations per user per hour
+const CERTIFICATE_DOWNLOAD_LIMIT_MAX = 30; // Certificate downloads per user per 15 min
 
 // Strictly allowlisted CUSTOM_* variables writable to .env
 const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
@@ -160,4 +162,6 @@ module.exports = {
   USER_API_LIMIT_MAX,
   EXPORT_LIMIT_MAX,
   PUBLIC_LIMIT_MAX,
+  TEMPLATE_UPLOAD_LIMIT_MAX,
+  CERTIFICATE_DOWNLOAD_LIMIT_MAX,
 };

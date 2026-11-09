@@ -4,7 +4,12 @@ const staffController = require('./staff.controller');
 const { verifyController } = require('../verify/verify.controller');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const { requirePermission } = require('../../middleware/permission.middleware');
-const { userApiLimiter, pollingLimiter, exportLimiter } = require('../../middleware/rateLimiter.middleware');
+const {
+  userApiLimiter,
+  pollingLimiter,
+  exportLimiter,
+  certificateDownloadLimiter,
+} = require('../../middleware/rateLimiter.middleware');
 const { upload } = require('../../utils/fileUpload');
 const { sanitizeNoSql } = require('../../middleware/sanitizeNoSql.middleware');
 const { validateObjectIdParam } = require('../../middleware/validateObjectId.middleware');
@@ -93,6 +98,13 @@ router.get(
   validateObjectIdParam('id'),
   requirePermission('can_print_documents'),
   staffController.getPrintData
+);
+router.get(
+  '/requests/:id/certificate',
+  validateObjectIdParam('id'),
+  requirePermission('can_print_documents'),
+  certificateDownloadLimiter,
+  staffController.downloadCertificate
 );
 router.post(
   '/requests/:id/release',

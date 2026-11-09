@@ -12,6 +12,8 @@ const {
   USER_API_LIMIT_MAX,
   EXPORT_LIMIT_MAX,
   PUBLIC_LIMIT_MAX,
+  TEMPLATE_UPLOAD_LIMIT_MAX,
+  CERTIFICATE_DOWNLOAD_LIMIT_MAX,
 } = require('../config/constants');
 
 /**
@@ -198,6 +200,32 @@ const exportLimiter = rateLimit({
   handler: rateLimitHandler('Too many report export requests. Maximum 10 exports per 15 minutes.'),
 });
 
+/**
+ * Template upload rate limiter
+ * 10 template uploads per 1 hour per user ID
+ */
+const templateUploadLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: TEMPLATE_UPLOAD_LIMIT_MAX,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many template upload requests. Maximum 10 template uploads per hour.'),
+});
+
+/**
+ * Official certificate download rate limiter
+ * 30 certificate downloads per 15 minutes per user ID
+ */
+const certificateDownloadLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: CERTIFICATE_DOWNLOAD_LIMIT_MAX,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many certificate download requests. Maximum 30 downloads per 15 minutes.'),
+});
+
 module.exports = {
   authLimiter,
   loginEmailLimiter,
@@ -210,4 +238,6 @@ module.exports = {
   pollingLimiter,
   userApiLimiter,
   exportLimiter,
+  templateUploadLimiter,
+  certificateDownloadLimiter,
 };

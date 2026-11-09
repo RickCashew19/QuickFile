@@ -208,6 +208,36 @@ const getPrintData = asyncHandler(async (req, res) => {
   });
 });
 
+const downloadCertificate = asyncHandler(async (req, res) => {
+  const { format } = req.query;
+  if (format && format !== 'docx') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid or unsupported format. Only format=docx is supported.',
+      data: null,
+    });
+  }
+
+  const { buffer, certificate_number } = await staffService.generateCertificateDocx(
+    req.params.id,
+    req.user,
+    req.ip,
+    req.get('User-Agent')
+  );
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="certificate-${certificate_number}.docx"`
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, no-store');
+  return res.status(200).send(buffer);
+});
+
 const releaseRequest = asyncHandler(async (req, res) => {
   const result = await staffService.releaseRequest(
     req.params.id,
@@ -343,6 +373,7 @@ module.exports = {
   prepareRequest,
   issueRequest,
   getPrintData,
+  downloadCertificate,
   releaseRequest,
   archiveRequest,
   listRecords,

@@ -1,6 +1,7 @@
 const {
   DocumentRequest,
   DocumentType,
+  DocumentTemplate,
   IssuedDocument,
   User,
   CitizenProfile,
@@ -23,6 +24,9 @@ const {
 } = require('../../utils/certificateGenerator');
 const { sendMail } = require('../../utils/mailer');
 const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
+const { buildRenderData } = require('../../utils/templatePlaceholders');
+const { verifyTemplateFileIntegrity } = require('../../utils/templateStorage');
+const { renderDocxWithTimeout } = require('../admin/documentTypes/documentTemplates.service');
 const reportsService = require('../reports/reports.service');
 
 /**
@@ -407,7 +411,7 @@ async function prepareRequest(requestId, actorUser, ipAddress, userAgent) {
 async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   const request = await DocumentRequest.findById(requestId)
     .populate('document_type_id')
-    .populate('citizen_id', 'full_name email');
+    .populate('citizen_id');
 
   if (!request) {
     const error = new Error('Document request not found.');
@@ -424,27 +428,82 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   const docType = request.document_type_id;
   const citizen = request.citizen_id;
 
+  const [citizenProfile, appSettings] = await Promise.all([
+    CitizenProfile.findOne({ user_id: citizen._id }).lean(),
+    AppSetting.find({}).lean(),
+  ]);
+
+  const settingsMap = {};
+  for (const s of appSettings) {
+    settingsMap[s.key] = s.value;
+  }
+
+  // Determine active template if custom mode is enabled
+  let templateId = null;
+  let templateVersion = null;
+  let activeTemplate = null;
+
+  if (docType.template_mode === 'custom' && docType.active_template_id) {
+    activeTemplate = await DocumentTemplate.findById(docType.active_template_id).lean();
+    if (activeTemplate && !activeTemplate.retired_at) {
+      templateId = activeTemplate._id;
+      templateVersion = activeTemplate.version;
+    }
+  }
+
   // Idempotency: reuse existing IssuedDocument if already created
   let issuedDoc = await IssuedDocument.findOne({ request_id: request._id });
 
-  if (!issuedDoc) {
+  let certificateNumber;
+  let verificationCode;
+  let qrData;
+  let qrCodeImage;
+  let expiresAt = null;
+  let issuedAt = new Date();
+
+  if (issuedDoc) {
+    certificateNumber = issuedDoc.certificate_number;
+    verificationCode = issuedDoc.verification_code;
+    qrData = issuedDoc.qr_data;
+    qrCodeImage = issuedDoc.qr_code_image;
+    expiresAt = issuedDoc.expires_at;
+    issuedAt = issuedDoc.issued_at || issuedAt;
+  } else {
     // 1. Generate unique certificate number
-    const certificateNumber = await generateUniqueCertificateNumber(docType.code);
+    certificateNumber = await generateUniqueCertificateNumber(docType.code);
 
     // 2. Generate random cryptographic verification code (>= 20 chars, independent of tracking number)
-    const verificationCode = generateVerificationCode();
+    verificationCode = generateVerificationCode();
 
     // 3. Generate QR code pointing to public verification endpoint using config.publicAppUrl
-    const qrData = `${config.publicAppUrl}/verify/${verificationCode}`;
-    const qrCodeImage = await generateQrCodeDataUrl(qrData);
+    qrData = `${config.publicAppUrl}/verify/${verificationCode}`;
+    qrCodeImage = await generateQrCodeDataUrl(qrData);
 
     // 4. Calculate expiration (0 = no expiry; remove docType.validity_days branch)
-    let expiresAt = null;
     if (config.certificateValidityDays > 0) {
       expiresAt = new Date(Date.now() + config.certificateValidityDays * 24 * 60 * 60 * 1000);
     }
+  }
 
-    // 5. Create IssuedDocument
+  // Build snapshot render_data from allowlisted catalog
+  const renderContext = {
+    citizen,
+    citizenProfile,
+    request,
+    documentType: docType,
+    settings: settingsMap,
+    issuedDocument: {
+      certificate_number: certificateNumber,
+      verification_code: verificationCode,
+      qr_data: qrData,
+      issued_at: issuedAt,
+      expires_at: expiresAt,
+    },
+  };
+  const renderData = buildRenderData(renderContext);
+
+  if (!issuedDoc) {
+    // 5. Create IssuedDocument with snapshot render_data and template metadata
     issuedDoc = await IssuedDocument.create({
       request_id: request._id,
       certificate_number: certificateNumber,
@@ -454,10 +513,32 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
       qr_data: qrData,
       qr_code_image: qrCodeImage,
       issued_by: actorUser._id,
-      issued_at: new Date(),
+      issued_at: issuedAt,
       validity_status: VALIDITY_STATUSES.VALID,
       expires_at: expiresAt,
+      template_id: templateId,
+      template_version: templateVersion,
+      render_data: renderData,
     });
+  } else {
+    // Backfill snapshot data if missing
+    if (!issuedDoc.render_data) {
+      issuedDoc.render_data = renderData;
+      issuedDoc.template_id = templateId;
+      issuedDoc.template_version = templateVersion;
+      await issuedDoc.save();
+    }
+  }
+
+  // Calculate non-blocking data_warnings: keys used by active template whose values are empty
+  const dataWarnings = [];
+  if (activeTemplate && Array.isArray(activeTemplate.placeholders_found)) {
+    for (const key of activeTemplate.placeholders_found) {
+      const val = renderData[key];
+      if (val === undefined || val === null || val.trim() === '') {
+        dataWarnings.push(key);
+      }
+    }
   }
 
   // 6. Transition request status to ready_for_pickup atomically (with rollback on error)
@@ -490,6 +571,7 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   return {
     request: updatedRequest,
     issued_document: issuedDoc,
+    data_warnings: dataWarnings,
   };
 }
 
@@ -538,8 +620,14 @@ async function getPrintData(requestId) {
     settingsMap[s.key] = s.value;
   }
 
-  const captain = (settingsMap.barangay_captain || '').trim();
-  const secretary = (settingsMap.barangay_secretary || '').trim();
+  const liveCaptain = (settingsMap.barangay_captain || '').trim();
+  const liveSecretary = (settingsMap.barangay_secretary || '').trim();
+
+  // Prefer snapshot render_data when present; fall back to live data
+  const rd = issuedDocument.render_data;
+
+  const captain = rd && rd.captain_name ? rd.captain_name : liveCaptain;
+  const secretary = rd && rd.secretary_name ? rd.secretary_name : liveSecretary;
 
   if (!captain || !secretary) {
     const error = new Error(
@@ -551,28 +639,28 @@ async function getPrintData(requestId) {
 
   return {
     barangay: {
-      barangay_name: config.jurisdiction.barangayName(),
-      city_municipality: config.jurisdiction.cityMunicipality(),
-      province: config.jurisdiction.province(),
-      office_name: settingsMap.office_name || 'Office of the Barangay Captain',
+      barangay_name: (rd && rd.barangay_name) || config.jurisdiction.barangayName(),
+      city_municipality: (rd && rd.city_municipality) || config.jurisdiction.cityMunicipality(),
+      province: (rd && rd.province) || config.jurisdiction.province(),
+      office_name: (rd && rd.office_name) || settingsMap.office_name || 'Office of the Barangay Captain',
       captain_name: captain,
       secretary_name: secretary,
     },
     citizen: {
-      full_name: request.citizen_id.full_name,
+      full_name: (rd && rd.full_name) || request.citizen_id.full_name,
       email: request.citizen_id.email,
       phone: request.citizen_id.phone,
-      address: citizenProfile?.street_address || '',
-      purok_zone: citizenProfile?.purok_zone || '',
-      civil_status: citizenProfile?.civil_status || '',
+      address: (rd && rd.address) || citizenProfile?.street_address || '',
+      purok_zone: (rd && rd.purok_zone) || citizenProfile?.purok_zone || '',
+      civil_status: (rd && rd.civil_status) || citizenProfile?.civil_status || '',
       birthdate: citizenProfile?.birthdate || null,
       voter_status: citizenProfile?.voter_status || '',
     },
     document: {
-      name: request.document_type_id.name,
-      code: request.document_type_id.code,
-      purpose: request.purpose,
-      copies: request.copies,
+      name: (rd && rd.document_name) || request.document_type_id.name,
+      code: (rd && rd.document_code) || request.document_type_id.code,
+      purpose: (rd && rd.purpose) || request.purpose,
+      copies: (rd && rd.copies) || request.copies,
       fee: request.fee,
       form_data: request.form_data,
     },
@@ -583,6 +671,9 @@ async function getPrintData(requestId) {
       qr_code_image: issuedDocument.qr_code_image,
       issued_at: issuedDocument.issued_at,
       expires_at: issuedDocument.expires_at,
+      template_id: issuedDocument.template_id || null,
+      template_version: issuedDocument.template_version || null,
+      render_data: issuedDocument.render_data || null,
     },
   };
 }
@@ -801,6 +892,148 @@ async function createWalkInRequest({
   });
 }
 
+/**
+ * Generate official certificate DOCX for a document request
+ * Only ready_for_pickup or released requests
+ * Item 7: Docxtemplater rendering with QR image replacement
+ */
+async function generateCertificateDocx(requestId, actorUser, ipAddress, userAgent) {
+  const request = await DocumentRequest.findById(requestId)
+    .populate('document_type_id')
+    .populate('citizen_id')
+    .lean();
+
+  if (!request) {
+    const error = new Error('Document request not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Request status check: only ready_for_pickup or released
+  if (
+    request.status !== REQUEST_STATUSES.READY_FOR_PICKUP &&
+    request.status !== REQUEST_STATUSES.RELEASED
+  ) {
+    const error = new Error(
+      `Certificate is only available for requests with status "ready_for_pickup" or "released". Current status is "${request.status}".`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const issuedDoc = await IssuedDocument.findOne({ request_id: request._id });
+  if (!issuedDoc) {
+    const error = new Error('Issued document record not found for this request.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // 409 for revoked certificate
+  if (issuedDoc.validity_status === VALIDITY_STATUSES.REVOKED) {
+    const error = new Error('Cannot generate certificate: Certificate has been revoked.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // 409 for expired certificate
+  if (
+    issuedDoc.validity_status === VALIDITY_STATUSES.EXPIRED ||
+    (issuedDoc.expires_at && new Date(issuedDoc.expires_at) < new Date())
+  ) {
+    const error = new Error('Cannot generate certificate: Certificate has expired.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // 409 when the certificate uses the built-in layout
+  if (!issuedDoc.template_id) {
+    const error = new Error(
+      'Cannot generate DOCX certificate: This certificate was issued using the built-in layout. DOCX download is only available for certificates issued with custom DOCX templates.'
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // Load the template version stored on the IssuedDocument
+  const template = await DocumentTemplate.findById(issuedDoc.template_id);
+  if (!template) {
+    console.error(
+      `[StaffService] Template record ${issuedDoc.template_id} not found for issued document ${issuedDoc._id}`
+    );
+    const error = new Error('An unexpected server error occurred while retrieving the document template.');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  // Verify file integrity (sha256)
+  const integrity = verifyTemplateFileIntegrity(template.stored_filename, template.sha256);
+  if (!integrity.exists || !integrity.matches) {
+    console.error(
+      `[StaffService] Template file integrity mismatch: template ${template._id} (exists=${integrity.exists}, matches=${integrity.matches})`
+    );
+    const error = new Error('An unexpected server error occurred while retrieving the document template.');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const renderData = issuedDoc.render_data || {};
+  const templatePlaceholders = template.placeholders_found || [];
+
+  // 409 for empty signatories only if the template contains captain_name or secretary_name
+  if (
+    templatePlaceholders.includes('captain_name') &&
+    (!renderData.captain_name || !renderData.captain_name.trim())
+  ) {
+    const error = new Error(
+      'Cannot generate certificate: Barangay Captain signatory is required by the template but is empty.'
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (
+    templatePlaceholders.includes('secretary_name') &&
+    (!renderData.secretary_name || !renderData.secretary_name.trim())
+  ) {
+    const error = new Error(
+      'Cannot generate certificate: Barangay Secretary signatory is required by the template but is empty.'
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // Render docx with 5s timeout and 10MB cap
+  const renderedBuffer = await renderDocxWithTimeout(
+    integrity.buffer,
+    renderData,
+    issuedDoc.qr_data
+  );
+
+  // Audit log entry CERTIFICATE_DOWNLOAD (no file contents)
+  await AuditLog.create({
+    user_id: actorUser._id,
+    actor_name: actorUser.full_name,
+    action: 'CERTIFICATE_DOWNLOAD',
+    module: 'STAFF',
+    target_id: issuedDoc._id.toString(),
+    target_type: 'IssuedDocument',
+    details: {
+      request_id: request._id.toString(),
+      certificate_number: issuedDoc.certificate_number,
+      template_id: template._id.toString(),
+      template_version: template.version,
+      file_size: renderedBuffer.length,
+    },
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+  });
+
+  return {
+    buffer: renderedBuffer,
+    certificate_number: issuedDoc.certificate_number,
+  };
+}
+
 module.exports = {
   getDashboardKPIs,
   getLiveStats,
@@ -814,6 +1047,7 @@ module.exports = {
   prepareRequest,
   issueRequest,
   getPrintData,
+  generateCertificateDocx,
   releaseRequest,
   archiveRequest,
   listRecords,

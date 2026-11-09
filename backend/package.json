@@ -13,6 +13,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "docx": "9.15.3",
+    "docxtemplater": "3.71.1",
     "dotenv": "^16.4.7",
     "exceljs": "4.4.0",
     "express": "^4.21.2",
@@ -25,6 +26,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
     "pdfmake": "0.3.13",
+    "pizzip": "3.3.0",
     "qrcode": "^1.5.4"
   },
   "engines": {

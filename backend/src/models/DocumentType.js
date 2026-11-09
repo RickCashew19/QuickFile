@@ -44,6 +44,16 @@ const documentTypeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    template_mode: {
+      type: String,
+      enum: ['builtin', 'custom'],
+      default: 'builtin',
+    },
+    active_template_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DocumentTemplate',
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
