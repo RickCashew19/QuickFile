@@ -26,12 +26,6 @@ function validateVersionParam(paramName = 'version') {
 router.use(authenticate, authorize(ROLES.ADMIN), userApiLimiter);
 
 // ---------------------------------------------------------------------------
-// Placeholder catalog & Starter template routes
-// ---------------------------------------------------------------------------
-router.get('/template-placeholders', documentTemplatesController.getPlaceholders);
-router.get('/template-starter', documentTemplatesController.getStarterTemplate);
-
-// ---------------------------------------------------------------------------
 // Standard DocumentType CRUD routes
 // ---------------------------------------------------------------------------
 router.get('/', documentTypesController.getAll);

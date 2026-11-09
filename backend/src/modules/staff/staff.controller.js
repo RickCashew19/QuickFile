@@ -1,5 +1,6 @@
 const staffService = require('./staff.service');
 const reportsService = require('../reports/reports.service');
+const { formatContentDisposition } = require('../../utils/contentDisposition');
 const asyncHandler = require('../../utils/asyncHandler');
 
 /**
@@ -225,14 +226,12 @@ const downloadCertificate = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
+  const filename = `certificate-${certificate_number}.docx`;
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="certificate-${certificate_number}.docx"`
-  );
+  res.setHeader('Content-Disposition', formatContentDisposition('attachment', filename));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(200).send(buffer);

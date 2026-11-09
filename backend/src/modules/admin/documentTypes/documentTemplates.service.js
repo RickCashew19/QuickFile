@@ -12,10 +12,9 @@ const {
   verifyTemplateFileIntegrity,
   deleteTemplateFile,
 } = require('../../../utils/templateStorage');
-const { validateDocxTemplate } = require('./templateValidator.service');
+const { validateDocxTemplate, PNG_SIGNATURE } = require('./templateValidator.service');
 const { buildStarterDocxBuffer } = require('./templateStarter.service');
 
-const RENDER_TIMEOUT_MS = 5000;
 const MAX_OUTPUT_SIZE = 10 * 1024 * 1024; // 10 MB
 
 /**
@@ -32,6 +31,8 @@ function sanitizeTemplate(template) {
     file_size: doc.file_size,
     sha256: doc.sha256,
     placeholders_found: doc.placeholders_found || [],
+    qr_media_path: doc.qr_media_path || null,
+    has_qr_placeholder: Boolean(doc.has_qr_placeholder),
     uploaded_by_name: doc.uploaded_by_name,
     is_active: Boolean(doc.is_active),
     retired_at: doc.retired_at || null,
@@ -41,58 +42,80 @@ function sanitizeTemplate(template) {
 }
 
 /**
- * Pure rendering function with 5-second timeout and 10 MB output cap
+ * Renders a DOCX template buffer with renderData.
+ * Fails closed: if template has a QR placeholder, QR swap MUST complete;
+ * if media part is missing or not PNG, logs server-side and throws a generic 500 error.
+ * Never outputs a document that still contains the placeholder picture.
+ * Relies on pre-inflation caps (10 MB entry, 20 MB total, 100:1 ratio, 300 entries, plain parser)
+ * and enforces a 10 MB maximum output buffer limit.
  */
-async function renderDocxWithTimeout(templateBuffer, renderData, qrData = null) {
-  const renderPromise = (async () => {
-    const zip = new PizZip(templateBuffer);
+async function renderDocx(templateBuffer, renderData, options = {}) {
+  const { qrData = null, hasQrPlaceholder = false, qrMediaPath = null } = options;
+  const zip = new PizZip(templateBuffer);
 
-    // If template has a QR image placeholder and qrData is provided, swap it
-    if (qrData) {
-      const validation = validateDocxTemplate(templateBuffer);
-      if (validation.qr_media_path) {
-        const qrPng = await QRCode.toBuffer(qrData, {
-          type: 'png',
-          width: 300,
-          margin: 1,
-          errorCorrectionLevel: 'M',
-        });
-        zip.file(validation.qr_media_path, qrPng);
-      }
-    }
-
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: false,
-      linebreaks: true,
-      errorLogging: false,
-    });
-
-    doc.render(renderData);
-
-    const outputBuffer = doc.getZip().generate({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-    });
-
-    if (outputBuffer.length > MAX_OUTPUT_SIZE) {
-      const err = new Error(`Rendered document size (${outputBuffer.length} bytes) exceeds maximum cap of 10 MB.`);
+  // If template has a QR image placeholder, fail closed
+  if (hasQrPlaceholder) {
+    if (!qrMediaPath || !qrData) {
+      console.error(
+        `[DocumentTemplates] QR fail-closed: template has QR placeholder but qrMediaPath or qrData is missing.`
+      );
+      const err = new Error('An unexpected server error occurred while rendering the document.');
       err.statusCode = 500;
       throw err;
     }
 
-    return outputBuffer;
-  })();
-
-  const timeoutPromise = new Promise((_, reject) => {
-    const timer = setTimeout(() => {
-      const err = new Error('Document rendering timed out after 5 seconds.');
+    const mediaFile = zip.file(qrMediaPath);
+    if (!mediaFile) {
+      console.error(
+        `[DocumentTemplates] QR fail-closed: placeholder media file "${qrMediaPath}" vanished from template.`
+      );
+      const err = new Error('An unexpected server error occurred while rendering the document.');
       err.statusCode = 500;
-      reject(err);
-    }, RENDER_TIMEOUT_MS);
-    if (timer.unref) timer.unref();
+      throw err;
+    }
+
+    const mediaBytes = mediaFile.asNodeBuffer();
+    const isPng = mediaBytes.length >= 8 && mediaBytes.subarray(0, 8).equals(PNG_SIGNATURE);
+    if (!isPng) {
+      console.error(
+        `[DocumentTemplates] QR fail-closed: placeholder media "${qrMediaPath}" is not a valid PNG.`
+      );
+      const err = new Error('An unexpected server error occurred while rendering the document.');
+      err.statusCode = 500;
+      throw err;
+    }
+
+    const qrPng = await QRCode.toBuffer(qrData, {
+      type: 'png',
+      width: 300,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    });
+
+    zip.file(qrMediaPath, qrPng);
+  }
+
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: false,
+    linebreaks: true,
+    errorLogging: false,
+    nullGetter: () => '',
   });
 
-  return Promise.race([renderPromise, timeoutPromise]);
+  doc.render(renderData);
+
+  const outputBuffer = doc.getZip().generate({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+  });
+
+  if (outputBuffer.length > MAX_OUTPUT_SIZE) {
+    const err = new Error(`Rendered document size exceeds maximum cap of 10 MB.`);
+    err.statusCode = 500;
+    throw err;
+  }
+
+  return outputBuffer;
 }
 
 /**
@@ -153,19 +176,55 @@ async function uploadTemplate(documentTypeId, file, actorUser, ipAddress, userAg
   // Store file safely
   const saved = saveTemplateFile(file.buffer, file.originalname);
 
-  // Persist template record
-  const template = await DocumentTemplate.create({
-    document_type_id: docType._id,
-    version: nextVersion,
-    original_name: file.originalname,
-    stored_filename: saved.stored_filename,
-    file_size: saved.file_size,
-    sha256: saved.sha256,
-    placeholders_found: validation.placeholders_found,
-    uploaded_by: actorUser._id,
-    uploaded_by_name: actorUser.full_name,
-    is_active: false,
-  });
+  // Persist template record with race handling & rollback file on DB error
+  let template;
+  try {
+    template = await DocumentTemplate.create({
+      document_type_id: docType._id,
+      version: nextVersion,
+      original_name: file.originalname,
+      stored_filename: saved.stored_filename,
+      file_size: saved.file_size,
+      sha256: saved.sha256,
+      placeholders_found: validation.placeholders_found,
+      qr_media_path: validation.qr_media_path,
+      has_qr_placeholder: validation.has_qr_placeholder,
+      uploaded_by: actorUser._id,
+      uploaded_by_name: actorUser.full_name,
+      is_active: false,
+    });
+  } catch (dbErr) {
+    if (dbErr.code === 11000) {
+      try {
+        const retryLast = await DocumentTemplate.findOne({ document_type_id: docType._id })
+          .sort({ version: -1 })
+          .lean();
+        const retryVersion = (retryLast ? retryLast.version : 0) + 1;
+        template = await DocumentTemplate.create({
+          document_type_id: docType._id,
+          version: retryVersion,
+          original_name: file.originalname,
+          stored_filename: saved.stored_filename,
+          file_size: saved.file_size,
+          sha256: saved.sha256,
+          placeholders_found: validation.placeholders_found,
+          qr_media_path: validation.qr_media_path,
+          has_qr_placeholder: validation.has_qr_placeholder,
+          uploaded_by: actorUser._id,
+          uploaded_by_name: actorUser.full_name,
+          is_active: false,
+        });
+      } catch (retryErr) {
+        deleteTemplateFile(saved.stored_filename);
+        const conflictErr = new Error('Version conflict occurred during template upload. Please try again.');
+        conflictErr.statusCode = 409;
+        throw conflictErr;
+      }
+    } else {
+      deleteTemplateFile(saved.stored_filename);
+      throw dbErr;
+    }
+  }
 
   // Audit log (hash & version only, never file contents or path)
   await AuditLog.create({
@@ -396,11 +455,15 @@ async function previewTemplate(documentTypeId, versionNum) {
   const exampleRenderData = buildExampleRenderData();
   const previewQrData = `${config.publicAppUrl}/verify/EXAMPLE-VERIFICATION-CODE`;
 
-  const renderedBuffer = await renderDocxWithTimeout(integrity.buffer, exampleRenderData, previewQrData);
+  const renderedBuffer = await renderDocx(integrity.buffer, exampleRenderData, {
+    qrData: previewQrData,
+    hasQrPlaceholder: template.has_qr_placeholder,
+    qrMediaPath: template.qr_media_path,
+  });
 
   return {
     buffer: renderedBuffer,
-    filename: `template-preview-${docType.code || 'doc'}-v${template.version}.docx`,
+    version: template.version,
   };
 }
 
@@ -590,5 +653,6 @@ module.exports = {
   getTemplateFile,
   retireTemplate,
   deleteTemplate,
-  renderDocxWithTimeout,
+  renderDocx,
+  renderDocxWithTimeout: renderDocx,
 };

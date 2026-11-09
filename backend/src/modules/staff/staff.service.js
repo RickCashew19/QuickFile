@@ -26,7 +26,7 @@ const { sendMail } = require('../../utils/mailer');
 const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
 const { buildRenderData } = require('../../utils/templatePlaceholders');
 const { verifyTemplateFileIntegrity } = require('../../utils/templateStorage');
-const { renderDocxWithTimeout } = require('../admin/documentTypes/documentTemplates.service');
+const { renderDocx } = require('../admin/documentTypes/documentTemplates.service');
 const reportsService = require('../reports/reports.service');
 
 /**
@@ -623,11 +623,14 @@ async function getPrintData(requestId) {
   const liveCaptain = (settingsMap.barangay_captain || '').trim();
   const liveSecretary = (settingsMap.barangay_secretary || '').trim();
 
-  // Prefer snapshot render_data when present; fall back to live data
+  // Snapshot rule:
+  // Signatory snapshot decision:
+  // We prioritize the signatory names captured in render_data snapshot at issue time to preserve historical integrity.
+  // We fall back to the live settings value ONLY if the snapshot value is empty string/unconfigured.
   const rd = issuedDocument.render_data;
 
-  const captain = rd && rd.captain_name ? rd.captain_name : liveCaptain;
-  const secretary = rd && rd.secretary_name ? rd.secretary_name : liveSecretary;
+  const captain = (rd && rd.captain_name && rd.captain_name.trim()) ? rd.captain_name : liveCaptain;
+  const secretary = (rd && rd.secretary_name && rd.secretary_name.trim()) ? rd.secretary_name : liveSecretary;
 
   if (!captain || !secretary) {
     const error = new Error(
@@ -637,30 +640,74 @@ async function getPrintData(requestId) {
     throw error;
   }
 
+  // When snapshot render_data exists, use ONLY snapshot fields (no field-by-field fallback to live citizen data)
+  if (rd) {
+    return {
+      barangay: {
+        barangay_name: rd.barangay_name || '',
+        city_municipality: rd.city_municipality || '',
+        province: rd.province || '',
+        office_name: rd.office_name || '',
+        captain_name: captain,
+        secretary_name: secretary,
+      },
+      citizen: {
+        full_name: rd.full_name || '',
+        email: request.citizen_id.email,
+        phone: request.citizen_id.phone,
+        address: rd.address || '',
+        purok_zone: rd.purok_zone || '',
+        civil_status: rd.civil_status || '',
+        birthdate: citizenProfile?.birthdate || null,
+        voter_status: citizenProfile?.voter_status || '',
+      },
+      document: {
+        name: rd.document_name || '',
+        code: rd.document_code || '',
+        purpose: rd.purpose || '',
+        copies: rd.copies || 1,
+        fee: request.fee,
+        form_data: request.form_data,
+      },
+      issued_document: {
+        certificate_number: issuedDocument.certificate_number,
+        verification_code: issuedDocument.verification_code,
+        qr_data: issuedDocument.qr_data,
+        qr_code_image: issuedDocument.qr_code_image,
+        issued_at: issuedDocument.issued_at,
+        expires_at: issuedDocument.expires_at,
+        template_id: issuedDocument.template_id || null,
+        template_version: issuedDocument.template_version || null,
+        render_data: issuedDocument.render_data,
+      },
+    };
+  }
+
+  // Legacy certificates issued without render_data use live data
   return {
     barangay: {
-      barangay_name: (rd && rd.barangay_name) || config.jurisdiction.barangayName(),
-      city_municipality: (rd && rd.city_municipality) || config.jurisdiction.cityMunicipality(),
-      province: (rd && rd.province) || config.jurisdiction.province(),
-      office_name: (rd && rd.office_name) || settingsMap.office_name || 'Office of the Barangay Captain',
+      barangay_name: config.jurisdiction.barangayName(),
+      city_municipality: config.jurisdiction.cityMunicipality(),
+      province: config.jurisdiction.province(),
+      office_name: settingsMap.office_name || 'Office of the Barangay Captain',
       captain_name: captain,
       secretary_name: secretary,
     },
     citizen: {
-      full_name: (rd && rd.full_name) || request.citizen_id.full_name,
+      full_name: request.citizen_id.full_name,
       email: request.citizen_id.email,
       phone: request.citizen_id.phone,
-      address: (rd && rd.address) || citizenProfile?.street_address || '',
-      purok_zone: (rd && rd.purok_zone) || citizenProfile?.purok_zone || '',
-      civil_status: (rd && rd.civil_status) || citizenProfile?.civil_status || '',
+      address: citizenProfile?.street_address || '',
+      purok_zone: citizenProfile?.purok_zone || '',
+      civil_status: citizenProfile?.civil_status || '',
       birthdate: citizenProfile?.birthdate || null,
       voter_status: citizenProfile?.voter_status || '',
     },
     document: {
-      name: (rd && rd.document_name) || request.document_type_id.name,
-      code: (rd && rd.document_code) || request.document_type_id.code,
-      purpose: (rd && rd.purpose) || request.purpose,
-      copies: (rd && rd.copies) || request.copies,
+      name: request.document_type_id.name,
+      code: request.document_type_id.code,
+      purpose: request.purpose,
+      copies: request.copies,
       fee: request.fee,
       form_data: request.form_data,
     },
@@ -673,7 +720,7 @@ async function getPrintData(requestId) {
       expires_at: issuedDocument.expires_at,
       template_id: issuedDocument.template_id || null,
       template_version: issuedDocument.template_version || null,
-      render_data: issuedDocument.render_data || null,
+      render_data: null,
     },
   };
 }
@@ -1002,11 +1049,15 @@ async function generateCertificateDocx(requestId, actorUser, ipAddress, userAgen
     throw error;
   }
 
-  // Render docx with 5s timeout and 10MB cap
-  const renderedBuffer = await renderDocxWithTimeout(
+  // Render docx (fails closed if QR placeholder swap cannot be completed)
+  const renderedBuffer = await renderDocx(
     integrity.buffer,
     renderData,
-    issuedDoc.qr_data
+    {
+      qrData: issuedDoc.qr_data,
+      hasQrPlaceholder: template.has_qr_placeholder,
+      qrMediaPath: template.qr_media_path,
+    }
   );
 
   // Audit log entry CERTIFICATE_DOWNLOAD (no file contents)

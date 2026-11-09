@@ -1,6 +1,7 @@
 const multer = require('multer');
 const documentTemplatesService = require('./documentTemplates.service');
 const { MAX_FILE_SIZE } = require('./templateValidator.service');
+const { formatContentDisposition } = require('../../../utils/contentDisposition');
 const asyncHandler = require('../../../utils/asyncHandler');
 
 // Multer memory storage configuration for single template file upload (max 2 MB)
@@ -58,14 +59,12 @@ const getPlaceholders = asyncHandler(async (req, res) => {
  */
 const getStarterTemplate = asyncHandler(async (req, res) => {
   const buffer = await documentTemplatesService.getStarterTemplateBuffer();
+  const filename = 'starter-certificate-template.docx';
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
-  res.setHeader(
-    'Content-Disposition',
-    'attachment; filename="starter-certificate-template.docx"'
-  );
+  res.setHeader('Content-Disposition', formatContentDisposition('attachment', filename));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(200).send(buffer);
@@ -161,16 +160,17 @@ const setMode = asyncHandler(async (req, res) => {
  * POST /api/v1/admin/document-types/:id/templates/:version/preview
  */
 const preview = asyncHandler(async (req, res) => {
-  const { buffer, filename } = await documentTemplatesService.previewTemplate(
+  const { buffer, version } = await documentTemplatesService.previewTemplate(
     req.params.id,
     req.params.version
   );
 
+  const filename = `template-preview-v${version}.docx`;
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Disposition', formatContentDisposition('attachment', filename));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(200).send(buffer);
@@ -180,19 +180,17 @@ const preview = asyncHandler(async (req, res) => {
  * GET /api/v1/admin/document-types/:id/templates/:version/file
  */
 const downloadOriginal = asyncHandler(async (req, res) => {
-  const { buffer, original_name } = await documentTemplatesService.getTemplateFile(
+  const { buffer } = await documentTemplatesService.getTemplateFile(
     req.params.id,
     req.params.version
   );
 
+  const filename = `template-v${req.params.version}.docx`;
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${encodeURIComponent(original_name)}"`
-  );
+  res.setHeader('Content-Disposition', formatContentDisposition('attachment', filename));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(200).send(buffer);

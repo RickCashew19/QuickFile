@@ -37,6 +37,14 @@ const documentTemplateSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    qr_media_path: {
+      type: String,
+      default: null,
+    },
+    has_qr_placeholder: {
+      type: Boolean,
+      default: false,
+    },
     uploaded_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

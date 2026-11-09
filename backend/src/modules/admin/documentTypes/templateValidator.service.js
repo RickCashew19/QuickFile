@@ -3,11 +3,110 @@ const Docxtemplater = require('docxtemplater');
 const { ALLOWED_PLACEHOLDER_KEYS } = require('../../../utils/templatePlaceholders');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const MAX_UNCOMPRESSED_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_ENTRY_UNCOMPRESSED_SIZE = 10 * 1024 * 1024; // 10 MB per entry
+const MAX_UNCOMPRESSED_SIZE = 20 * 1024 * 1024; // 20 MB total declared
 const MAX_ZIP_ENTRIES = 300;
+const MAX_COMPRESSION_RATIO = 100; // 100:1 per-entry ratio
 
 // PNG binary magic bytes header
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/**
+ * Parses ZIP Central Directory before inflating any entries.
+ * Enforces pre-inflation safety caps: entry size, total size, compression ratio, entry count.
+ *
+ * @param {Buffer} buffer
+ * @returns {{ safe: boolean, error?: string }}
+ */
+function inspectZipDirectory(buffer) {
+  // Find End of Central Directory (EOCD) signature PK\x05\x06 backwards
+  let eocdOffset = -1;
+  const minOffset = Math.max(0, buffer.length - 65557);
+  for (let i = buffer.length - 22; i >= minOffset; i--) {
+    if (
+      buffer[i] === 0x50 &&
+      buffer[i + 1] === 0x4b &&
+      buffer[i + 2] === 0x05 &&
+      buffer[i + 3] === 0x06
+    ) {
+      eocdOffset = i;
+      break;
+    }
+  }
+
+  if (eocdOffset === -1) {
+    return { safe: false, error: 'Malformed DOCX archive: End of Central Directory (EOCD) record not found.' };
+  }
+
+  const totalEntries = buffer.readUInt16LE(eocdOffset + 10);
+  const cdSize = buffer.readUInt32LE(eocdOffset + 12);
+  const cdOffset = buffer.readUInt32LE(eocdOffset + 16);
+
+  if (totalEntries > MAX_ZIP_ENTRIES) {
+    return {
+      safe: false,
+      error: `DOCX archive contains ${totalEntries} entries, exceeding maximum limit of ${MAX_ZIP_ENTRIES}.`,
+    };
+  }
+
+  if (cdOffset + cdSize > buffer.length) {
+    return { safe: false, error: 'Malformed DOCX archive: Central Directory bounds exceed file size.' };
+  }
+
+  let totalUncompressed = 0;
+  let pos = cdOffset;
+
+  for (let i = 0; i < totalEntries; i++) {
+    if (pos + 46 > buffer.length) {
+      return { safe: false, error: 'Malformed DOCX archive: Truncated Central Directory header.' };
+    }
+
+    const sig = buffer.readUInt32LE(pos);
+    if (sig !== 0x02014b50) {
+      return { safe: false, error: 'Malformed DOCX archive: Invalid Central Directory entry signature.' };
+    }
+
+    const compressedSize = buffer.readUInt32LE(pos + 20);
+    const uncompressedSize = buffer.readUInt32LE(pos + 24);
+    const fileNameLen = buffer.readUInt16LE(pos + 28);
+    const extraLen = buffer.readUInt16LE(pos + 30);
+    const commentLen = buffer.readUInt16LE(pos + 32);
+
+    const fileName = buffer.toString('utf8', pos + 46, pos + 46 + fileNameLen);
+
+    // 1. Single entry limit: 10 MB
+    if (uncompressedSize > MAX_ENTRY_UNCOMPRESSED_SIZE) {
+      return {
+        safe: false,
+        error: `Archive entry "${fileName}" declared uncompressed size (${(uncompressedSize / (1024 * 1024)).toFixed(1)} MB) exceeds per-entry limit of 10 MB.`,
+      };
+    }
+
+    // 2. Total uncompressed limit: 20 MB
+    totalUncompressed += uncompressedSize;
+    if (totalUncompressed > MAX_UNCOMPRESSED_SIZE) {
+      return {
+        safe: false,
+        error: `Total declared uncompressed size of archive exceeds maximum limit of 20 MB (potential zip bomb).`,
+      };
+    }
+
+    // 3. Per-entry compression ratio limit: 100:1 (for non-trivial entries > 1 KB)
+    if (uncompressedSize > 1024) {
+      const ratio = compressedSize > 0 ? uncompressedSize / compressedSize : uncompressedSize;
+      if (ratio > MAX_COMPRESSION_RATIO) {
+        return {
+          safe: false,
+          error: `Archive entry "${fileName}" has an excessive compression ratio (${ratio.toFixed(0)}:1) exceeding safe limit of 100:1 (potential zip bomb).`,
+        };
+      }
+    }
+
+    pos += 46 + fileNameLen + extraLen + commentLen;
+  }
+
+  return { safe: true };
+}
 
 /**
  * Standard Levenshtein distance for fuzzy matching
@@ -105,10 +204,26 @@ function validateDocxTemplate(buffer) {
       placeholders_found: [],
       unknown: [],
       qr_media_path: null,
+      has_qr_placeholder: false,
     };
   }
 
-  // 3. Parse ZIP archive with PizZip
+  // 3. Pre-inflation Central Directory inspection (caps: entry size <= 10MB, total <= 20MB, ratio <= 100:1, count <= 300)
+  const cdCheck = inspectZipDirectory(buffer);
+  if (!cdCheck.safe) {
+    errors.push(cdCheck.error);
+    return {
+      valid: false,
+      errors,
+      warnings,
+      placeholders_found: [],
+      unknown: [],
+      qr_media_path: null,
+      has_qr_placeholder: false,
+    };
+  }
+
+  // 4. Parse ZIP archive with PizZip
   let zip;
   try {
     zip = new PizZip(buffer);
@@ -121,43 +236,11 @@ function validateDocxTemplate(buffer) {
       placeholders_found: [],
       unknown: [],
       qr_media_path: null,
+      has_qr_placeholder: false,
     };
   }
 
   const fileNames = Object.keys(zip.files);
-
-  // 4. Entry count and zip bomb protection
-  if (fileNames.length > MAX_ZIP_ENTRIES) {
-    errors.push(`DOCX archive contains ${fileNames.length} entries, exceeding maximum limit of ${MAX_ZIP_ENTRIES}.`);
-    return {
-      valid: false,
-      errors,
-      warnings,
-      placeholders_found: [],
-      unknown: [],
-      qr_media_path: null,
-    };
-  }
-
-  let totalUncompressed = 0;
-  for (const name of fileNames) {
-    const file = zip.file(name);
-    if (file) {
-      const size = file.asNodeBuffer().length;
-      totalUncompressed += size;
-      if (totalUncompressed > MAX_UNCOMPRESSED_SIZE) {
-        errors.push(`Uncompressed content exceeds maximum allowed limit of 20 MB (potential zip bomb).`);
-        return {
-          valid: false,
-          errors,
-          warnings,
-          placeholders_found: [],
-          unknown: [],
-          qr_media_path: null,
-        };
-      }
-    }
-  }
 
   // 5. Required core parts in DOCX package
   if (!zip.file('[Content_Types].xml') || !zip.file('word/document.xml')) {
@@ -169,6 +252,7 @@ function validateDocxTemplate(buffer) {
       placeholders_found: [],
       unknown: [],
       qr_media_path: null,
+      has_qr_placeholder: false,
     };
   }
 
@@ -183,6 +267,12 @@ function validateDocxTemplate(buffer) {
     }
     if (lower.includes('activex/')) {
       errors.push('Prohibited content: ActiveX controls (activeX/) detected.');
+    }
+    if (lower === 'word/vbadata.xml' || lower.endsWith('/vbadata.xml')) {
+      errors.push('Prohibited content: VBA data (word/vbaData.xml) detected.');
+    }
+    if (lower.startsWith('word/afchunk') || lower.includes('/afchunk')) {
+      errors.push(`Prohibited content: External altChunk content (${name}) detected.`);
     }
   }
 
@@ -227,14 +317,30 @@ function validateDocxTemplate(buffer) {
     }
   }
 
-  // 9. Security rejections: dynamic fields in XML (INCLUDETEXT, INCLUDEPICTURE, DDE, etc.)
+  // 9. Security rejections: prohibited elements and dynamic fields in XML
   const xmlPartsToCheck = fileNames.filter(
     (n) => n.startsWith('word/') && n.endsWith('.xml') && !n.includes('_rels')
   );
 
   const forbiddenFieldRegex = /\b(INCLUDETEXT|INCLUDEPICTURE|DDE|DDEAUTO|LINK|IMPORT)\b/i;
+  const prohibitedElements = [
+    { tag: 'w:altChunk', desc: '<w:altChunk>' },
+    { tag: 'w:subDoc', desc: '<w:subDoc>' },
+    { tag: 'w:object', desc: '<w:object>' },
+    { tag: 'w:control', desc: '<w:control>' },
+    { tag: 'o:OLEObject', desc: '<o:OLEObject>' },
+  ];
+
   for (const partName of xmlPartsToCheck) {
     const xmlContent = zip.file(partName).asText();
+
+    // Check prohibited OpenXML elements
+    for (const elem of prohibitedElements) {
+      const elemRegex = new RegExp(`<${elem.tag}\\b`, 'i');
+      if (elemRegex.test(xmlContent)) {
+        errors.push(`Prohibited OpenXML element "${elem.desc}" detected in "${partName}".`);
+      }
+    }
 
     // Check <w:instrText>
     const instrRegex = /<w:instrText\b[^>]*>([\s\S]*?)<\/w:instrText>/gi;
@@ -256,12 +362,15 @@ function validateDocxTemplate(buffer) {
   }
 
   // 10. Extract placeholders & validate syntax using docxtemplater
+  // NOTE: docxtemplater's official inspect-module depends on unbundled lodash.
+  // We inspect parsed tokens directly from doc.compiled[part].parsed per requirements.
   let doc;
   try {
     doc = new Docxtemplater(zip, {
       paragraphLoop: false,
       linebreaks: true,
       errorLogging: false,
+      nullGetter: () => '',
     });
   } catch (err) {
     if (err.properties && Array.isArray(err.properties.errors)) {
@@ -278,6 +387,7 @@ function validateDocxTemplate(buffer) {
       placeholders_found: [],
       unknown: [],
       qr_media_path: null,
+      has_qr_placeholder: false,
     };
   }
 
@@ -290,6 +400,15 @@ function validateDocxTemplate(buffer) {
     for (const token of xt.parsed) {
       if (token.type === 'placeholder') {
         const rawTag = token.raw || token.value || '';
+
+        // Reject spaces inside braces: e.g. "{ full_name }"
+        if (rawTag.trim() !== rawTag || /\s/.test(rawTag)) {
+          errors.push(
+            `Unsupported tag syntax "{${rawTag}}" in "${cFile}". Spaces inside tag braces are not allowed.`
+          );
+          continue;
+        }
+
         const trimmedTag = rawTag.trim();
 
         // Reject loops, conditions, expressions, and filters
@@ -326,6 +445,10 @@ function validateDocxTemplate(buffer) {
   const unknownTags = Array.from(unknownTagsSet);
 
   // 11. Scan for QR code image with docPr alt text (descr or title) == "qr_code"
+  // Also verify that the QR image is not shared by any other drawing (e.g. logo)
+  let qrDocPrCount = 0;
+  const nonQrBlipTargets = new Set();
+
   for (const partName of xmlPartsToCheck) {
     const xml = zip.file(partName).asText();
     const relsPartName = partName.replace('word/', 'word/_rels/') + '.rels';
@@ -338,34 +461,50 @@ function validateDocxTemplate(buffer) {
       const drawingXml = dMatch[0];
       const hasQrDocPr = /<wp:docPr\b[^>]*(?:descr=["']qr_code["']|title=["']qr_code["'])/i.test(drawingXml);
 
-      if (hasQrDocPr) {
-        const blipMatch = /<a:blip\b[^>]*\br:embed=["']([^"']+)["']/i.exec(drawingXml);
-        if (blipMatch) {
-          const rId = blipMatch[1];
-          const relMatch = new RegExp(`<Relationship\\b[^>]*Id=["']${rId}["'][^>]*Target=["']([^"']+)["']`, 'i').exec(relsXml);
-          if (relMatch) {
-            let target = relMatch[1];
-            // Normalize path relative to word/
-            if (!target.startsWith('word/')) {
-              target = target.startsWith('/') ? target.slice(1) : `word/${target}`;
-            }
-
-            const mediaFile = zip.file(target);
-            if (!mediaFile) {
-              errors.push(`QR code image referenced by relationship ID "${rId}" (${target}) is missing from the archive.`);
-            } else {
-              const mediaBuf = mediaFile.asNodeBuffer();
-              const isPng = mediaBuf.length >= 8 && mediaBuf.subarray(0, 8).equals(PNG_SIGNATURE);
-              if (!isPng) {
-                errors.push(`QR code image placeholder ("${target}") must be a valid PNG image format.`);
-              } else {
-                qrMediaPath = target;
-              }
-            }
+      const blipMatch = /<a:blip\b[^>]*\br:embed=["']([^"']+)["']/i.exec(drawingXml);
+      let target = null;
+      if (blipMatch) {
+        const rId = blipMatch[1];
+        const relMatch = new RegExp(`<Relationship\\b[^>]*Id=["']${rId}["'][^>]*Target=["']([^"']+)["']`, 'i').exec(relsXml);
+        if (relMatch) {
+          target = relMatch[1];
+          if (!target.startsWith('word/')) {
+            target = target.startsWith('/') ? target.slice(1) : `word/${target}`;
           }
         }
       }
+
+      if (hasQrDocPr) {
+        qrDocPrCount++;
+        if (target) {
+          const mediaFile = zip.file(target);
+          if (!mediaFile) {
+            errors.push(`QR code image referenced (${target}) is missing from the archive.`);
+          } else {
+            const mediaBuf = mediaFile.asNodeBuffer();
+            const isPng = mediaBuf.length >= 8 && mediaBuf.subarray(0, 8).equals(PNG_SIGNATURE);
+            if (!isPng) {
+              errors.push(`QR code image placeholder ("${target}") must be a valid PNG image format.`);
+            } else {
+              qrMediaPath = target;
+            }
+          }
+        }
+      } else if (target) {
+        nonQrBlipTargets.add(target);
+      }
     }
+  }
+
+  // Reject shared picture between logo/drawing and qr_code placeholder
+  if (qrMediaPath && nonQrBlipTargets.has(qrMediaPath)) {
+    errors.push(
+      `The QR code placeholder image ("${qrMediaPath}") is shared with another image element. The QR placeholder must use a dedicated image file.`
+    );
+  }
+
+  if (qrDocPrCount > 1) {
+    errors.push('Multiple QR code placeholder images detected. Exactly one dedicated QR placeholder image is allowed.');
   }
 
   // 12. Enforce required certificate identifiers
@@ -395,6 +534,7 @@ function validateDocxTemplate(buffer) {
     placeholders_found: placeholdersFound,
     unknown: unknownTags,
     qr_media_path: qrMediaPath,
+    has_qr_placeholder: qrMediaPath !== null,
   };
 }
 

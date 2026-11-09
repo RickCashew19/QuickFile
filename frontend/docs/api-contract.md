@@ -121,8 +121,8 @@ This document provides the definitive REST API contract between the QuickFile Re
 | `GET` | `/api/v1/admin/document-types/:id/templates` | `requireRole("admin")` | None | `[ { id, document_type_id, version, original_name, file_size, sha256, placeholders_found, is_active, retired_at, uploaded_by_name, created_at } ]` | Template Version History List |
 | `POST` | `/api/v1/admin/document-types/:id/templates/:version/activate` | `requireRole("admin")` | None | `{ template_mode: "custom", active_template_id, active_template: { ... } }` | Activate Template Version |
 | `POST` | `/api/v1/admin/document-types/:id/template-mode` | `requireRole("admin")` | `{ mode: "builtin" \| "custom" }` | `{ document_type_id, template_mode, active_template_id }` | Switch Template Mode |
-| `POST` | `/api/v1/admin/document-types/:id/templates/:version/preview` | `requireRole("admin")` | None | DOCX file stream (`template-preview-{code}-v{version}.docx`) | Preview Sample Rendered Certificate |
-| `GET` | `/api/v1/admin/document-types/:id/templates/:version/file` | `requireRole("admin")` | None | Original DOCX file stream (`{original_name}`) | Download Original Template File |
+| `POST` | `/api/v1/admin/document-types/:id/templates/:version/preview` | `requireRole("admin")` | None | DOCX file stream (`template-preview-v{version}.docx`) | Preview Sample Rendered Certificate |
+| `GET` | `/api/v1/admin/document-types/:id/templates/:version/file` | `requireRole("admin")` | None | Original DOCX file stream (`template-v{version}.docx`) | Download Original Template File |
 | `POST` | `/api/v1/admin/document-types/:id/templates/:version/retire` | `requireRole("admin")` | None | `{ version, retired_at }` | Retire Template Version (409 if active) |
 | `DELETE` | `/api/v1/admin/document-types/:id/templates/:version` | `requireRole("admin")` | None | `null` (message: "Template version X deleted successfully.") (409 if used by issued certificate) | Delete Unused Template Version |
 | `GET` | `/api/v1/admin/settings` | `requireRole("admin")` | None | `{ integrations: { google, sms, smtp, recaptcha, rest_api }, app_settings: [ ... ] }` (masked values) | System Settings Screen |

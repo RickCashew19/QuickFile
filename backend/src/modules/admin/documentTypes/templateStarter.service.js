@@ -1,18 +1,20 @@
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun } = require('docx');
-const { PLACEHOLDER_CATALOG } = require('../../../utils/templatePlaceholders');
-
-// 100x100 PNG placeholder image (transparent square with a border)
-const STARTER_QR_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAABmJLR0QA/wD/AP+gvaeTAAAAZUlEQVR42u3PMQ0AMAgAMXw8xYUGD3qI7N0k0L2sCgAAAAAA4HfrAABzDBAAAAAwxgAAAMAYAwAAAGMMAAAAjDEAAAAwxgAAAMAYAwAAAGMMAAAAjDEAAAAwxgAAAMAYAwAAAGPMRa/1B78uB8/IAAAAAElFTkSuQmCC';
+const QRCode = require('qrcode');
 
 /**
  * Builds a valid starter DOCX document containing all allowlisted placeholders,
- * an official sample certificate paragraph, and a PNG image with alt text 'qr_code'.
+ * an official sample certificate layout, and a real PNG QR code image with alt text 'qr_code'.
  *
  * @returns {Promise<Buffer>}
  */
 async function buildStarterDocxBuffer() {
-  const qrBuffer = Buffer.from(STARTER_QR_PNG_BASE64, 'base64');
+  // Generate real PNG placeholder QR image using qrcode package
+  const qrBuffer = await QRCode.toBuffer('https://quickfile.gov.ph/verify/STARTER-PREVIEW-QR', {
+    type: 'png',
+    width: 150,
+    margin: 1,
+    errorCorrectionLevel: 'M',
+  });
 
   const children = [
     new Paragraph({
@@ -33,7 +35,7 @@ async function buildStarterDocxBuffer() {
       heading: HeadingLevel.HEADING_2,
     }),
     new Paragraph({
-      text: '{office_name}',
+      text: '{office_name} ({barangay_name})',
       alignment: AlignmentType.CENTER,
     }),
     new Paragraph({ text: '' }),
@@ -44,8 +46,12 @@ async function buildStarterDocxBuffer() {
     }),
     new Paragraph({
       children: [
-        new TextRun({ text: 'Certificate No.: ', bold: true }),
-        new TextRun('{certificate_number}'),
+        new TextRun({ text: 'Certificate of ', bold: true }),
+        new TextRun('{document_name}'),
+        new TextRun(' | Certificate No.: '),
+        new TextRun({ text: '{certificate_number}', bold: true }),
+        new TextRun(' | Document Code: '),
+        new TextRun('{document_code}'),
       ],
       alignment: AlignmentType.CENTER,
     }),
@@ -60,10 +66,10 @@ async function buildStarterDocxBuffer() {
       children: [
         new TextRun({ text: 'THIS IS TO CERTIFY that ' }),
         new TextRun({ text: '{full_name_upper}', bold: true }),
-        new TextRun({ text: ' ({first_name} {middle_name} {last_name} {suffix}), ' }),
-        new TextRun({ text: '{age} years of age, {gender}, {civil_status}, ' }),
-        new TextRun({ text: 'born on {birthdate_long}, with occupation as {occupation}, ' }),
-        new TextRun({ text: 'is a bonafide resident of {address}, Barangay {barangay}, {city}, {province}.' }),
+        new TextRun(' ({full_name}), recorded as {first_name} {middle_name} {last_name} {suffix}, '),
+        new TextRun('{age} years of age, {gender}, {civil_status}, '),
+        new TextRun('born on {birthdate_long}, with occupation as {occupation}, '),
+        new TextRun('is a bonafide resident of {address}, Purok/Zone: {purok_zone}, Barangay {barangay}, {city}, {province}.'),
       ],
     }),
     new Paragraph({ text: '' }),
@@ -71,15 +77,15 @@ async function buildStarterDocxBuffer() {
       children: [
         new TextRun({ text: 'This certification is issued upon the request of the interested party for the purpose of: ' }),
         new TextRun({ text: '{purpose}', bold: true }),
-        new TextRun({ text: ' (Tracking #: {tracking_number}, Copies: {copies}, Code: {document_code}).' }),
+        new TextRun(' (Tracking #: {tracking_number}, Copies: {copies}).'),
       ],
     }),
     new Paragraph({ text: '' }),
     new Paragraph({
       children: [
-        new TextRun({ text: 'Issued on this {issued_date_long} ({issued_date}, {issued_day_ordinal} of {issued_month}, {issued_year}) ' }),
-        new TextRun({ text: 'at Barangay {barangay_name}. ' }),
-        new TextRun({ text: 'Valid until: {expiry_date}.' }),
+        new TextRun('Issued on this {issued_date_long} (Date: {issued_date}, this {issued_day_ordinal} day of {issued_month}, {issued_year}) '),
+        new TextRun('at Barangay {barangay_name}. '),
+        new TextRun('Valid until: {expiry_date}.'),
       ],
     }),
     new Paragraph({ text: '' }),
@@ -90,12 +96,18 @@ async function buildStarterDocxBuffer() {
     }),
     new Paragraph({
       children: [
-        new TextRun('Verification Code: {verification_code}\n'),
-        new TextRun('Registry URL: {verification_url}'),
+        new TextRun({ text: 'Verification Code: ', bold: true }),
+        new TextRun('{verification_code}'),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Registry URL: ', bold: true }),
+        new TextRun('{verification_url}'),
       ],
     }),
     new Paragraph({ text: '' }),
-    // Official QR image with alt text 'qr_code'
+    // Official QR image with docPr alt text 'qr_code'
     new Paragraph({
       children: [
         new ImageRun({
@@ -110,33 +122,39 @@ async function buildStarterDocxBuffer() {
       ],
     }),
     new Paragraph({ text: '' }),
+    // Separate paragraphs for signature lines
     new Paragraph({
       children: [
-        new TextRun({ text: 'Certified by:\n', bold: true }),
-        new TextRun('{secretary_name}\nBarangay Secretary\n\n'),
-        new TextRun({ text: 'Approved & Attested:\n', bold: true }),
-        new TextRun('{captain_name}\nPunong Barangay'),
+        new TextRun({ text: 'Certified by:', bold: true }),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun('{secretary_name}'),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun('Barangay Secretary'),
       ],
     }),
     new Paragraph({ text: '' }),
     new Paragraph({
       children: [
-        new TextRun({ text: '--- ALLOWLISTED PLACEHOLDER REFERENCE CATALOG ---', bold: true }),
+        new TextRun({ text: 'Approved & Attested:', bold: true }),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun('{captain_name}'),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun('Punong Barangay'),
       ],
     }),
   ];
-
-  // Append full placeholder table for reference
-  for (const entry of PLACEHOLDER_CATALOG) {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `{${entry.key}}`, bold: true }),
-          new TextRun(` (${entry.group}) - ${entry.label}: Example: "${entry.example}"`),
-        ],
-      })
-    );
-  }
 
   const doc = new Document({
     sections: [
