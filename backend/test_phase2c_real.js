@@ -537,7 +537,7 @@ async function runTests() {
       { name: 'GET /records', path: `${API_PREFIX}/staff/records`, method: 'GET', perm: 'can_archive_records' },
       { name: 'GET /residents', path: `${API_PREFIX}/staff/residents?search=Mar`, method: 'GET', perm: 'can_prepare_documents' },
       { name: 'POST /requests/walk-in', path: `${API_PREFIX}/staff/requests/walk-in`, method: 'POST', body: { citizen_id: citizenUser._id.toString(), document_type_id: docType._id.toString(), purpose: 'Walk-in request test purpose', copies: 1 }, perm: 'can_prepare_documents' },
-      { name: 'GET /reports', path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-11-07`, method: 'GET', perm: 'can_view_reports' },
+      { name: 'GET /reports', path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-12-31`, method: 'GET', perm: 'can_view_reports' },
       { name: 'GET /dashboard', path: `${API_PREFIX}/staff/dashboard`, method: 'GET', perm: null },
       { name: 'GET /requests/live-stats', path: `${API_PREFIX}/staff/requests/live-stats`, method: 'GET', perm: null },
     ];
@@ -1205,7 +1205,7 @@ async function runTests() {
     console.log('[TEST 13] Part 1 Item 6: Reports Service Structured Data & Document Type Isolation');
 
     const reportsRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-11-07`,
+      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-12-31`,
       method: 'GET',
       headers: { Authorization: `Bearer ${staffToken}` },
     });
@@ -1219,7 +1219,7 @@ async function runTests() {
 
     // Filter by matching document_type_id
     const typeReportsRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-11-07&document_type_id=${docType._id}`,
+      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-12-31&document_type_id=${docType._id}`,
       method: 'GET',
       headers: { Authorization: `Bearer ${staffToken}` },
     });
@@ -1230,7 +1230,7 @@ async function runTests() {
     // Filter by a random unused ObjectId
     const unusedId = new mongoose.Types.ObjectId();
     const emptyTypeRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-11-07&document_type_id=${unusedId}`,
+      path: `${API_PREFIX}/staff/reports?from=2026-01-01&to=2026-12-31&document_type_id=${unusedId}`,
       method: 'GET',
       headers: { Authorization: `Bearer ${staffToken}` },
     });
@@ -1435,7 +1435,7 @@ async function runTests() {
     assert(arrayStatusRes.status === 400, `?status[]=x must return 400, got ${arrayStatusRes.status}`);
 
     const invalidDateRes = await makeRequest(server, {
-      path: `${API_PREFIX}/staff/requests?from=not-a-date&to=2026-11-07`,
+      path: `${API_PREFIX}/staff/requests?from=not-a-date&to=2026-12-31`,
       method: 'GET',
       headers: { Authorization: `Bearer ${staffToken}` },
     });

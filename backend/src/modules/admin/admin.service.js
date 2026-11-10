@@ -23,6 +23,7 @@ const {
 } = require('../../config/constants');
 const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
 const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
+const { isValidEmail } = require('../../utils/emailValidator');
 const staffService = require('../staff/staff.service');
 
 const ATTACHMENTS_DIR = path.join(__dirname, '../../../uploads/attachments');
@@ -296,7 +297,7 @@ async function createStaff(data, actorUser) {
   const { email, password, full_name, phone, employee_id, position, department, permissions } = data;
 
   // 1. Input validation
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isValidEmail(email)) {
     const err = new Error('Validation error: A valid email address is required.');
     err.statusCode = 400;
     throw err;

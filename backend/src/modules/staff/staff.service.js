@@ -23,6 +23,7 @@ const {
   generateQrCodeDataUrl,
 } = require('../../utils/certificateGenerator');
 const { sendMail } = require('../../utils/mailer');
+const { escapeHtml } = require('../../utils/escapeHtml');
 const { getDateRanges, escapeRegex } = require('../../utils/dateUtil');
 const { buildRenderData } = require('../../utils/templatePlaceholders');
 const { verifyTemplateFileIntegrity } = require('../../utils/templateStorage');
@@ -370,14 +371,19 @@ async function rejectRequest(requestId, rejectionReason, actorUser, ipAddress, u
 
   // Non-blocking email notification
   if (request.citizen_id && request.citizen_id.email) {
+    const safeCitizenName = escapeHtml(request.citizen_id.full_name);
+    const safeTrackingNumber = escapeHtml(request.tracking_number);
+    const safeReason = escapeHtml(trimmed);
+
     sendMail({
       to: request.citizen_id.email,
       subject: `QuickFile: Document Request Update (${request.tracking_number})`,
+      text: `Dear ${request.citizen_id.full_name},\n\nYour document request ${request.tracking_number} has been rejected.\n\nReason: ${trimmed}\n\nIf you have any questions, please contact the Barangay Hall.`,
       html: `
         <h2>Document Request Rejected</h2>
-        <p>Dear ${request.citizen_id.full_name},</p>
-        <p>Your document request <strong>${request.tracking_number}</strong> has been rejected.</p>
-        <p><strong>Reason:</strong> ${trimmed}</p>
+        <p>Dear ${safeCitizenName},</p>
+        <p>Your document request <strong>${safeTrackingNumber}</strong> has been rejected.</p>
+        <p><strong>Reason:</strong> ${safeReason}</p>
         <p>If you have any questions, please contact the Barangay Hall.</p>
       `,
     }).catch((err) => {
@@ -553,14 +559,20 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
 
   // 7. Non-blocking email notification to citizen
   if (citizen && citizen.email) {
+    const safeCitizenName = escapeHtml(citizen.full_name);
+    const safeDocTypeName = escapeHtml(docType.name);
+    const safeTrackingNumber = escapeHtml(request.tracking_number);
+    const safeCertNumber = escapeHtml(issuedDoc.certificate_number);
+
     sendMail({
       to: citizen.email,
       subject: `QuickFile: Your Document is Ready for Pickup (${request.tracking_number})`,
+      text: `Dear ${citizen.full_name},\n\nYour requested document ${docType.name} (Tracking #: ${request.tracking_number}) is now ready for pickup at the Barangay Hall.\nCertificate No: ${issuedDoc.certificate_number}\n\nPlease present a valid ID upon claiming.`,
       html: `
         <h2>Document Ready for Pickup</h2>
-        <p>Dear ${citizen.full_name},</p>
-        <p>Your requested document <strong>${docType.name}</strong> (Tracking #: ${request.tracking_number}) is now ready for pickup at the Barangay Hall.</p>
-        <p><strong>Certificate No:</strong> ${issuedDoc.certificate_number}</p>
+        <p>Dear ${safeCitizenName},</p>
+        <p>Your requested document <strong>${safeDocTypeName}</strong> (Tracking #: ${safeTrackingNumber}) is now ready for pickup at the Barangay Hall.</p>
+        <p><strong>Certificate No:</strong> ${safeCertNumber}</p>
         <p>Please present a valid ID upon claiming.</p>
       `,
     }).catch((err) => {
@@ -623,22 +635,21 @@ async function getPrintData(requestId) {
   const liveCaptain = (settingsMap.barangay_captain || '').trim();
   const liveSecretary = (settingsMap.barangay_secretary || '').trim();
 
-  // Snapshot rule:
-  // Signatory snapshot decision:
-  // We prioritize the signatory names captured in render_data snapshot at issue time to preserve historical integrity.
-  // We fall back to the live settings value ONLY if the snapshot value is empty string/unconfigured.
-  const rd = issuedDocument.render_data;
-
-  const captain = (rd && rd.captain_name && rd.captain_name.trim()) ? rd.captain_name : liveCaptain;
-  const secretary = (rd && rd.secretary_name && rd.secretary_name.trim()) ? rd.secretary_name : liveSecretary;
-
-  if (!captain || !secretary) {
+  // Signatory policy decision:
+  // Active signatories (Barangay Captain and Secretary) must be configured in Settings to permit printing.
+  // When snapshot render_data exists, we preserve the historical signatory snapshot, falling back to
+  // current settings if the snapshot was unconfigured.
+  if (!liveCaptain || !liveSecretary) {
     const error = new Error(
       'Cannot print certificate: Signatories (Barangay Captain and Secretary) are not configured. Please configure them in Settings before printing.'
     );
     error.statusCode = 409;
     throw error;
   }
+
+  const rd = issuedDocument.render_data;
+  const captain = (rd && rd.captain_name && rd.captain_name.trim()) ? rd.captain_name : liveCaptain;
+  const secretary = (rd && rd.secretary_name && rd.secretary_name.trim()) ? rd.secretary_name : liveSecretary;
 
   // When snapshot render_data exists, use ONLY snapshot fields (no field-by-field fallback to live citizen data)
   if (rd) {

@@ -1,5 +1,6 @@
 const authService = require('./auth.service');
 const { verifyRecaptcha } = require('../../utils/recaptcha');
+const { isValidEmail } = require('../../utils/emailValidator');
 const asyncHandler = require('../../utils/asyncHandler');
 
 /**
@@ -20,6 +21,14 @@ const register = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Validation error: email, password, first_name, last_name, birthdate, and gender are required valid strings.',
+      data: null,
+    });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: A valid email address is required.',
       data: null,
     });
   }

@@ -202,7 +202,7 @@ async function updateGeneralSettings({ updates, actorUser, ipAddress, userAgent 
       throw err;
     }
 
-    const trimmed = rawVal.trim();
+    let trimmed = rawVal.trim();
     if (trimmed.length > 100) {
       const err = new Error(`Setting value for "${key}" cannot exceed 100 characters.`);
       err.statusCode = 400;

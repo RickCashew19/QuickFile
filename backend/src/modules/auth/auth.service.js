@@ -14,6 +14,8 @@ const {
 } = require('../../models');
 const { sendMail } = require('../../utils/mailer');
 const { normalizePhilippinePhone } = require('../../utils/phoneUtil');
+const { isValidEmail } = require('../../utils/emailValidator');
+const { escapeHtml } = require('../../utils/escapeHtml');
 
 /**
  * Dependency-injected Google Token Verifier (allows clean test mocking without environment backdoors)
@@ -88,6 +90,12 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     emergency_contact_name,
     emergency_contact_number,
   } = payload;
+
+  if (!isValidEmail(email)) {
+    const error = new Error('Validation error: A valid email address is required.');
+    error.statusCode = 400;
+    throw error;
+  }
 
   const normalizedEmail = email.toLowerCase().trim();
   const existingUser = await User.findOne({ email: normalizedEmail });
@@ -402,13 +410,15 @@ async function requestPasswordReset(email, ipAddress, userAgent, clientOrigin) {
     }
 
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
+    const safeFullName = escapeHtml(user.full_name);
+    const safeResetUrl = escapeHtml(resetUrl);
 
     // Fix 7: Do not await email sending so response timing does not leak user existence
     sendMail({
       to: user.email,
       subject: 'QuickFile - Password Reset Request',
       text: `Hello ${user.full_name},\n\nYou requested a password reset. Click the link below to set a new password:\n${resetUrl}\n\nThis link will expire in 15 minutes.\nIf you did not request this, please ignore this email.`,
-      html: `<p>Hello <strong>${user.full_name}</strong>,</p><p>You requested a password reset. Click the button below to set a new password:</p><p><a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a></p><p>Or copy this link: ${resetUrl}</p><p>This link will expire in 15 minutes.</p>`,
+      html: `<p>Hello <strong>${safeFullName}</strong>,</p><p>You requested a password reset. Click the button below to set a new password:</p><p><a href="${safeResetUrl}" style="background:#1d4ed8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a></p><p>Or copy this link: ${safeResetUrl}</p><p>This link will expire in 15 minutes.</p>`,
     }).catch((err) => {
       console.warn(`[Mailer] Warning: Failed to send password reset email to ${user.email}:`, err.message);
     });
