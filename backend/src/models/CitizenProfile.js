@@ -46,7 +46,7 @@ const citizenProfileSchema = new mongoose.Schema(
     },
     civil_status: {
       type: String,
-      enum: ['single', 'married', 'widowed', 'separated', ''],
+      enum: ['single', 'married', 'widowed', 'separated'],
       default: 'single',
     },
     contact_number: {

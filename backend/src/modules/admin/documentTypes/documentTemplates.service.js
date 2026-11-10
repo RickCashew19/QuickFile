@@ -654,5 +654,4 @@ module.exports = {
   retireTemplate,
   deleteTemplate,
   renderDocx,
-  renderDocxWithTimeout: renderDocx,
 };

@@ -7,6 +7,7 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const assert = require('assert');
 const crypto = require('crypto');
 const zlib = require('zlib');
 const jwt = require('jsonwebtoken');
@@ -984,6 +985,90 @@ async function runTestSuite() {
       throw new Error('starter signature lines paragraph check failed');
     }
 
+    // Word compatibility test using pinned fast-xml-parser
+    const { XMLValidator, XMLParser } = require('fast-xml-parser');
+    const compatStarterBuf = await buildStarterDocxBuffer();
+    const exampleRenderData = buildExampleRenderData();
+    const renderedStarter = await renderDocx(compatStarterBuf, exampleRenderData, {
+      qrData: 'http://localhost:5173/verify/DEMO_QR_CODE_123',
+      hasQrPlaceholder: true,
+      qrMediaPath: 'word/media/image1.png',
+    });
+
+    const renderedZip = new PizZip(renderedStarter);
+    const xmlParserInstance = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+      allowBooleanAttributes: true,
+    });
+
+    // 1. Parse EVERY .xml and .rels file with real XML parser and fail on any malformed part
+    let xmlPartCount = 0;
+    for (const [relativePath, zipEntry] of Object.entries(renderedZip.files)) {
+      if (zipEntry.dir) continue;
+      if (relativePath.endsWith('.xml') || relativePath.endsWith('.rels')) {
+        const rawXml = zipEntry.asText();
+        const validResult = XMLValidator.validate(rawXml, { allowBooleanAttributes: true });
+        if (validResult !== true) {
+          throw new Error(`Malformed XML in archive part "${relativePath}": ${JSON.stringify(validResult)}`);
+        }
+        const parsedTree = xmlParserInstance.parse(rawXml);
+        assert(parsedTree, `Parsed tree for "${relativePath}" must be non-null`);
+        xmlPartCount++;
+      }
+    }
+    assert(xmlPartCount >= 4, `At least 4 XML/rels parts expected in rendered DOCX, found ${xmlPartCount}`);
+
+    // 2. Assert every relationship target in .rels exists in the archive
+    for (const [relativePath, zipEntry] of Object.entries(renderedZip.files)) {
+      if (!relativePath.endsWith('.rels')) continue;
+      const relsXml = zipEntry.asText();
+      const parsedRels = xmlParserInstance.parse(relsXml);
+      const relList = parsedRels?.Relationships?.Relationship;
+      const relsArray = Array.isArray(relList) ? relList : relList ? [relList] : [];
+
+      const relsDir = path.dirname(relativePath);
+      const baseDir = relsDir.endsWith('_rels') ? path.dirname(relsDir) : relsDir;
+      const normalizedBase = baseDir === '.' ? '' : baseDir + '/';
+
+      for (const rel of relsArray) {
+        const target = rel['@_Target'];
+        const targetMode = rel['@_TargetMode'];
+        if (targetMode === 'External' || /^[a-z]+:\/\//i.test(target)) {
+          continue;
+        }
+        const resolvedTargetPath = path.posix.normalize(normalizedBase + target);
+        assert(
+          renderedZip.file(resolvedTargetPath) !== null,
+          `Relationship target "${target}" (resolved: "${resolvedTargetPath}") in "${relativePath}" must exist in archive`
+        );
+      }
+    }
+
+    // 3. Assert [Content_Types].xml declares png extension
+    const contentTypesPart = renderedZip.file('[Content_Types].xml');
+    assert(contentTypesPart, '[Content_Types].xml must exist in rendered DOCX');
+    const contentTypesXml = contentTypesPart.asText();
+    const parsedContentTypes = xmlParserInstance.parse(contentTypesXml);
+    const defaultTypes = parsedContentTypes?.Types?.Default;
+    const defaultTypesArray = Array.isArray(defaultTypes) ? defaultTypes : defaultTypes ? [defaultTypes] : [];
+    const hasPngDeclaration = defaultTypesArray.some(
+      (d) => d['@_Extension'] === 'png' && d['@_ContentType'] === 'image/png'
+    );
+    assert(hasPngDeclaration, '[Content_Types].xml must declare png extension with image/png content type');
+    console.log('PASS: Word compatibility verified: all XML/.rels parts strictly valid, relationship targets exist, png declared in [Content_Types].xml');
+
+    // Test docxtemplater internal compilation structure contract
+    const testDocxZip = new PizZip(createValidTemplateDocx());
+    const testDocx = new Docxtemplater(testDocxZip, { paragraphLoop: false, linebreaks: true });
+    assert(testDocx.compiled, 'docxtemplater must expose compiled object on instance');
+    assert(testDocx.compiled['word/document.xml'], 'docxtemplater must compile word/document.xml');
+    assert(Array.isArray(testDocx.compiled['word/document.xml'].parsed), 'parsed must be an array');
+    const placeholderNodes = testDocx.compiled['word/document.xml'].parsed.filter((p) => p.type === 'placeholder');
+    assert(placeholderNodes.length > 0, 'compiled structure must contain placeholder type nodes');
+    assert(placeholderNodes.some((p) => p.value === 'certificate_number'), 'placeholder nodes must have value property');
+    console.log('PASS: docxtemplater internal compilation structure contract verified (fails loudly if internals change)');
+
     // -------------------------------------------------------------------------
     // SECTION 3: DOCXTEMPLATER NULLGETTER & RENDERING CONSTRAINTS
     // -------------------------------------------------------------------------
@@ -1328,9 +1413,14 @@ async function runTestSuite() {
       last_name: 'Blank',
       street_address: '',
       purok_zone: '',
-      civil_status: '',
+      civil_status: 'single',
       occupation: '',
     });
+    // Bypass schema validator to set empty civil_status directly in DB collection
+    await CitizenProfile.collection.updateOne(
+      { _id: blankProfile._id },
+      { $set: { civil_status: '' } }
+    );
     const reqBlank = await DocumentRequest.create({
       tracking_number: 'QF-2026-BLANK01',
       citizen_id: blankCitizen._id,
@@ -1733,7 +1823,7 @@ async function runTestSuite() {
         throw new Error(`Endpoint ${ep.method} ${ep.path} expected 403 for staff, got ${resStaff.status}`);
       }
 
-      console.log(`PASS: admin endpoint ${ep.method} ${ep.path} enforces 401 unauth and 403 forbidden`);
+      console.log(`PASS: admin endpoint ${ep.method} ${ep.path} enforces staff 403, citizen 403, no token 401`);
     }
 
     // Certificate download permission checks
@@ -1826,12 +1916,19 @@ async function runTestSuite() {
     }
 
     assertLogClean(logUpload, 'DOCUMENT_TEMPLATE_UPLOAD');
-    assertLogClean(logActivate, 'DOCUMENT_TEMPLATE_ACTIVATE');
-    assertLogClean(logRetire, 'DOCUMENT_TEMPLATE_RETIRE');
-    assertLogClean(logDelete, 'DOCUMENT_TEMPLATE_DELETE');
-    assertLogClean(logDownload, 'CERTIFICATE_DOWNLOAD');
+    console.log('PASS: audit log exists for upload and contains no file contents');
 
-    console.log('PASS: audit logs exist for upload, activate, retire, delete, and download and contain no file contents');
+    assertLogClean(logActivate, 'DOCUMENT_TEMPLATE_ACTIVATE');
+    console.log('PASS: audit log exists for activate and contains no file contents');
+
+    assertLogClean(logRetire, 'DOCUMENT_TEMPLATE_RETIRE');
+    console.log('PASS: audit log exists for retire and contains no file contents');
+
+    assertLogClean(logDelete, 'DOCUMENT_TEMPLATE_DELETE');
+    console.log('PASS: audit log exists for delete and contains no file contents');
+
+    assertLogClean(logDownload, 'CERTIFICATE_DOWNLOAD');
+    console.log('PASS: audit log exists for download and contains no file contents');
 
     console.log('\n--- ALL DOCX TEMPLATE TESTS PASSED PERFECTLY ---');
   } finally {
