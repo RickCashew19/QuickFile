@@ -66,11 +66,19 @@ export function CitizenDashboardPage() {
     );
   }
 
-  const isProfileIncomplete =
-    profileData &&
-    (!profileData.profile?.profile_complete ||
-      !profileData.profile?.birthdate ||
-      !profileData.profile?.gender);
+  const profile = profileData?.profile || profileData;
+  const completenessScore = profileData?.completeness_score ?? 0;
+
+  // A profile is considered complete if marked complete, if score is 100%,
+  // or if the required personal details (birthdate and gender) are provided.
+  const isProfileComplete = Boolean(
+    profile &&
+      (profile.profile_complete ||
+        completenessScore >= 100 ||
+        (profile.birthdate && profile.gender))
+  );
+
+  const isProfileIncomplete = Boolean(profileData && !isProfileComplete);
 
   return (
     <div>

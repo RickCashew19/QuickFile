@@ -149,6 +149,7 @@ async function seedDatabase() {
         valid_id_type: 'Passport',
         valid_id_number: 'P1234567A',
         proof_of_residency_type: 'Utility Bill',
+        profile_complete: true,
         verification_status: VERIFICATION_STATUSES.VERIFIED,
         verified_at: new Date(),
         verified_by: admin ? admin._id : null,

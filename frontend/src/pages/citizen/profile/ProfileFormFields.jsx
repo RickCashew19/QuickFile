@@ -108,7 +108,7 @@ export function ProfileFormFields({ formData, onChange, errors, isEditing }) {
           placeholder="0917 123 4567 or +63 917 123 4567"
           disabled={!isEditing}
           error={errors.contact_number}
-          helpText={isEditing ? 'Accepts 09XX XXX XXXX or +63 9XX XXX XXXX' : undefined}
+          helperText={isEditing ? 'Accepts 09XX XXX XXXX or +63 9XX XXX XXXX' : undefined}
         />
         <Input
           label="Purok / Zone"

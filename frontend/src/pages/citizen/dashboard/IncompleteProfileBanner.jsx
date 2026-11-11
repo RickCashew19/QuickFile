@@ -3,6 +3,10 @@ import { Icon } from '../../../components/shared/Icon';
 import { Button } from '../../../components/shared/Button';
 
 export function IncompleteProfileBanner({ completenessScore = 0 }) {
+  if (completenessScore >= 100) {
+    return null;
+  }
+
   return (
     <div
       role="region"

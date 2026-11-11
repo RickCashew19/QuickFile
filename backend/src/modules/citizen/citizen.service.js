@@ -49,6 +49,12 @@ async function getCitizenProfile(userId) {
     throw error;
   }
 
+  // Heal profile_complete if required birthdate & gender are already present
+  if (!profile.profile_complete && profile.birthdate && profile.gender) {
+    profile.profile_complete = true;
+    await profile.save();
+  }
+
   const completenessScore = calculateCompletenessScore(profile);
 
   return {

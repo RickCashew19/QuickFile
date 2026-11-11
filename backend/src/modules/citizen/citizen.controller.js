@@ -52,7 +52,7 @@ const updateProfile = asyncHandler(async (req, res) => {
   ];
 
   for (const field of stringFields) {
-    if (req.body[field] !== undefined && typeof req.body[field] !== 'string') {
+    if (req.body[field] !== undefined && req.body[field] !== null && typeof req.body[field] !== 'string') {
       return res.status(400).json({
         success: false,
         message: `Validation error: ${field} must be a string.`,

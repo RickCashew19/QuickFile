@@ -14,6 +14,7 @@ export function Input({
   disabled = false,
   error = null,
   helperText = null,
+  helpText = null,
   prefix = null,
   suffix = null,
   className = '',
@@ -24,6 +25,7 @@ export function Input({
   const inputId = explicitId || generatedId;
   const helperId = `${inputId}-helper`;
   const errorId = `${inputId}-error`;
+  const effectiveHelperText = helperText || helpText;
 
   const inputClasses = [
     'qf-field__input',
@@ -59,7 +61,7 @@ export function Input({
           disabled={disabled}
           autoComplete={autoComplete}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? errorId : helperText ? helperId : undefined}
+          aria-describedby={error ? errorId : effectiveHelperText ? helperId : undefined}
           className={inputClasses}
           {...props}
         />
@@ -70,9 +72,9 @@ export function Input({
         <span id={errorId} className="qf-field__error" role="alert">
           {error}
         </span>
-      ) : helperText ? (
+      ) : effectiveHelperText ? (
         <span id={helperId} className="qf-field__helper">
-          {helperText}
+          {effectiveHelperText}
         </span>
       ) : null}
     </div>

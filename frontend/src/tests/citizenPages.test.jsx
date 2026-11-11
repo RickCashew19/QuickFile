@@ -3,6 +3,8 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CitizenHistoryPage } from '../pages/citizen/requests/CitizenHistoryPage';
 import { CitizenProfilePage } from '../pages/citizen/profile/CitizenProfilePage';
+import { CitizenDashboardPage } from '../pages/citizen/dashboard/CitizenDashboardPage';
+import { IncompleteProfileBanner } from '../pages/citizen/dashboard/IncompleteProfileBanner';
 import { requestService } from '../services/requestService';
 import { citizenService } from '../services/citizenService';
 
@@ -152,6 +154,114 @@ describe('Citizen Profile Page', () => {
     await waitFor(() => {
       expect(citizenService.updateProfile).toHaveBeenCalled();
       expect(screen.getByText('Your citizen profile has been updated successfully.')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('Citizen Dashboard and Profile Completion Banner', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('IncompleteProfileBanner returns null when completenessScore is 100 or greater', () => {
+    const { container: c100 } = render(
+      <MemoryRouter>
+        <IncompleteProfileBanner completenessScore={100} />
+      </MemoryRouter>
+    );
+    expect(c100.firstChild).toBeNull();
+
+    const { container: c105 } = render(
+      <MemoryRouter>
+        <IncompleteProfileBanner completenessScore={105} />
+      </MemoryRouter>
+    );
+    expect(c105.firstChild).toBeNull();
+  });
+
+  it('IncompleteProfileBanner renders correctly when score is incomplete (< 100)', () => {
+    render(
+      <MemoryRouter>
+        <IncompleteProfileBanner completenessScore={45} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Complete Your Resident Profile (45%)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /complete profile/i })).toBeInTheDocument();
+  });
+
+  it('hides IncompleteProfileBanner on CitizenDashboardPage when profile is 100% complete', async () => {
+    citizenService.getProfile.mockResolvedValueOnce({
+      profile: {
+        first_name: 'Maria',
+        last_name: 'Clara',
+        birthdate: '1995-06-15T00:00:00.000Z',
+        gender: 'female',
+        profile_complete: false, // Even if DB flag is false, 100% score hides banner
+      },
+      completeness_score: 100,
+    });
+    requestService.listRequests.mockResolvedValueOnce({ requests: [] });
+
+    render(
+      <MemoryRouter>
+        <CitizenDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/welcome, juan dela cruz/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/complete your resident profile/i)).not.toBeInTheDocument();
+  });
+
+  it('hides IncompleteProfileBanner on CitizenDashboardPage when profile has birthdate and gender', async () => {
+    citizenService.getProfile.mockResolvedValueOnce({
+      profile: {
+        first_name: 'Maria',
+        last_name: 'Clara',
+        birthdate: '1995-06-15T00:00:00.000Z',
+        gender: 'female',
+        profile_complete: true,
+      },
+      completeness_score: 85,
+    });
+    requestService.listRequests.mockResolvedValueOnce({ requests: [] });
+
+    render(
+      <MemoryRouter>
+        <CitizenDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/welcome, juan dela cruz/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/complete your resident profile/i)).not.toBeInTheDocument();
+  });
+
+  it('shows IncompleteProfileBanner on CitizenDashboardPage when profile is actually incomplete', async () => {
+    citizenService.getProfile.mockResolvedValueOnce({
+      profile: {
+        first_name: 'New',
+        last_name: 'User',
+        birthdate: null,
+        gender: '',
+        profile_complete: false,
+      },
+      completeness_score: 25,
+    });
+    requestService.listRequests.mockResolvedValueOnce({ requests: [] });
+
+    render(
+      <MemoryRouter>
+        <CitizenDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Your Resident Profile (25%)')).toBeInTheDocument();
     });
   });
 });
