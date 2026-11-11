@@ -231,7 +231,11 @@ export function StaffRequestDetailPage() {
         <div className="qf-staff-detail-column-main">
           <ApplicantInfoCard citizen={citizen} citizenProfile={citizenProfile} />
           <RequestSpecsCard request={request} />
-          <PaymentIssuanceCard request={request} issuedDocument={issuedDocument} />
+          <PaymentIssuanceCard
+            request={request}
+            issuedDocument={issuedDocument}
+            onDownloadDocx={handleDownloadDocx}
+          />
           <AttachmentListCard attachments={request.attachments} />
         </div>
 

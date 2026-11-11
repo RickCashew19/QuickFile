@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
+import { Button } from '../../../components/shared/Button';
 import { Icon } from '../../../components/shared/Icon';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 
-export function PaymentIssuanceCard({ request = {}, issuedDocument = null }) {
+export function PaymentIssuanceCard({ request = {}, issuedDocument = null, onDownloadDocx = null }) {
   return (
     <div className="qf-staff-card">
       <h2 className="qf-staff-card-title">
@@ -48,12 +49,23 @@ export function PaymentIssuanceCard({ request = {}, issuedDocument = null }) {
             <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
               Official Certificate Record
             </span>
-            <Link
-              to={`/staff/requests/${request._id}/print`}
-              className="qf-btn qf-btn--secondary qf-btn--sm"
-            >
-              Open Print Preview &rarr;
-            </Link>
+            {issuedDocument.template_version != null ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onDownloadDocx}
+                aria-label="Download official Word certificate"
+              >
+                Print / Download (Word) &rarr;
+              </Button>
+            ) : (
+              <Link
+                to={`/staff/requests/${request._id}/print`}
+                className="qf-btn qf-btn--secondary qf-btn--sm"
+              >
+                Open Print Preview &rarr;
+              </Link>
+            )}
           </div>
           <div className="qf-staff-grid-2">
             <div>

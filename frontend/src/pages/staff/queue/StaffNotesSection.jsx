@@ -44,25 +44,36 @@ export function StaffNotesSection({
       </div>
 
       {canAddNote && (
-        <form onSubmit={handleSubmit} className="qf-staff-note-form">
-          <div className="qf-input-group">
-            <label htmlFor="staff-new-note" className="qf-sr-only">
-              Add processing note
+        <form onSubmit={handleSubmit} className="qf-staff-note-form" style={{ marginTop: 'var(--space-2)' }}>
+          <div className="qf-field" style={{ marginBottom: 'var(--space-1)' }}>
+            <label htmlFor="staff-new-note" className="qf-field__label" style={{ fontSize: 'var(--font-xs)', marginBottom: '4px' }}>
+              Add Internal Processing Note
             </label>
             <textarea
               id="staff-new-note"
-              className="qf-input"
-              rows={2}
+              className="qf-field__input"
+              rows={3}
               value={newNote}
               onChange={(e) => {
                 setNewNote(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="Add an internal note or update about this application..."
+              placeholder="Write internal staff notes or remarks here..."
               disabled={loading}
               maxLength={500}
+              style={{
+                fontFamily: 'inherit',
+                fontSize: 'var(--font-xs)',
+                lineHeight: 1.5,
+                resize: 'vertical',
+                minHeight: '64px',
+              }}
             />
-            {error && <span className="qf-input-error">{error}</span>}
+            {error && (
+              <span style={{ color: 'var(--color-danger)', fontSize: 'var(--font-xs)', marginTop: '4px', display: 'block' }}>
+                {error}
+              </span>
+            )}
           </div>
           <div className="qf-staff-note-form__footer">
             <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-muted)' }}>
