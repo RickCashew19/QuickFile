@@ -35,7 +35,7 @@ export function AdminLayout() {
     { to: '/admin/document-types', label: 'Document Types', icon: 'file' },
     { to: '/admin/records', label: 'All Records', icon: 'calendar' },
     { to: '/admin/issued-documents', label: 'Issued Certificates', icon: 'qr' },
-    { to: '/admin/audit-logs', label: 'Audit Trail', icon: 'shield' },
+    { to: '/admin/audit-logs', label: 'Activity Log', icon: 'shield' },
     { to: '/admin/settings', label: 'System Settings', icon: 'refresh' },
     { to: '/admin/reports', label: 'Executive Reports', icon: 'download' },
   ];

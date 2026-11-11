@@ -49,7 +49,7 @@ export function AdminAuditLogsPage() {
       setLogs(res.logs || []);
       setPagination(res.pagination || { page: 1, limit: 20, totalPages: 1, total: 0 });
     } catch (err) {
-      setError(err.message || 'Failed to retrieve system audit logs.');
+      setError(err.message || 'Failed to retrieve system activity logs.');
     } finally {
       setLoading(false);
     }
@@ -63,9 +63,9 @@ export function AdminAuditLogsPage() {
     <div className="qf-admin-audit">
       <div className="qf-admin-staff__header">
         <div>
-          <h1 className="qf-admin-dashboard__title">System Audit Trail</h1>
+          <h1 className="qf-admin-dashboard__title">System Activity Log</h1>
           <p className="qf-admin-dashboard__subtitle">
-            Immutable security ledger recording administrative access, transitions, and system events.
+            Immutable security ledger recording administrative access, transitions, and system activities.
           </p>
         </div>
         <Button
@@ -74,7 +74,7 @@ export function AdminAuditLogsPage() {
           onClick={() => fetchLogs(pagination.page)}
           iconLeft={<Icon name="refresh" size={16} />}
         >
-          Refresh Trail
+          Refresh Log
         </Button>
       </div>
 
@@ -142,10 +142,10 @@ export function AdminAuditLogsPage() {
       </div>
 
       {loading ? (
-        <Loader label="Loading audit logs..." />
+        <Loader label="Loading activity logs..." />
       ) : logs.length === 0 ? (
         <div style={{ padding: 'var(--space-8)', textAlign: 'center', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)' }}>
-          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>No audit log entries match the search criteria.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>No activity log entries match the search criteria.</p>
         </div>
       ) : (
         <div className="qf-admin-table-container">
@@ -223,7 +223,7 @@ export function AdminAuditLogsPage() {
         <Modal
           isOpen={Boolean(viewedLog)}
           onClose={() => setViewedLog(null)}
-          title={`Audit Event: ${viewedLog.action}`}
+          title={`Activity Event: ${viewedLog.action}`}
           size="md"
           footer={
             <Button variant="secondary" onClick={() => setViewedLog(null)}>
