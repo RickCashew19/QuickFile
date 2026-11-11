@@ -151,6 +151,6 @@ In the template version table, click the **Preview** button for any template ver
 > The QR code printed on certificates encodes an absolute URL pointing to QuickFile's public verification page:
 > `{PUBLIC_APP_URL}/verify/{verification_code}`
 >
-> In development/testing, this defaults to `http://localhost:3000`.
+> In development/testing, this defaults to `http://localhost:5173`.
 > **Before deploying to production and issuing certificates to real residents, your system administrator must configure `PUBLIC_APP_URL` in the server environment (or system settings) to the barangay's public domain (e.g., `https://quickfile.barangaycentral.gov.ph`).**
 > If this is not set, printed QR codes will point to localhost and cannot be scanned by residents or third-party verifiers.
