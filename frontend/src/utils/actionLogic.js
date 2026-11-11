@@ -144,21 +144,22 @@ export function getAvailableActions(request, permissions = {}, role = 'staff', i
     case REQUEST_STATUSES.READY_FOR_PICKUP:
       // staff.routes.js:94 GET /requests/:id/print-data uses requirePermission('can_print_documents')
       if (hasPerm(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS)) {
-        actions.push({
-          id: 'print',
-          label: 'Print Certificate',
-          kind: 'link',
-          variant: 'secondary',
-          href: requestId ? `/staff/requests/${requestId}/print` : '#',
-          requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
-        });
         if (hasCustomTemplate) {
           actions.push({
             id: 'download_docx',
-            label: 'Download certificate (DOCX)',
+            label: 'Print Certificate (Word)',
             kind: 'download',
             variant: 'secondary',
             hint: 'Open in Word to print',
+            requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
+          });
+        } else {
+          actions.push({
+            id: 'print',
+            label: 'Print Certificate',
+            kind: 'link',
+            variant: 'secondary',
+            href: requestId ? `/staff/requests/${requestId}/print` : '#',
             requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
           });
         }
@@ -178,21 +179,22 @@ export function getAvailableActions(request, permissions = {}, role = 'staff', i
 
     case REQUEST_STATUSES.RELEASED:
       if (hasPerm(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS)) {
-        actions.push({
-          id: 'print',
-          label: 'Print Certificate',
-          kind: 'link',
-          variant: 'secondary',
-          href: requestId ? `/staff/requests/${requestId}/print` : '#',
-          requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
-        });
         if (hasCustomTemplate) {
           actions.push({
             id: 'download_docx',
-            label: 'Download certificate (DOCX)',
+            label: 'Print Certificate (Word)',
             kind: 'download',
             variant: 'secondary',
             hint: 'Open in Word to print',
+            requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
+          });
+        } else {
+          actions.push({
+            id: 'print',
+            label: 'Print Certificate',
+            kind: 'link',
+            variant: 'secondary',
+            href: requestId ? `/staff/requests/${requestId}/print` : '#',
             requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
           });
         }

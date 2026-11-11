@@ -162,10 +162,10 @@ describe('Workflow Action Logic Matrix Suite (Derived from Backend Fixture)', ()
         issued_document: { template_version: 1 },
       };
       const readyActions = getAvailableActions(customReadyReq, perms);
-      expect(readyActions.map((a) => a.id)).toEqual(['print', 'download_docx', 'release']);
+      expect(readyActions.map((a) => a.id)).toEqual(['download_docx', 'release']);
       const readyDownloadAct = readyActions.find((a) => a.id === 'download_docx');
       expect(readyDownloadAct.kind).toBe('download');
-      expect(readyDownloadAct.label).toBe('Download certificate (DOCX)');
+      expect(readyDownloadAct.label).toBe('Print Certificate (Word)');
       expect(readyDownloadAct.requiredPermission).toBe(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS);
 
       // Custom template certificate on released
@@ -175,9 +175,9 @@ describe('Workflow Action Logic Matrix Suite (Derived from Backend Fixture)', ()
         issued_document: { template_version: 2 },
       };
       const releasedActions = getAvailableActions(customReleasedReq, perms);
-      expect(releasedActions.map((a) => a.id)).toEqual(['print', 'download_docx', 'archive']);
+      expect(releasedActions.map((a) => a.id)).toEqual(['download_docx', 'archive']);
 
-      // Builtin certificate (template_version === null) should omit download_docx
+      // Builtin certificate (template_version === null) should use web print
       const builtinReq = {
         status: 'ready_for_pickup',
         _id: 'req_builtin',
@@ -193,7 +193,7 @@ describe('Workflow Action Logic Matrix Suite (Derived from Backend Fixture)', ()
         ROLES.STAFF,
         { template_version: 3 }
       );
-      expect(actionsWith4thArg.map((a) => a.id)).toEqual(['print', 'download_docx', 'release']);
+      expect(actionsWith4thArg.map((a) => a.id)).toEqual(['download_docx', 'release']);
 
       // Missing can_print_documents suppresses both print and download_docx
       const noPrintPerms = { [STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS]: true };

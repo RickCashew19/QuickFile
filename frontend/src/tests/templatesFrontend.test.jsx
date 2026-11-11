@@ -421,7 +421,7 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
         </MemoryRouter>
       );
 
-      const docxBtn = screen.getByRole('button', { name: /download certificate \(docx\)/i });
+      const docxBtn = screen.getByRole('button', { name: /print certificate \(word\)/i });
       expect(docxBtn).toBeInTheDocument();
       expect(docxBtn).toHaveAttribute('title', 'Open in Word to print');
 
@@ -429,7 +429,7 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
       expect(onDownloadDocx).toHaveBeenCalledTimes(1);
     });
 
-    it('does NOT show "Download certificate (DOCX)" button for built-in layout certificates', () => {
+    it('does NOT show "Print Certificate (Word)" button for built-in layout certificates', () => {
       const hasPermission = (p) => p === STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS;
 
       const request = {
@@ -460,7 +460,7 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
         </MemoryRouter>
       );
 
-      expect(screen.queryByRole('button', { name: /download certificate \(docx\)/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /print certificate \(word\)/i })).not.toBeInTheDocument();
     });
 
     it('handles 409 Conflict when downloading certificate and displays server message in alert banner', async () => {
@@ -507,7 +507,7 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
         </MemoryRouter>
       );
 
-      const docxBtn = await screen.findByRole('button', { name: /download certificate \(docx\)/i });
+      const docxBtn = await screen.findByRole('button', { name: /print certificate \(word\)/i });
       fireEvent.click(docxBtn);
 
       expect(await screen.findByText(/cannot generate certificate: certificate has been revoked/i)).toBeInTheDocument();

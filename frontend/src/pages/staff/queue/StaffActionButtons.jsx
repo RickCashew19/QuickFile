@@ -81,7 +81,7 @@ export function StaffActionButtons({
               onClick={handlers.download_docx}
               loading={loadingAction === 'download_docx'}
               disabled={Boolean(loadingAction)}
-              aria-label="Download certificate (DOCX)"
+              aria-label={act.label}
               title={act.hint || 'Open in Word to print'}
             >
               {act.label}

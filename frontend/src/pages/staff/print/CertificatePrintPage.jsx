@@ -5,6 +5,7 @@ import { printService } from '../../../services/printService';
 import { Button } from '../../../components/shared/Button';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
+import { downloadBlob } from '../../../utils/downloadHelper';
 import { formatDate } from '../../../utils/formatters';
 import './CertificatePrintPage.css';
 
@@ -14,6 +15,19 @@ export function CertificatePrintPage() {
   const [printData, setPrintData] = useState(null);
   const [error, setError] = useState(null);
   const [isSignatoryMissing, setIsSignatoryMissing] = useState(false);
+  const [downloadingDocx, setDownloadingDocx] = useState(false);
+
+  const handleDownloadDocx = async () => {
+    setDownloadingDocx(true);
+    try {
+      const { blob, filename } = await staffService.downloadCertificateDocx(id);
+      downloadBlob(blob, filename || `certificate-${id}.docx`);
+    } catch (err) {
+      setError(err.message || 'Failed to download certificate DOCX.');
+    } finally {
+      setDownloadingDocx(false);
+    }
+  };
 
   const loadPrintData = useCallback(async () => {
     setLoading(true);
@@ -97,12 +111,30 @@ export function CertificatePrintPage() {
             Cert No: {issued_document?.certificate_number}
           </span>
         </div>
-        <div className="qf-print-controls__right">
+        <div className="qf-print-controls__right" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          {issued_document?.template_version != null && (
+            <Button
+              variant="secondary"
+              onClick={handleDownloadDocx}
+              loading={downloadingDocx}
+              aria-label="Download official Word template"
+            >
+              Download DOCX (Official Template)
+            </Button>
+          )}
           <Button variant="primary" onClick={handlePrint} aria-label="Print official certificate">
-            Print Certificate
+            Print Web View
           </Button>
         </div>
       </div>
+
+      {issued_document?.template_version != null && (
+        <div className="no-print" style={{ marginBottom: 'var(--space-4)' }}>
+          <Alert variant="warning">
+            <strong>Custom Template Document:</strong> This certificate was issued using custom template version v{issued_document.template_version}. The page below is only the fallback web preview. For official printing with your exact layout, margins, and QR code, please download and print the Word document.
+          </Alert>
+        </div>
+      )}
 
       {/* Official Certificate Paper Sheet */}
       <div className="qf-certificate-sheet" id="official-certificate-sheet">
