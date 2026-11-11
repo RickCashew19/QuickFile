@@ -1,16 +1,16 @@
 {
   "items": [
     {
-      "_id": "6af3c86e767da01da6c46756",
-      "tracking_number": "QF-20261111-BDFADB",
+      "_id": "6af010addad412cef49c2576",
+      "tracking_number": "QF-20261108-086872",
       "citizen_id": {
-        "_id": "6af3c8656d19bc69af1bd96e",
+        "_id": "6aeff952cb1d415793f07e55",
         "email": "resident@quickfile.ph",
         "full_name": "Juan Dela Cruz",
         "phone": "09170000000"
       },
       "document_type_id": {
-        "_id": "6af3c8656d19bc69af1bd97f",
+        "_id": "6aeff953cb1d415793f07e63",
         "name": "Barangay Business Clearance",
         "code": "BUS-CLR",
         "fee": 150,
@@ -23,57 +23,128 @@
       "unit_fee": 150,
       "fee": 150,
       "payment_status": "paid",
-      "paid_at": "2026-11-11T01:44:14.768Z",
+      "paid_at": "2026-11-08T06:03:28.431Z",
       "payment_reference": "OR-998877",
       "waiver_reason": "",
-      "payment_recorded_by": "6af3c8656d19bc69af1bd965",
+      "payment_recorded_by": "6aeff952cb1d415793f07e4e",
       "attachment_name": "sample_id.png",
-      "attachment_path": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
+      "attachment_path": "fac17c962ff957311545f509b1830e87.png",
       "attachments": [
         {
           "original_name": "sample_id.png",
-          "stored_filename": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
+          "stored_filename": "fac17c962ff957311545f509b1830e87.png",
           "mime_type": "image/png",
           "file_size": 70,
-          "path": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
-          "uploaded_at": "2026-11-11T01:44:14.049Z",
-          "_id": "6af3c86e767da01da6c46757"
+          "path": "fac17c962ff957311545f509b1830e87.png",
+          "uploaded_at": "2026-11-08T06:03:25.280Z",
+          "_id": "6af010addad412cef49c2577"
         }
       ],
       "rejection_reason": "",
       "cancellation_reason": "",
-      "processing_notes": "[2026-11-11T01:44:14.500Z] Juan Dela Cruz: Verified applicant resident identity against barangay registry.",
+      "processing_notes": "[2026-11-08T06:03:27.952Z] Juan Dela Cruz: Verified applicant resident identity against barangay registry.",
       "reviewed_by": {
-        "_id": "6af3c8656d19bc69af1bd965",
+        "_id": "6aeff952cb1d415793f07e4e",
         "full_name": "Juan Dela Cruz"
       },
-      "reviewed_at": "2026-11-11T01:44:14.520Z",
+      "reviewed_at": "2026-11-08T06:03:27.971Z",
       "prepared_by": {
-        "_id": "6af3c8656d19bc69af1bd965",
+        "_id": "6aeff952cb1d415793f07e4e",
         "full_name": "Juan Dela Cruz"
       },
-      "prepared_at": "2026-11-11T01:44:14.571Z",
+      "prepared_at": "2026-11-08T06:03:28.078Z",
       "approved_by": {
-        "_id": "6af3c8656d19bc69af1bd965",
+        "_id": "6aeff952cb1d415793f07e4e",
         "full_name": "Juan Dela Cruz"
       },
-      "approved_at": "2026-11-11T01:44:14.547Z",
-      "ready_at": "2026-11-11T01:44:14.703Z",
+      "approved_at": "2026-11-08T06:03:28.007Z",
+      "ready_at": "2026-11-08T06:03:28.311Z",
       "rejected_at": null,
       "released_by": {
-        "_id": "6af3c8656d19bc69af1bd965",
+        "_id": "6aeff952cb1d415793f07e4e",
         "full_name": "Juan Dela Cruz"
       },
-      "released_at": "2026-11-11T01:44:14.768Z",
-      "archived_at": "2026-11-11T01:44:14.799Z",
+      "released_at": "2026-11-08T06:03:28.431Z",
+      "archived_at": "2026-11-08T06:03:28.481Z",
       "cancelled_at": null,
-      "created_at": "2026-11-11T01:44:14.061Z",
-      "updated_at": "2026-11-11T01:44:14.800Z",
+      "created_at": "2026-11-08T06:03:25.296Z",
+      "updated_at": "2026-11-08T06:03:28.481Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d2df926ceb0e6bbd317",
+      "tracking_number": "QF-20261108-CD08E9",
+      "citizen_id": {
+        "_id": "6aeff952cb1d415793f07e55",
+        "email": "resident@quickfile.ph",
+        "full_name": "Juan Dela Cruz",
+        "phone": "09170000000"
+      },
+      "document_type_id": {
+        "_id": "6aeff953cb1d415793f07e63",
+        "name": "Barangay Business Clearance",
+        "code": "BUS-CLR",
+        "fee": 150,
+        "processing_days": 2
+      },
+      "created_by_staff_id": null,
+      "purpose": "Updated employment verification purpose",
+      "copies": 1,
+      "status": "archived",
+      "unit_fee": 150,
+      "fee": 150,
+      "payment_status": "paid",
+      "paid_at": "2026-11-08T05:48:32.431Z",
+      "payment_reference": "OR-998877",
+      "waiver_reason": "",
+      "payment_recorded_by": "6aeff952cb1d415793f07e4e",
+      "attachment_name": "sample_id.png",
+      "attachment_path": "e1994776ca7a8d158815ee6e2e708ef8.png",
+      "attachments": [
+        {
+          "original_name": "sample_id.png",
+          "stored_filename": "e1994776ca7a8d158815ee6e2e708ef8.png",
+          "mime_type": "image/png",
+          "file_size": 70,
+          "path": "e1994776ca7a8d158815ee6e2e708ef8.png",
+          "uploaded_at": "2026-11-08T05:48:29.373Z",
+          "_id": "6af00d2df926ceb0e6bbd318"
+        }
+      ],
+      "rejection_reason": "",
+      "cancellation_reason": "",
+      "processing_notes": "[2026-11-08T05:48:32.094Z] Juan Dela Cruz: Verified applicant resident identity against barangay registry.",
+      "reviewed_by": {
+        "_id": "6aeff952cb1d415793f07e4e",
+        "full_name": "Juan Dela Cruz"
+      },
+      "reviewed_at": "2026-11-08T05:48:32.114Z",
+      "prepared_by": {
+        "_id": "6aeff952cb1d415793f07e4e",
+        "full_name": "Juan Dela Cruz"
+      },
+      "prepared_at": "2026-11-08T05:48:32.195Z",
+      "approved_by": {
+        "_id": "6aeff952cb1d415793f07e4e",
+        "full_name": "Juan Dela Cruz"
+      },
+      "approved_at": "2026-11-08T05:48:32.142Z",
+      "ready_at": "2026-11-08T05:48:32.345Z",
+      "rejected_at": null,
+      "released_by": {
+        "_id": "6aeff952cb1d415793f07e4e",
+        "full_name": "Juan Dela Cruz"
+      },
+      "released_at": "2026-11-08T05:48:32.431Z",
+      "archived_at": "2026-11-08T05:48:32.462Z",
+      "cancelled_at": null,
+      "created_at": "2026-11-08T05:48:29.381Z",
+      "updated_at": "2026-11-08T05:48:32.462Z",
       "__v": 0
     }
   ],
   "pagination": {
-    "total": 1,
+    "total": 2,
     "page": 1,
     "limit": 20,
     "total_pages": 1

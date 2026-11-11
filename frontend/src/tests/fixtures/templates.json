@@ -337,12 +337,12 @@
       "has_qr_placeholder": true
     },
     "template": {
-      "id": "6af3c871767da01da6c468bb",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "id": "6af40aa4a6ba7c80912f4bd3",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "version": 1,
       "original_name": "warning-template.docx",
       "file_size": 41138,
-      "sha256": "a919b69ae2412cbdaa2cad130a1fbb06496f83170714a6329681993998bb1bdc",
+      "sha256": "6df10b9d1fc45404e22c5e550d6baf51feb88b1b7cb8d70aab2f365a99cd0d58",
       "placeholders_found": [
         "province",
         "city_municipality",
@@ -385,8 +385,8 @@
       "uploaded_by_name": "Barangay Administrator",
       "is_active": false,
       "retired_at": null,
-      "created_at": "2026-11-11T01:44:17.148Z",
-      "updated_at": "2026-11-11T01:44:17.148Z"
+      "created_at": "2026-11-11T06:26:44.328Z",
+      "updated_at": "2026-11-11T06:26:44.328Z"
     }
   },
   "uploadSuccess": {
@@ -439,12 +439,12 @@
       "has_qr_placeholder": true
     },
     "template": {
-      "id": "6af3c871767da01da6c468c2",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "id": "6af40aa4a6ba7c80912f4bda",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "version": 2,
       "original_name": "starter-template.docx",
       "file_size": 11739,
-      "sha256": "7705553131c3825b45581e66dde2d39e24e16e1811f208765f0659cdf67dc1a5",
+      "sha256": "f5b1001ca8c15c09aacf77dd17822cab94787ff01540ad4b08515db056af50ef",
       "placeholders_found": [
         "province",
         "city_municipality",
@@ -489,18 +489,18 @@
       "uploaded_by_name": "Barangay Administrator",
       "is_active": false,
       "retired_at": null,
-      "created_at": "2026-11-11T01:44:17.229Z",
-      "updated_at": "2026-11-11T01:44:17.229Z"
+      "created_at": "2026-11-11T06:26:44.679Z",
+      "updated_at": "2026-11-11T06:26:44.679Z"
     }
   },
   "templatesList": [
     {
-      "id": "6af3c871767da01da6c468c2",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "id": "6af40aa4a6ba7c80912f4bda",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "version": 2,
       "original_name": "starter-template.docx",
       "file_size": 11739,
-      "sha256": "7705553131c3825b45581e66dde2d39e24e16e1811f208765f0659cdf67dc1a5",
+      "sha256": "f5b1001ca8c15c09aacf77dd17822cab94787ff01540ad4b08515db056af50ef",
       "placeholders_found": [
         "province",
         "city_municipality",
@@ -545,16 +545,16 @@
       "uploaded_by_name": "Barangay Administrator",
       "is_active": false,
       "retired_at": null,
-      "created_at": "2026-11-11T01:44:17.229Z",
-      "updated_at": "2026-11-11T01:44:17.229Z"
+      "created_at": "2026-11-11T06:26:44.679Z",
+      "updated_at": "2026-11-11T06:26:44.679Z"
     },
     {
-      "id": "6af3c871767da01da6c468bb",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "id": "6af40aa4a6ba7c80912f4bd3",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "version": 1,
       "original_name": "warning-template.docx",
       "file_size": 41138,
-      "sha256": "a919b69ae2412cbdaa2cad130a1fbb06496f83170714a6329681993998bb1bdc",
+      "sha256": "6df10b9d1fc45404e22c5e550d6baf51feb88b1b7cb8d70aab2f365a99cd0d58",
       "placeholders_found": [
         "province",
         "city_municipality",
@@ -597,20 +597,20 @@
       "uploaded_by_name": "Barangay Administrator",
       "is_active": false,
       "retired_at": null,
-      "created_at": "2026-11-11T01:44:17.148Z",
-      "updated_at": "2026-11-11T01:44:17.148Z"
+      "created_at": "2026-11-11T06:26:44.328Z",
+      "updated_at": "2026-11-11T06:26:44.328Z"
     }
   ],
   "activateResponse": {
     "template_mode": "custom",
-    "active_template_id": "6af3c871767da01da6c468c2",
+    "active_template_id": "6af40aa4a6ba7c80912f4bda",
     "active_template": {
-      "id": "6af3c871767da01da6c468c2",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "id": "6af40aa4a6ba7c80912f4bda",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "version": 2,
       "original_name": "starter-template.docx",
       "file_size": 11739,
-      "sha256": "7705553131c3825b45581e66dde2d39e24e16e1811f208765f0659cdf67dc1a5",
+      "sha256": "f5b1001ca8c15c09aacf77dd17822cab94787ff01540ad4b08515db056af50ef",
       "placeholders_found": [
         "province",
         "city_municipality",
@@ -655,16 +655,16 @@
       "uploaded_by_name": "Barangay Administrator",
       "is_active": true,
       "retired_at": null,
-      "created_at": "2026-11-11T01:44:17.229Z",
-      "updated_at": "2026-11-11T01:44:17.454Z"
+      "created_at": "2026-11-11T06:26:44.679Z",
+      "updated_at": "2026-11-11T06:26:45.209Z"
     }
   },
   "issueWithWarnings": {
     "request": {
-      "_id": "6af3c871767da01da6c468d7",
-      "tracking_number": "QF-20261111-46178F",
-      "citizen_id": "6af3c8656d19bc69af1bd96e",
-      "document_type_id": "6af3c870767da01da6c468a9",
+      "_id": "6af40aa5a6ba7c80912f4bef",
+      "tracking_number": "QF-20261111-83869D",
+      "citizen_id": "6af40a8f1da08fbf974a29dc",
+      "document_type_id": "6af40aa3a6ba7c80912f4bc1",
       "created_by_staff_id": null,
       "purpose": "Official Employment Requirements",
       "copies": 1,
@@ -682,38 +682,38 @@
       "rejection_reason": "",
       "cancellation_reason": "",
       "processing_notes": "",
-      "reviewed_by": "6af3c8656d19bc69af1bd965",
-      "reviewed_at": "2026-11-11T01:44:17.534Z",
-      "prepared_by": "6af3c8656d19bc69af1bd965",
-      "prepared_at": "2026-11-11T01:44:17.584Z",
-      "approved_by": "6af3c8656d19bc69af1bd965",
-      "approved_at": "2026-11-11T01:44:17.564Z",
-      "ready_at": "2026-11-11T01:44:17.663Z",
+      "reviewed_by": "6af40a8e1da08fbf974a29d1",
+      "reviewed_at": "2026-11-11T06:26:45.396Z",
+      "prepared_by": "6af40a8e1da08fbf974a29d1",
+      "prepared_at": "2026-11-11T06:26:45.539Z",
+      "approved_by": "6af40a8e1da08fbf974a29d1",
+      "approved_at": "2026-11-11T06:26:45.473Z",
+      "ready_at": "2026-11-11T06:26:45.795Z",
       "rejected_at": null,
       "released_by": null,
       "released_at": null,
       "archived_at": null,
       "cancelled_at": null,
-      "created_at": "2026-11-11T01:44:17.482Z",
-      "updated_at": "2026-11-11T01:44:17.664Z",
+      "created_at": "2026-11-11T06:26:45.290Z",
+      "updated_at": "2026-11-11T06:26:45.795Z",
       "__v": 0
     },
     "issued_document": {
-      "request_id": "6af3c871767da01da6c468d7",
-      "certificate_number": "BRGY-TESTDOC6789-2026-574430",
+      "request_id": "6af40aa5a6ba7c80912f4bef",
+      "certificate_number": "BRGY-TESTDOC3388-2026-363914",
       "document_name": "Updated Throwaway Clearance",
       "issued_to_name": "Maria Santos Clara",
-      "verification_code": "3F893F374FD9BDA238259BE3879B8D77",
-      "qr_data": "http://localhost:5173/verify/3F893F374FD9BDA238259BE3879B8D77",
-      "qr_code_image": "data:image/png;base64,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",
-      "issued_by": "6af3c8656d19bc69af1bd965",
-      "issued_at": "2026-11-11T01:44:17.625Z",
+      "verification_code": "20A639419970FB8C7E696C0A9DBE9B5F",
+      "qr_data": "http://localhost:5173/verify/20A639419970FB8C7E696C0A9DBE9B5F",
+      "qr_code_image": "data:image/png;base64,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",
+      "issued_by": "6af40a8e1da08fbf974a29d1",
+      "issued_at": "2026-11-11T06:26:45.709Z",
       "validity_status": "valid",
-      "expires_at": "2027-05-10T01:44:17.657Z",
+      "expires_at": "2027-05-10T06:26:45.785Z",
       "revoked_by": null,
       "revoked_at": null,
       "revoked_reason": "",
-      "template_id": "6af3c871767da01da6c468c2",
+      "template_id": "6af40aa4a6ba7c80912f4bda",
       "template_version": 2,
       "render_data": {
         "full_name": "Juan Dela Cruz",
@@ -734,13 +734,13 @@
         "occupation": "Office Clerk",
         "purpose": "Official Employment Requirements",
         "copies": "1",
-        "tracking_number": "QF-20261111-46178F",
+        "tracking_number": "QF-20261111-83869D",
         "document_name": "Updated Throwaway Clearance",
         "document_name_upper": "UPDATED THROWAWAY CLEARANCE",
-        "document_code": "TEST_DOC_6789",
-        "certificate_number": "BRGY-TESTDOC6789-2026-574430",
-        "verification_code": "3F893F374FD9BDA238259BE3879B8D77",
-        "verification_url": "http://localhost:5173/verify/3F893F374FD9BDA238259BE3879B8D77",
+        "document_code": "TEST_DOC_3388",
+        "certificate_number": "BRGY-TESTDOC3388-2026-363914",
+        "verification_code": "20A639419970FB8C7E696C0A9DBE9B5F",
+        "verification_url": "http://localhost:5173/verify/20A639419970FB8C7E696C0A9DBE9B5F",
         "issued_date": "November 11, 2026",
         "issued_date_long": "11th day of November, 2026",
         "issued_day_ordinal": "11th",
@@ -754,9 +754,9 @@
         "captain_name": "Hon. Raymond C. Lising",
         "secretary_name": "Sec. Corazon A. Mendoza"
       },
-      "_id": "6af3c871767da01da6c46904",
-      "created_at": "2026-11-11T01:44:17.658Z",
-      "updated_at": "2026-11-11T01:44:17.658Z",
+      "_id": "6af40aa5a6ba7c80912f4c1c",
+      "created_at": "2026-11-11T06:26:45.790Z",
+      "updated_at": "2026-11-11T06:26:45.790Z",
       "__v": 0
     },
     "data_warnings": [
@@ -764,12 +764,12 @@
     ]
   },
   "setModeResponse": {
-    "document_type_id": "6af3c870767da01da6c468a9",
+    "document_type_id": "6af40aa3a6ba7c80912f4bc1",
     "template_mode": "builtin",
-    "active_template_id": "6af3c871767da01da6c468c2"
+    "active_template_id": "6af40aa4a6ba7c80912f4bda"
   },
   "retireResponse": {
     "version": 1,
-    "retired_at": "2026-11-11T01:44:18.001Z"
+    "retired_at": "2026-11-11T06:26:46.262Z"
   }
 }

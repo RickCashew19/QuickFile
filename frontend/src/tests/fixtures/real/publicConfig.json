@@ -3,8 +3,8 @@
   "barangay_name": "Barangay San Antonio",
   "city_municipality": "Pasig City",
   "province": "Metro Manila",
-  "google_client_id": "",
-  "recaptcha_site_key": "",
+  "google_client_id": "1066834813282-5aiav37h4io4ivu3hsgi3eb51a9r0qmi.apps.googleusercontent.com",
+  "recaptcha_site_key": "6LdRyAQuAAAAAF_cCat0qqPkA8JKdci5q_LSJQcE",
   "integrations": {
     "google_login_enabled": false,
     "recaptcha_enabled": false,

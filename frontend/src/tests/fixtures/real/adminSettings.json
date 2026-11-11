@@ -2,183 +2,183 @@
   "integrations": {
     "google": {
       "source": "default",
-      "client_id": "",
-      "client_secret": ""
+      "client_id": "••••••••.com",
+      "client_secret": "••••••••aJOK"
     },
     "sms": {
       "source": "default",
-      "gateway_url": "",
-      "api_token": ""
+      "gateway_url": "https://dashboard.philsms.com/api/v3/",
+      "api_token": "••••••••3cf8"
     },
     "smtp": {
       "source": "default",
-      "host": "",
-      "user": "",
-      "pass": ""
+      "host": "[REDACTED_JWT_TOKEN]",
+      "user": "••••••••.com",
+      "pass": "••••••••zfcr"
     },
     "recaptcha": {
       "source": "default",
-      "site_key": "",
-      "secret_key": ""
+      "site_key": "••••••••JQcE",
+      "secret_key": "••••••••FaNg"
     },
     "rest_api": {
       "source": "default",
-      "secret_key": ""
+      "secret_key": "••••••••2026"
     }
   },
   "app_settings": [
     {
-      "_id": "6af3c8656d19bc69af1bd982",
+      "_id": "6aeff953cb1d415793f07e66",
       "key": "system_name",
       "value": "QuickFile Barangay Portal",
       "category": "general",
       "description": "Application display name",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.420Z",
-      "updated_at": "2026-11-11T01:44:13.221Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.057Z",
+      "updated_at": "2026-11-08T05:48:35.188Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd985",
+      "_id": "6aeff953cb1d415793f07e69",
       "key": "barangay_name",
       "value": "Barangay San Antonio",
       "category": "general",
       "description": "Name of the barangay",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.426Z",
-      "updated_at": "2026-11-11T01:44:05.426Z",
+      "created_at": "2026-11-08T04:23:47.062Z",
+      "updated_at": "2026-11-08T04:23:47.062Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd988",
+      "_id": "6aeff953cb1d415793f07e6c",
       "key": "city_municipality",
       "value": "Pasig City",
       "category": "general",
       "description": "City or Municipality",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.431Z",
-      "updated_at": "2026-11-11T01:44:05.431Z",
+      "created_at": "2026-11-08T04:23:47.066Z",
+      "updated_at": "2026-11-08T04:23:47.066Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd98b",
+      "_id": "6aeff953cb1d415793f07e6f",
       "key": "province",
       "value": "Metro Manila",
       "category": "general",
       "description": "Province or Region",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.434Z",
-      "updated_at": "2026-11-11T01:44:05.434Z",
+      "created_at": "2026-11-08T04:23:47.072Z",
+      "updated_at": "2026-11-08T04:23:47.072Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd98e",
+      "_id": "6aeff953cb1d415793f07e72",
       "key": "office_name",
       "value": "Office of the Barangay Captain",
       "category": "general",
       "description": "Office name for issued certificates",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.437Z",
-      "updated_at": "2026-11-11T01:44:13.237Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.079Z",
+      "updated_at": "2026-11-08T05:48:35.246Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd991",
+      "_id": "6aeff953cb1d415793f07e75",
       "key": "barangay_captain",
       "value": "Hon. Raymond C. Lising",
       "category": "general",
       "description": "Name of the Barangay Captain (Punong Barangay)",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.440Z",
-      "updated_at": "2026-11-11T01:44:13.240Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.093Z",
+      "updated_at": "2026-11-08T05:48:35.262Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd994",
+      "_id": "6aeff953cb1d415793f07e78",
       "key": "barangay_secretary",
       "value": "Sec. Corazon A. Mendoza",
       "category": "general",
       "description": "Name of the Barangay Secretary",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.442Z",
-      "updated_at": "2026-11-11T01:44:13.244Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.100Z",
+      "updated_at": "2026-11-08T05:48:35.281Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd997",
+      "_id": "6aeff953cb1d415793f07e7b",
       "key": "contact_email",
       "value": "user@example.ph",
       "category": "general",
       "description": "Public contact email",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.445Z",
-      "updated_at": "2026-11-11T01:44:13.230Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.113Z",
+      "updated_at": "2026-11-08T05:48:35.209Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd99a",
+      "_id": "6aeff953cb1d415793f07e7e",
       "key": "contact_phone",
       "value": "09170000000",
       "category": "general",
       "description": "Public contact phone",
-      "updated_by": "6af3c8646d19bc69af1bd961",
-      "created_at": "2026-11-11T01:44:05.449Z",
-      "updated_at": "2026-11-11T01:44:13.233Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.118Z",
+      "updated_at": "2026-11-08T05:48:35.231Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd99e",
+      "_id": "6aeff953cb1d415793f07e81",
       "key": "enable_sms_notifications",
       "value": false,
       "category": "notifications",
       "description": "Toggle PhilSMS notifications",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.455Z",
-      "updated_at": "2026-11-11T01:44:05.455Z",
+      "created_at": "2026-11-08T04:23:47.125Z",
+      "updated_at": "2026-11-08T04:23:47.125Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd9a3",
+      "_id": "6aeff953cb1d415793f07e84",
       "key": "enable_email_notifications",
       "value": false,
       "category": "notifications",
       "description": "Toggle SMTP email notifications",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.656Z",
-      "updated_at": "2026-11-11T01:44:05.656Z",
+      "created_at": "2026-11-08T04:23:47.133Z",
+      "updated_at": "2026-11-08T04:23:47.133Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd9a6",
+      "_id": "6aeff953cb1d415793f07e87",
       "key": "enable_google_login",
       "value": false,
       "category": "integrations",
       "description": "Toggle Google OAuth login",
-      "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.660Z",
-      "updated_at": "2026-11-11T01:44:05.660Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.141Z",
+      "updated_at": "2026-11-08T05:48:35.365Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd9a9",
+      "_id": "6aeff953cb1d415793f07e8a",
       "key": "enable_recaptcha",
       "value": false,
       "category": "integrations",
       "description": "Toggle Google reCAPTCHA v2",
-      "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.665Z",
-      "updated_at": "2026-11-11T01:44:05.665Z",
+      "updated_by": "6aeff952cb1d415793f07e4b",
+      "created_at": "2026-11-08T04:23:47.148Z",
+      "updated_at": "2026-11-08T05:48:35.375Z",
       "__v": 0
     },
     {
-      "_id": "6af3c8656d19bc69af1bd9ac",
+      "_id": "6aeff953cb1d415793f07e8d",
       "key": "enable_rest_api_gateway",
       "value": false,
       "category": "integrations",
       "description": "Toggle External REST API gateway at /api/v1/external",
       "updated_by": null,
-      "created_at": "2026-11-11T01:44:05.669Z",
-      "updated_at": "2026-11-11T01:44:05.669Z",
+      "created_at": "2026-11-08T04:23:47.157Z",
+      "updated_at": "2026-11-08T04:23:47.157Z",
       "__v": 0
     }
   ]

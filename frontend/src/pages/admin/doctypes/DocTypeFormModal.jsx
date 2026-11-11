@@ -170,121 +170,124 @@ export function DocTypeFormModal({
       )}
 
       {isEditing && activeTab === 'template' ? (
-        <CertificateTemplatePanel docType={docType} onDocTypeUpdated={onDocTypeUpdated} />
+        <CertificateTemplatePanel
+          docType={docType}
+          onDocTypeUpdated={onDocTypeUpdated}
+        />
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {error && <Alert variant="danger">{error}</Alert>}
+        {error && <Alert variant="danger">{error}</Alert>}
 
-          <div className="qf-grid-2col">
-            <Input
-              label="Document Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              placeholder="Barangay Clearance"
-            />
-            <Input
-              label="Code"
-              name="code"
-              value={formData.code}
-              onChange={handleChange}
-              required
-              placeholder="BC"
-              style={{ textTransform: 'uppercase' }}
-            />
-          </div>
-
+        <div className="qf-grid-2col">
           <Input
-            label="Description"
-            name="description"
-            value={formData.description}
+            label="Document Name"
+            name="name"
+            value={formData.name}
             onChange={handleChange}
-            placeholder="Brief description of the document purpose"
+            required
+            placeholder="Barangay Clearance"
           />
+          <Input
+            label="Code"
+            name="code"
+            value={formData.code}
+            onChange={handleChange}
+            required
+            placeholder="BC"
+            style={{ textTransform: 'uppercase' }}
+          />
+        </div>
 
-          <div className="qf-grid-2col">
-            <Input
-              label="Standard Fee (PHP)"
-              name="fee"
-              type="number"
-              min="0"
-              step="1"
-              value={formData.fee}
-              onChange={handleChange}
-              required
-            />
-            <Input
-              label="Processing Time (Days)"
-              name="processing_days"
-              type="number"
-              min="1"
-              max="30"
-              value={formData.processing_days}
-              onChange={handleChange}
-              required
-            />
-          </div>
+        <Input
+          label="Description"
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          placeholder="Brief description of the document purpose"
+        />
 
-          <div>
-            <label className="qf-field__label" style={{ marginBottom: 'var(--space-1)', display: 'block' }}>
-              Document Requirements Checklist
-            </label>
-            <div className="qf-tag-input-container">
-              {requirements.map((req, idx) => (
-                <span key={idx} className="qf-tag-pill">
-                  <span>{req}</span>
-                  <button
-                    type="button"
-                    className="qf-tag-remove-btn"
-                    onClick={() => handleRemoveRequirement(idx)}
-                    aria-label={`Remove requirement ${req}`}
-                  >
-                    <Icon name="close" size={12} />
-                  </button>
-                </span>
-              ))}
-              <div style={{ display: 'flex', flex: 1, gap: 'var(--space-1)' }}>
-                <input
-                  type="text"
-                  value={newReq}
-                  onChange={(e) => setNewReq(e.target.value)}
-                  placeholder="Add requirement (e.g. Valid ID, Cedula)..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddRequirement(e);
-                    }
-                  }}
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    fontSize: 'var(--font-sm)',
-                    flex: 1,
-                    minWidth: '160px',
-                  }}
-                />
-                <Button type="button" size="sm" variant="ghost" onClick={handleAddRequirement}>
-                  Add
-                </Button>
-              </div>
+        <div className="qf-grid-2col">
+          <Input
+            label="Standard Fee (PHP)"
+            name="fee"
+            type="number"
+            min="0"
+            step="1"
+            value={formData.fee}
+            onChange={handleChange}
+            required
+          />
+          <Input
+            label="Processing Time (Days)"
+            name="processing_days"
+            type="number"
+            min="1"
+            max="30"
+            value={formData.processing_days}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="qf-field__label" style={{ marginBottom: 'var(--space-1)', display: 'block' }}>
+            Document Requirements Checklist
+          </label>
+          <div className="qf-tag-input-container">
+            {requirements.map((req, idx) => (
+              <span key={idx} className="qf-tag-pill">
+                <span>{req}</span>
+                <button
+                  type="button"
+                  className="qf-tag-remove-btn"
+                  onClick={() => handleRemoveRequirement(idx)}
+                  aria-label={`Remove requirement ${req}`}
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </span>
+            ))}
+            <div style={{ display: 'flex', flex: 1, gap: 'var(--space-1)' }}>
+              <input
+                type="text"
+                value={newReq}
+                onChange={(e) => setNewReq(e.target.value)}
+                placeholder="Add requirement (e.g. Valid ID, Cedula)..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddRequirement(e);
+                  }
+                }}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: 'var(--font-sm)',
+                  flex: 1,
+                  minWidth: '160px',
+                }}
+              />
+              <Button type="button" size="sm" variant="ghost" onClick={handleAddRequirement}>
+                Add
+              </Button>
             </div>
           </div>
+        </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', marginTop: 'var(--space-2)' }}>
-            <input
-              type="checkbox"
-              name="is_active"
-              checked={formData.is_active}
-              onChange={handleChange}
-              style={{ width: 18, height: 18 }}
-            />
-            <span style={{ fontSize: 'var(--font-sm)', fontWeight: 'var(--font-medium)' }}>
-              Active (Available for citizen requests in the service catalog)
-            </span>
-          </label>
-        </form>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', marginTop: 'var(--space-2)' }}>
+          <input
+            type="checkbox"
+            name="is_active"
+            checked={formData.is_active}
+            onChange={handleChange}
+            style={{ width: 18, height: 18 }}
+          />
+          <span style={{ fontSize: 'var(--font-sm)', fontWeight: 'var(--font-medium)' }}>
+            Active (Available for citizen requests in the service catalog)
+          </span>
+        </label>
+      </form>
       )}
     </Modal>
   );

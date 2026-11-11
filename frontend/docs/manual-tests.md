@@ -371,10 +371,16 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 27.10**: Click "Retire" on the active template version.
 - [ ] **Expected**: Server rejects retirement with 409 Conflict. Red alert displays: *"Cannot retire an active template. Switch to built-in mode or activate another template first."*
 - [ ] **Step 27.11**: Click "Switch to Built-in". Confirm modal dialog opens. Confirming switches mode back to "Built-in".
-- [ ] **Step 27.12**: As Staff with `can_prepare_documents` and `can_print_documents`, open a request for a custom-template document type in `/staff/requests/:id`.
-- [ ] **Step 27.13**: If the resident's profile has empty fields (e.g. empty address or occupation), proceed to Issue certificate.
-- [ ] **Expected**: Request issues successfully into `ready_for_pickup`. An amber notice appears listing the non-blocking warnings: *"Some placeholders were empty at issue: address, occupation"*.
-- [ ] **Step 27.14**: On the issued request detail page, observe the "Download certificate (DOCX)" button with note *"Open in Word to print"*. Clicking it downloads `certificate-{certNo}.docx`.
-- [ ] **Step 27.15**: Verify that `render_data` object is NEVER displayed anywhere on the screen or in dev inspection elements.
+- [ ] **Step 27.12**: As Staff with `can_review_requests`, `can_prepare_documents`, and `can_print_documents`, open a filed request for a custom-template document type in `/staff/requests/:id`.
+- [ ] **Step 27.13**: Progress the workflow through real transitions:
+  - Click "Start Review" (moves to `under_review`).
+  - Click "Approve Application" (moves to `approved`).
+  - Click "Prepare Document" (requires `can_prepare_documents`, moves to `in_preparation`).
+  - In `in_preparation` state, click "Issue & Generate Certificate" (requires `can_prepare_documents`).
+- [ ] **Step 27.14**: Observe issuance result:
+  - Status transitions to `ready_for_pickup`.
+  - If resident's profile has empty fields, a non-blocking amber notice appears: *"Notice: The certificate template contains placeholders that were empty in the resident's record at issue time: address, occupation"*.
+- [ ] **Step 27.15**: In `ready_for_pickup` (and `released`) status, observe the "Download certificate (DOCX)" button alongside "Print Certificate" with hint *"Open in Word to print"*. Clicking it downloads `certificate-{trackingNumber}.docx`.
+- [ ] **Step 27.16**: Verify that `render_data` snapshot is NEVER displayed anywhere on the screen.
 
 

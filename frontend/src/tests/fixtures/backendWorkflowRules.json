@@ -58,13 +58,6 @@
       "kind": "link",
       "source": "backend/src/modules/staff/staff.routes.js:94"
     },
-    "download_docx": {
-      "method": "GET",
-      "path": "/requests/:id/certificate?format=docx",
-      "permission": "can_print_documents",
-      "kind": "download",
-      "source": "backend/src/modules/staff/staff.routes.js"
-    },
     "release": {
       "method": "POST",
       "path": "/requests/:id/release",

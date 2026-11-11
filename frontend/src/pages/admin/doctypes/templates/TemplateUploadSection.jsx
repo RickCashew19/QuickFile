@@ -71,8 +71,8 @@ export function TemplateUploadSection({
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      // Server report may arrive on HTTP 400 inside ApiError.data (or ApiError.data.validation)
-      const report = err.data?.validation || (err.data?.errors ? err.data : null) || err.code?.validation;
+      // Server report arrives on HTTP 400 inside ApiError.data (or ApiError.data.validation)
+      const report = err.data?.validation || (err.data?.errors ? err.data : null);
       if (report) {
         notifyReport(report);
       } else {

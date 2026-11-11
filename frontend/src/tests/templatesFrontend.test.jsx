@@ -246,7 +246,6 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
 
     it('handles 409 Conflict when attempting to retire active template and calls onError', async () => {
       const templates = templatesFixture.templatesList;
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
       const conflictErr = new ApiError('Cannot retire the active template.', 409);
       vi.spyOn(adminService, 'retireDocumentTemplate').mockRejectedValue(conflictErr);
       const onError = vi.fn();
@@ -262,6 +261,10 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
 
       const retireButtons = screen.getAllByRole('button', { name: /retire/i });
       fireEvent.click(retireButtons[0]);
+
+      // Confirm in dialog
+      const confirmRetireBtn = screen.getByRole('button', { name: /confirm retire/i });
+      fireEvent.click(confirmRetireBtn);
 
       await waitFor(() => {
         expect(onError).toHaveBeenCalledWith(expect.stringContaining('Cannot retire the active template.'));
@@ -307,7 +310,6 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
     });
 
     it('opens confirmation modal before switching template mode to builtin', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
       vi.spyOn(adminService, 'getTemplatePlaceholders').mockResolvedValue(templatesFixture.placeholders);
       vi.spyOn(adminService, 'listDocumentTemplates').mockResolvedValue(templatesFixture.templatesList);
       vi.spyOn(adminService, 'setDocumentTypeTemplateMode').mockResolvedValue(templatesFixture.setModeResponse);
@@ -331,6 +333,9 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
       });
 
       fireEvent.click(screen.getByRole('button', { name: /switch to built-in/i }));
+
+      const confirmBtn = screen.getByRole('button', { name: /confirm switch/i });
+      fireEvent.click(confirmBtn);
 
       await waitFor(() => {
         expect(adminService.setDocumentTypeTemplateMode).toHaveBeenCalledWith('doc123', 'builtin');
@@ -418,7 +423,7 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
 
       const docxBtn = screen.getByRole('button', { name: /download certificate \(docx\)/i });
       expect(docxBtn).toBeInTheDocument();
-      expect(screen.getByText(/open in word to print/i)).toBeInTheDocument();
+      expect(docxBtn).toHaveAttribute('title', 'Open in Word to print');
 
       fireEvent.click(docxBtn);
       expect(onDownloadDocx).toHaveBeenCalledTimes(1);

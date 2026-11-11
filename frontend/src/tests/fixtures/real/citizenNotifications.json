@@ -1,22 +1,209 @@
 {
   "notifications": [
     {
-      "_id": "6af3c86e767da01da6c46759",
-      "user_id": "6af3c8656d19bc69af1bd96e",
+      "_id": "6af010addad412cef49c2579",
+      "user_id": "6aeff952cb1d415793f07e55",
       "title": "Document Request Submitted",
-      "message": "Your request for Barangay Business Clearance has been submitted (Tracking #: QF-20261111-BDFADB).",
+      "message": "Your request for Barangay Business Clearance has been submitted (Tracking #: QF-20261108-086872).",
       "type": "success",
       "channel": "system",
       "is_read": false,
       "read_at": null,
       "metadata": {
-        "tracking_number": "QF-20261111-BDFADB",
+        "tracking_number": "QF-20261108-086872",
         "document_type": "Barangay Business Clearance"
       },
-      "created_at": "2026-11-11T01:44:14.068Z",
-      "updated_at": "2026-11-11T01:44:14.068Z",
+      "created_at": "2026-11-08T06:03:25.304Z",
+      "updated_at": "2026-11-08T06:03:25.304Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd3c7",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"ARCHIVED\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "archived"
+      },
+      "created_at": "2026-11-08T05:48:32.471Z",
+      "updated_at": "2026-11-08T05:48:32.471Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd3bd",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"RELEASED\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "released"
+      },
+      "created_at": "2026-11-08T05:48:32.443Z",
+      "updated_at": "2026-11-08T05:48:32.443Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd3aa",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"READY FOR PICKUP\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "ready_for_pickup"
+      },
+      "created_at": "2026-11-08T05:48:32.358Z",
+      "updated_at": "2026-11-08T05:48:32.358Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd39a",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"IN PREPARATION\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "in_preparation"
+      },
+      "created_at": "2026-11-08T05:48:32.206Z",
+      "updated_at": "2026-11-08T05:48:32.206Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd392",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"APPROVED\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "approved"
+      },
+      "created_at": "2026-11-08T05:48:32.154Z",
+      "updated_at": "2026-11-08T05:48:32.154Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d30f926ceb0e6bbd38a",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Status Update",
+      "message": "Your document request (QF-20261108-CD08E9) has been updated to \"UNDER REVIEW\".",
+      "type": "info",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "status": "under_review"
+      },
+      "created_at": "2026-11-08T05:48:32.125Z",
+      "updated_at": "2026-11-08T05:48:32.125Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d2ff926ceb0e6bbd36a",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Submitted",
+      "message": "Your request for Barangay Business Clearance was filed for you at the barangay hall (Tracking #: QF-20261108-5BAF03).",
+      "type": "success",
+      "channel": "system",
+      "is_read": false,
+      "read_at": null,
+      "metadata": {
+        "tracking_number": "QF-20261108-5BAF03",
+        "document_type": "Barangay Business Clearance"
+      },
+      "created_at": "2026-11-08T05:48:31.984Z",
+      "updated_at": "2026-11-08T05:48:31.984Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00d2df926ceb0e6bbd31a",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Submitted",
+      "message": "Your request for Barangay Business Clearance has been submitted (Tracking #: QF-20261108-CD08E9).",
+      "type": "success",
+      "channel": "system",
+      "is_read": true,
+      "read_at": "2026-11-08T05:48:29.556Z",
+      "metadata": {
+        "tracking_number": "QF-20261108-CD08E9",
+        "document_type": "Barangay Business Clearance"
+      },
+      "created_at": "2026-11-08T05:48:29.387Z",
+      "updated_at": "2026-11-08T05:48:29.556Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00c58f926ceb0e6bbd1f4",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Submitted",
+      "message": "Your request for Barangay Business Clearance was filed for you at the barangay hall (Tracking #: QF-20261108-965779).",
+      "type": "success",
+      "channel": "system",
+      "is_read": true,
+      "read_at": "2026-11-08T05:48:29.556Z",
+      "metadata": {
+        "tracking_number": "QF-20261108-965779",
+        "document_type": "Barangay Business Clearance"
+      },
+      "created_at": "2026-11-08T05:44:56.666Z",
+      "updated_at": "2026-11-08T05:48:29.556Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00c57f926ceb0e6bbd1b0",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Submitted",
+      "message": "Your request for Barangay Business Clearance has been submitted (Tracking #: QF-20261108-F7C25F).",
+      "type": "success",
+      "channel": "system",
+      "is_read": true,
+      "read_at": "2026-11-08T05:44:55.648Z",
+      "metadata": {
+        "tracking_number": "QF-20261108-F7C25F",
+        "document_type": "Barangay Business Clearance"
+      },
+      "created_at": "2026-11-08T05:44:55.122Z",
+      "updated_at": "2026-11-08T05:44:55.648Z",
+      "__v": 0
+    },
+    {
+      "_id": "6af00b4ff926ceb0e6bbd0ab",
+      "user_id": "6aeff952cb1d415793f07e55",
+      "title": "Document Request Submitted",
+      "message": "Your request for Barangay Business Clearance was filed for you at the barangay hall (Tracking #: QF-20261108-B737EF).",
+      "type": "success",
+      "channel": "system",
+      "is_read": true,
+      "read_at": "2026-11-08T05:44:55.648Z",
+      "metadata": {
+        "tracking_number": "QF-20261108-B737EF",
+        "document_type": "Barangay Business Clearance"
+      },
+      "created_at": "2026-11-08T05:40:31.962Z",
+      "updated_at": "2026-11-08T05:44:55.648Z",
       "__v": 0
     }
   ],
-  "unread_count": 1
+  "unread_count": 8
 }

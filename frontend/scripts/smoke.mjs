@@ -193,6 +193,9 @@ function sanitizeFixtureData(obj) {
 }
 
 function saveFixture(filename, data) {
+  if (process.env.UPDATE_REAL_FIXTURES !== 'true') {
+    return;
+  }
   try {
     const sanitized = sanitizeFixtureData(data);
     const filePath = path.join(FIXTURES_DIR, `${filename}.json`);

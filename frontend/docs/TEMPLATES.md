@@ -51,8 +51,8 @@ To include the QR code on your certificate:
 
 ### D. Security & Safe Word Content
 For security, QuickFile rejects documents with dangerous active content:
-- **Allowed:** Standard text, tables, fonts, headings, static images, margins, and page breaks.
-- **Prohibited:** Macros (`.docm`), VBA scripts, External Links/DDE fields, OLE objects, XML inclusions, and embedded executables. Templates containing these will be rejected during upload.
+- **Allowed:** Standard text, tables, fonts, headings, static images, margins, page breaks, and plain Word fields (`PAGE`, `NUMPAGES`, `DATE`, `TIME`, and `http`/`https` hyperlinks).
+- **Prohibited:** Macros (`.docm`), VBA scripts, External Links/DDE fields, OLE objects, custom XML inclusions, and embedded executables. Templates containing these will be rejected during upload.
 - File size limit: **2 MB**.
 
 ---
@@ -94,24 +94,26 @@ Below is the complete reference catalog of allowlisted placeholders available in
 | `{document_name}` | Official document title | `Barangay Clearance` |
 | `{document_name_upper}` | Uppercase document title | `BARANGAY CLEARANCE` |
 | `{document_code}` | Document type code | `BC` |
-| `{certificate_number}` | Unique sequential certificate number | `BC-2026-00001` |
-| `{verification_code}` | Unique public verification string | `V-A1B2C3D4` |
-| `{issued_date_long}` | Date certificate was officially issued | `February 28, 2026` |
-| `{issued_day_ordinal}` | Day of the month with ordinal suffix | `28th` |
-| `{issued_month}` | Full month name of issue | `February` |
+| `{certificate_number}` | Unique sequential certificate number | `BRGY-BC-2026-123456` |
+| `{verification_code}` | Unique public verification string | `A1B2C3D4E5F6G7H8J9K0` |
+| `{verification_url}` | Full public verification URL | `http://localhost:5173/verify/A1B2C3D4E5F6G7H8J9K0` |
+| `{issued_date}` | Date certificate was officially issued | `March 15, 2026` |
+| `{issued_date_long}` | Date certificate was officially issued (Formal long form) | `15th day of March, 2026` |
+| `{issued_day_ordinal}` | Day of the month with ordinal suffix | `15th` |
+| `{issued_month}` | Full month name of issue | `March` |
 | `{issued_year}` | 4-digit issuance year | `2026` |
-| `{expiry_date_long}` | Expiration date (or "N/A" if non-expiring) | `August 28, 2026` |
-| `{or_number}` | Official Receipt (OR) Number from payment | `OR-2026-9901` |
-| `{amount_paid}` | Payment amount formatted in Philippine Pesos | `₱50.00` |
+| `{expiry_date}` | Expiration date of certificate | `September 11, 2026` |
 
 ### Barangay Office & Signatories (`barangay`)
 | Placeholder | Description | Example Output |
 | :--- | :--- | :--- |
-| `{barangay_name}` | Barangay name | `Barangay Central` |
-| `{city_municipality}` | City or Municipality name | `City Hall` |
-| `{province_name}` | Province name | `Metro Manila` |
-| `{punong_barangay}` | Current Punong Barangay / Barangay Captain | `Hon. Maria Santos` |
-| `{barangay_secretary}` | Current Barangay Secretary | `Sec. Roberto Garcia` |
+| `{barangay_name}` | Barangay name | `Barangay 11` |
+| `{barangay_name_upper}` | Uppercase barangay name | `BARANGAY 11` |
+| `{city_municipality}` | City or Municipality name | `Malaybalay` |
+| `{province}` | Province name | `Bukidnon` |
+| `{office_name}` | Official office name | `Office of the Barangay Captain` |
+| `{captain_name}` | Current Punong Barangay / Barangay Captain | `Hon. Juan dela Cruz` |
+| `{secretary_name}` | Current Barangay Secretary | `Maria Santos` |
 
 ---
 

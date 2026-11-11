@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { adminService } from '../../../../services/adminService';
 import { Button } from '../../../../components/shared/Button';
 import { Icon } from '../../../../components/shared/Icon';
+import { ConfirmDialog } from '../../../../components/shared/ConfirmDialog';
 import { downloadBlob } from '../../../../utils/downloadHelper';
 import { formatDate } from '../../../../utils/formatters';
 
@@ -11,6 +12,8 @@ import { formatDate } from '../../../../utils/formatters';
  */
 export function TemplateVersionTable({ docTypeId, templates = [], onActionSuccess, onError }) {
   const [busyAction, setBusyAction] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [retireTarget, setRetireTarget] = useState(null);
 
   const runDownload = async (actionKey, downloadFn, fallbackName) => {
     setBusyAction(actionKey);
@@ -36,11 +39,13 @@ export function TemplateVersionTable({ docTypeId, templates = [], onActionSucces
     }
   };
 
-  const handleRetire = async (version) => {
-    setBusyAction(`retire-${version}`);
+  const confirmRetire = async () => {
+    if (!retireTarget) return;
+    setBusyAction(`retire-${retireTarget}`);
     try {
-      const res = await adminService.retireDocumentTemplate(docTypeId, version);
-      onActionSuccess(`Template v${version} retired successfully.`, res);
+      const res = await adminService.retireDocumentTemplate(docTypeId, retireTarget);
+      onActionSuccess(`Template v${retireTarget} retired successfully.`, res);
+      setRetireTarget(null);
     } catch (err) {
       onError(err.message || 'Failed to retire template version.');
     } finally {
@@ -48,12 +53,13 @@ export function TemplateVersionTable({ docTypeId, templates = [], onActionSucces
     }
   };
 
-  const handleDelete = async (version) => {
-    if (!window.confirm(`Permanently delete template v${version}?`)) return;
-    setBusyAction(`delete-${version}`);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setBusyAction(`delete-${deleteTarget}`);
     try {
-      await adminService.deleteDocumentTemplate(docTypeId, version);
-      onActionSuccess(`Template v${version} deleted successfully.`);
+      await adminService.deleteDocumentTemplate(docTypeId, deleteTarget);
+      onActionSuccess(`Template v${deleteTarget} deleted successfully.`);
+      setDeleteTarget(null);
     } catch (err) {
       onError(err.message || 'Failed to delete template version.');
     } finally {
@@ -74,11 +80,7 @@ export function TemplateVersionTable({ docTypeId, templates = [], onActionSucces
       <table className="qf-admin-table" style={{ fontSize: 'var(--font-xs)' }}>
         <thead>
           <tr>
-            <th>Version</th>
-            <th>Original Filename</th>
-            <th>Uploaded By</th>
-            <th>Date</th>
-            <th>Status</th>
+            <th>Version</th><th>Original Filename</th><th>Uploaded By</th><th>Date</th><th>Status</th>
             <th style={{ textAlign: 'right' }}>Actions</th>
           </tr>
         </thead>
@@ -111,12 +113,12 @@ export function TemplateVersionTable({ docTypeId, templates = [], onActionSucces
                       Download
                     </Button>
                     {!isRet && !isAct && (
-                      <Button size="sm" variant="ghost" onClick={() => handleRetire(tpl.version)} loading={busyAction === `retire-${tpl.version}`} disabled={Boolean(busyAction)}>
+                      <Button size="sm" variant="ghost" onClick={() => setRetireTarget(tpl.version)} loading={busyAction === `retire-${tpl.version}`} disabled={Boolean(busyAction)}>
                         Retire
                       </Button>
                     )}
                     {!isAct && (
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(tpl.version)} loading={busyAction === `delete-${tpl.version}`} disabled={Boolean(busyAction)} style={{ color: 'var(--color-danger)' }}>
+                      <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(tpl.version)} loading={busyAction === `delete-${tpl.version}`} disabled={Boolean(busyAction)} style={{ color: 'var(--color-danger)' }}>
                         <Icon name="trash" size={14} />
                       </Button>
                     )}
@@ -127,6 +129,26 @@ export function TemplateVersionTable({ docTypeId, templates = [], onActionSucces
           })}
         </tbody>
       </table>
+
+      <ConfirmDialog
+        isOpen={Boolean(retireTarget)}
+        onClose={() => setRetireTarget(null)}
+        onConfirm={confirmRetire}
+        title="Retire Template Version"
+        message={`Are you sure you want to retire template version ${retireTarget}? Retired versions cannot be activated.`}
+        confirmText="Confirm Retire"
+        loading={Boolean(busyAction?.startsWith('retire-'))}
+      />
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Template Version"
+        message={`Permanently delete template version ${deleteTarget}? This cannot be undone.`}
+        confirmText="Confirm Delete"
+        danger={true}
+        loading={Boolean(busyAction?.startsWith('delete-'))}
+      />
     </div>
   );
 }

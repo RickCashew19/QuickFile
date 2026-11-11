@@ -4,6 +4,7 @@ import { Button } from '../../../../components/shared/Button';
 import { Alert } from '../../../../components/shared/Alert';
 import { Loader } from '../../../../components/shared/Loader';
 import { Icon } from '../../../../components/shared/Icon';
+import { ConfirmDialog } from '../../../../components/shared/ConfirmDialog';
 import { downloadBlob } from '../../../../utils/downloadHelper';
 import { TemplateModeBadge } from './TemplateModeBadge';
 import { TemplateUploadSection } from './TemplateUploadSection';
@@ -27,6 +28,7 @@ export function CertificateTemplatePanel({ docType, onDocTypeUpdated }) {
   const [successMsg, setSuccessMsg] = useState(null);
   const [downloadingStarter, setDownloadingStarter] = useState(false);
   const [switchingMode, setSwitchingMode] = useState(false);
+  const [confirmSwitchOpen, setConfirmSwitchOpen] = useState(false);
 
   const fetchTemplateData = useCallback(async () => {
     if (!docTypeId) return;
@@ -67,11 +69,7 @@ export function CertificateTemplatePanel({ docType, onDocTypeUpdated }) {
     }
   };
 
-  const handleSwitchMode = async (targetMode) => {
-    if (targetMode === 'builtin') {
-      const ok = window.confirm('Switch back to built-in system template? Newly issued certificates will use the standard layout.');
-      if (!ok) return;
-    }
+  const executeSwitchMode = async (targetMode) => {
     setSwitchingMode(true);
     setErrorMsg(null);
     try {
@@ -84,6 +82,15 @@ export function CertificateTemplatePanel({ docType, onDocTypeUpdated }) {
       setErrorMsg(err.message || 'Failed to update template mode.');
     } finally {
       setSwitchingMode(false);
+      setConfirmSwitchOpen(false);
+    }
+  };
+
+  const handleSwitchModeClick = () => {
+    if (currentMode === 'custom') {
+      setConfirmSwitchOpen(true);
+    } else {
+      executeSwitchMode('custom');
     }
   };
 
@@ -118,7 +125,7 @@ export function CertificateTemplatePanel({ docType, onDocTypeUpdated }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <Button size="sm" variant={currentMode === 'custom' ? 'secondary' : 'primary'} onClick={() => handleSwitchMode(currentMode === 'custom' ? 'builtin' : 'custom')} loading={switchingMode} disabled={switchingMode}>
+          <Button size="sm" variant={currentMode === 'custom' ? 'secondary' : 'primary'} onClick={handleSwitchModeClick} loading={switchingMode} disabled={switchingMode}>
             {currentMode === 'custom' ? 'Switch to Built-in' : 'Switch to Custom'}
           </Button>
           <Button size="sm" variant="ghost" onClick={handleDownloadStarter} loading={downloadingStarter} disabled={downloadingStarter} iconLeft={<Icon name="download" size={14} />}>
@@ -135,6 +142,16 @@ export function CertificateTemplatePanel({ docType, onDocTypeUpdated }) {
       <h4 style={{ margin: 'var(--space-2) 0 var(--space-1) 0', fontSize: 'var(--font-sm)', fontWeight: 'bold' }}>Template Versions History</h4>
       <TemplateVersionTable docTypeId={docTypeId} templates={templates} onActionSuccess={handleActionSuccess} onError={setErrorMsg} />
       <TemplatePlaceholdersTable placeholders={placeholders} />
+
+      <ConfirmDialog
+        isOpen={confirmSwitchOpen}
+        onClose={() => setConfirmSwitchOpen(false)}
+        onConfirm={() => executeSwitchMode('builtin')}
+        title="Switch to Built-in Template"
+        message="Switch back to built-in system template? Newly issued certificates will use the standard layout."
+        confirmText="Confirm Switch"
+        loading={switchingMode}
+      />
     </div>
   );
 }

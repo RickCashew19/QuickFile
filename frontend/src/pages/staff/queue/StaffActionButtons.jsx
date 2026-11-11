@@ -75,21 +75,17 @@ export function StaffActionButtons({
 
         if (act.id === 'download_docx') {
           return (
-            <div key={act.id} className="qf-docx-download-action" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Button
-                variant={act.variant || 'secondary'}
-                onClick={handlers.download_docx}
-                loading={loadingAction === 'download_docx'}
-                disabled={Boolean(loadingAction)}
-                aria-label="Download certificate (DOCX)"
-                title="Open in Word to print"
-              >
-                {act.label}
-              </Button>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px', lineHeight: 1 }}>
-                Open in Word to print
-              </span>
-            </div>
+            <Button
+              key={act.id}
+              variant={act.variant || 'secondary'}
+              onClick={handlers.download_docx}
+              loading={loadingAction === 'download_docx'}
+              disabled={Boolean(loadingAction)}
+              aria-label="Download certificate (DOCX)"
+              title={act.hint || 'Open in Word to print'}
+            >
+              {act.label}
+            </Button>
           );
         }
 
