@@ -147,5 +147,58 @@ describe('Workflow Action Logic Matrix Suite (Derived from Backend Fixture)', ()
       expect(getAvailableActions({ status: 'archived' }, allPerms, ROLES.ADMIN)).toEqual([]);
       expect(getAvailableActions({ status: 'archived' }, allPerms, ROLES.STAFF)).toEqual([]);
     });
+
+    it('ready_for_pickup and released statuses: includes download_docx when issued_document.template_version is non-null', () => {
+      const perms = {
+        [STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS]: true,
+        [STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS]: true,
+        [STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS]: true,
+      };
+
+      // Custom template certificate on ready_for_pickup
+      const customReadyReq = {
+        status: 'ready_for_pickup',
+        _id: 'req_custom_1',
+        issued_document: { template_version: 1 },
+      };
+      const readyActions = getAvailableActions(customReadyReq, perms);
+      expect(readyActions.map((a) => a.id)).toEqual(['print', 'download_docx', 'release']);
+      const readyDownloadAct = readyActions.find((a) => a.id === 'download_docx');
+      expect(readyDownloadAct.kind).toBe('download');
+      expect(readyDownloadAct.label).toBe('Download certificate (DOCX)');
+      expect(readyDownloadAct.requiredPermission).toBe(STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS);
+
+      // Custom template certificate on released
+      const customReleasedReq = {
+        status: 'released',
+        _id: 'req_custom_2',
+        issued_document: { template_version: 2 },
+      };
+      const releasedActions = getAvailableActions(customReleasedReq, perms);
+      expect(releasedActions.map((a) => a.id)).toEqual(['print', 'download_docx', 'archive']);
+
+      // Builtin certificate (template_version === null) should omit download_docx
+      const builtinReq = {
+        status: 'ready_for_pickup',
+        _id: 'req_builtin',
+        issued_document: { template_version: null },
+      };
+      const builtinActions = getAvailableActions(builtinReq, perms);
+      expect(builtinActions.map((a) => a.id)).toEqual(['print', 'release']);
+
+      // Passing issuedDocument as 4th parameter works identically
+      const actionsWith4thArg = getAvailableActions(
+        { status: 'ready_for_pickup', _id: 'req_arg' },
+        perms,
+        ROLES.STAFF,
+        { template_version: 3 }
+      );
+      expect(actionsWith4thArg.map((a) => a.id)).toEqual(['print', 'download_docx', 'release']);
+
+      // Missing can_print_documents suppresses both print and download_docx
+      const noPrintPerms = { [STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS]: true };
+      const noPrintActions = getAvailableActions(customReadyReq, noPrintPerms);
+      expect(noPrintActions.map((a) => a.id)).toEqual(['release']);
+    });
   });
 });

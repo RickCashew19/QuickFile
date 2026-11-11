@@ -14,6 +14,7 @@ export function StaffActionButtons({
   hasPermission,
   permissions,
   role = 'staff',
+  issuedDocument = null,
   onReview,
   onApprove,
   onOpenReject,
@@ -21,6 +22,7 @@ export function StaffActionButtons({
   onIssue,
   onOpenRelease,
   onArchive,
+  onDownloadDocx,
   loadingAction,
 }) {
   const resolvedPerms = typeof hasPermission === 'function'
@@ -35,7 +37,7 @@ export function StaffActionButtons({
       }
     : permissions;
 
-  const actions = getAvailableActions(request, resolvedPerms, role);
+  const actions = getAvailableActions(request, resolvedPerms, role, issuedDocument);
 
   if (!actions || actions.length === 0) {
     return null;
@@ -49,6 +51,7 @@ export function StaffActionButtons({
     issue: onIssue,
     release: onOpenRelease,
     archive: onArchive,
+    download_docx: onDownloadDocx,
   };
 
   const requestId = request?._id || request?.id;
@@ -67,6 +70,26 @@ export function StaffActionButtons({
             >
               {act.label}
             </Link>
+          );
+        }
+
+        if (act.id === 'download_docx') {
+          return (
+            <div key={act.id} className="qf-docx-download-action" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Button
+                variant={act.variant || 'secondary'}
+                onClick={handlers.download_docx}
+                loading={loadingAction === 'download_docx'}
+                disabled={Boolean(loadingAction)}
+                aria-label="Download certificate (DOCX)"
+                title="Open in Word to print"
+              >
+                {act.label}
+              </Button>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px', lineHeight: 1 }}>
+                Open in Word to print
+              </span>
+            </div>
           );
         }
 

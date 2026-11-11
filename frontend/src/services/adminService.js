@@ -187,6 +187,98 @@ export const adminService = {
   },
 
   // ==============================================================================
+  // 4b. Certificate DOCX Templates
+  // ==============================================================================
+
+  /**
+   * Retrieves the allowlisted placeholders catalog
+   */
+  async getTemplatePlaceholders() {
+    return apiClient.get('/admin/template-placeholders');
+  },
+
+  /**
+   * Downloads the starter certificate DOCX template
+   */
+  async downloadStarterTemplate() {
+    return apiClient.download('/admin/template-starter');
+  },
+
+  /**
+   * Lists all uploaded template versions for a given document type
+   */
+  async listDocumentTemplates(documentTypeId) {
+    return apiClient.get(`/admin/document-types/${encodeURIComponent(documentTypeId)}/templates`);
+  },
+
+  /**
+   * Uploads and validates a new DOCX certificate template (multipart/form-data)
+   */
+  async uploadDocumentTemplate(documentTypeId, file) {
+    const formData = new FormData();
+    formData.append('template', file);
+    return apiClient.post(`/admin/document-types/${encodeURIComponent(documentTypeId)}/templates`, formData);
+  },
+
+  /**
+   * Activates a specific template version for a document type
+   */
+  async activateDocumentTemplate(documentTypeId, version) {
+    return apiClient.post(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/templates/${encodeURIComponent(version)}/activate`,
+      {}
+    );
+  },
+
+  /**
+   * Switches template mode for a document type ('builtin' | 'custom')
+   */
+  async setDocumentTypeTemplateMode(documentTypeId, mode) {
+    return apiClient.post(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/template-mode`,
+      { mode }
+    );
+  },
+
+  /**
+   * Downloads a sample rendered preview of the template (POST returning a binary blob)
+   */
+  async previewDocumentTemplate(documentTypeId, version) {
+    return apiClient.download(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/templates/${encodeURIComponent(version)}/preview`,
+      { method: 'POST' }
+    );
+  },
+
+  /**
+   * Downloads the original uploaded DOCX template file
+   */
+  async downloadTemplateFile(documentTypeId, version) {
+    return apiClient.download(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/templates/${encodeURIComponent(version)}/file`
+    );
+  },
+
+  /**
+   * Retires an inactive template version (blocked with 409 if active)
+   */
+  async retireDocumentTemplate(documentTypeId, version) {
+    return apiClient.post(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/templates/${encodeURIComponent(version)}/retire`,
+      {}
+    );
+  },
+
+  /**
+   * Deletes an unused template version (blocked with 409 if used by issued certificate)
+   */
+  async deleteDocumentTemplate(documentTypeId, version) {
+    return apiClient.delete(
+      `/admin/document-types/${encodeURIComponent(documentTypeId)}/templates/${encodeURIComponent(version)}`
+    );
+  },
+
+  // ==============================================================================
   // 5. Records & Requests Management
   // ==============================================================================
 

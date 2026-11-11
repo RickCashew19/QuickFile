@@ -174,4 +174,11 @@ export const staffService = {
   async verifyCode(code) {
     return apiClient.get(`/staff/verify/${encodeURIComponent(code || '')}`);
   },
+
+  /**
+   * Downloads official certificate DOCX for requests issued with custom templates
+   */
+  async downloadCertificateDocx(id) {
+    return apiClient.download(`/staff/requests/${encodeURIComponent(id)}/certificate?format=docx`);
+  },
 };

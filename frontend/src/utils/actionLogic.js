@@ -35,7 +35,7 @@ import { REQUEST_STATUSES, STAFF_PERMISSIONS, ROLES } from '../config/constants'
  * @param {string} [role='staff'] - User role: 'admin', 'staff', or 'citizen'
  * @returns {Array<{ id: string, label: string, kind: 'transition'|'link', variant: string, nextStatus?: string, href?: string, requiredPermission: string }>}
  */
-export function getAvailableActions(request, permissions = {}, role = 'staff') {
+export function getAvailableActions(request, permissions = {}, role = 'staff', issuedDocument = null) {
   if (!request || !request.status) {
     return [];
   }
@@ -53,6 +53,13 @@ export function getAvailableActions(request, permissions = {}, role = 'staff') {
   const status = String(request.status).toLowerCase();
   const requestId = request._id || request.id || '';
   const actions = [];
+
+  const issuedDoc = issuedDocument || request.issued_document || request.issuedDocument;
+  const hasCustomTemplate = Boolean(
+    issuedDoc &&
+    issuedDoc.template_version !== null &&
+    issuedDoc.template_version !== undefined
+  );
 
   switch (status) {
     case REQUEST_STATUSES.PENDING:
@@ -145,6 +152,16 @@ export function getAvailableActions(request, permissions = {}, role = 'staff') {
           href: requestId ? `/staff/requests/${requestId}/print` : '#',
           requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
         });
+        if (hasCustomTemplate) {
+          actions.push({
+            id: 'download_docx',
+            label: 'Download certificate (DOCX)',
+            kind: 'download',
+            variant: 'secondary',
+            hint: 'Open in Word to print',
+            requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
+          });
+        }
       }
       // staff.routes.js:100 POST /requests/:id/release uses requirePermission('can_release_documents')
       if (hasPerm(STAFF_PERMISSIONS.CAN_RELEASE_DOCUMENTS)) {
@@ -169,6 +186,16 @@ export function getAvailableActions(request, permissions = {}, role = 'staff') {
           href: requestId ? `/staff/requests/${requestId}/print` : '#',
           requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
         });
+        if (hasCustomTemplate) {
+          actions.push({
+            id: 'download_docx',
+            label: 'Download certificate (DOCX)',
+            kind: 'download',
+            variant: 'secondary',
+            hint: 'Open in Word to print',
+            requiredPermission: STAFF_PERMISSIONS.CAN_PRINT_DOCUMENTS,
+          });
+        }
       }
       // staff.routes.js:106 POST /requests/:id/archive uses requirePermission('can_archive_records')
       if (hasPerm(STAFF_PERMISSIONS.CAN_ARCHIVE_RECORDS)) {

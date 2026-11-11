@@ -13,14 +13,62 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import zlib from 'node:zlib';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+let PizZip;
+try {
+  PizZip = require('../../backend/node_modules/pizzip');
+} catch {
+  try {
+    PizZip = require('../backend/node_modules/pizzip');
+  } catch (err) {
+    console.warn('PizZip not found, template generation will use fallbacks');
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const FIXTURES_DIR = path.resolve(__dirname, '../src/tests/fixtures/real');
+const TEMPLATES_FIXTURE_PATH = path.resolve(__dirname, '../src/tests/fixtures/templates.json');
 
 // Ensure fixtures directory exists
 if (!fs.existsSync(FIXTURES_DIR)) {
   fs.mkdirSync(FIXTURES_DIR, { recursive: true });
+}
+
+const capturedTemplatesFixtures = {};
+
+/**
+ * Extracts a file from a ZIP buffer in memory by reading the Central Directory.
+ * Zero external dependencies. Supports DEFLATE (8) and STORE (0).
+ */
+function readZipEntry(buffer, targetName) {
+  let idx = 0;
+  while (idx < buffer.length - 4) {
+    if (buffer.readUInt32LE(idx) === 0x02014b50) {
+      const method = buffer.readUInt16LE(idx + 10);
+      const compSize = buffer.readUInt32LE(idx + 20);
+      const nameLen = buffer.readUInt16LE(idx + 28);
+      const extraLen = buffer.readUInt16LE(idx + 30);
+      const commentLen = buffer.readUInt16LE(idx + 32);
+      const localOffset = buffer.readUInt32LE(idx + 42);
+      const name = buffer.toString('utf8', idx + 46, idx + 46 + nameLen);
+      if (name === targetName) {
+        const localNameLen = buffer.readUInt16LE(localOffset + 26);
+        const localExtraLen = buffer.readUInt16LE(localOffset + 28);
+        const dataOffset = localOffset + 30 + localNameLen + localExtraLen;
+        const payload = buffer.subarray(dataOffset, dataOffset + compSize);
+        if (method === 8) return zlib.inflateRawSync(payload).toString('utf8');
+        if (method === 0) return payload.toString('utf8');
+      }
+      idx += 46 + nameLen + extraLen + commentLen;
+    } else {
+      idx++;
+    }
+  }
+  return null;
 }
 
 // 1. Environment and Credential Verification
@@ -187,6 +235,45 @@ async function api(endpoint, method = 'GET', body = null, token = null, isFormDa
   return { res, json };
 }
 
+/**
+ * HTTP Client Helper for Binary Responses (e.g. DOCX downloads)
+ */
+async function apiBuffer(endpoint, method = 'GET', body = null, token = null, isFormData = false) {
+  const url = `${targetUrl}${endpoint}`;
+  const headers = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const options = { method, headers };
+
+  if (body) {
+    if (isFormData) {
+      options.body = body;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+  }
+
+  const res = await fetch(url, options);
+  const arrayBuf = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuf);
+  let json = null;
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      json = JSON.parse(buffer.toString('utf8'));
+    } catch {
+      json = null;
+    }
+  }
+
+  return { res, buffer, json };
+}
+
 // ==============================================================================
 // Main Smoke Runner
 // ==============================================================================
@@ -296,6 +383,16 @@ async function main() {
 
     const me = await api('/auth/me', 'GET', null, adminToken);
     if (!me.res.ok || me.json.data.user.role !== 'admin') throw new Error('Role mismatch on admin /auth/me');
+
+    // Ensure barangay signatories are configured for certificate issuing/printing
+    await api('/admin/settings/general', 'PATCH', {
+      system_name: 'QuickFile Barangay Portal',
+      contact_email: 'office@quickfile.gov.ph',
+      contact_phone: '09171234567',
+      office_name: 'Office of the Barangay Captain',
+      barangay_captain: 'Hon. Raymond C. Lising',
+      barangay_secretary: 'Sec. Corazon A. Mendoza',
+    }, adminToken);
   });
 
   await runCheck('POST /auth/login as staff & verify GET /auth/me', async () => {
@@ -496,6 +593,7 @@ async function main() {
     await runCheck('DELETE /admin/citizens/:id cleans up throwaway resident account', async () => {
       const { res, json } = await api(`/admin/citizens/${throwawayCitizenId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
       if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+      throwawayCitizenId = null;
     });
   }
 
@@ -526,14 +624,14 @@ async function main() {
   });
 
   await runCheck('GET /staff/residents searches active residents (min 3 chars)', async () => {
-    const { res, json } = await api('/staff/residents?search=cit', 'GET', null, staffToken);
+    const { res, json } = await api('/staff/residents?search=maria', 'GET', null, staffToken);
     if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
     if (!Array.isArray(json.data)) throw new Error('Expected array of residents');
     saveFixture('staffResidents', json.data);
   });
 
   await runCheck('POST /staff/requests/walk-in files walk-in request on behalf of resident', async () => {
-    const residents = await api('/staff/residents?search=cit', 'GET', null, staffToken);
+    const residents = await api('/staff/residents?search=maria', 'GET', null, staffToken);
     const catalog = await api('/citizen/catalog', 'GET', null, staffToken);
     const resident = residents.json.data[0];
     const docType = catalog.json.data[0];
@@ -839,6 +937,266 @@ async function main() {
       if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
     });
 
+    // ==============================================================================
+    // 5B. DOCX Certificate Templates End-to-End Lifecycle & Verification
+    // ==============================================================================
+    console.log('\n--- 5B. DOCX Certificate Templates End-to-End Lifecycle ---');
+
+    let starterBuffer = null;
+    let activeVersionNumber = null;
+    let customTemplateRequestId = null;
+    let originalRenderedDocxXml = null;
+
+    await runCheck('GET /admin/template-placeholders returns catalog of allowlisted tags', async () => {
+      const { res, json } = await api('/admin/template-placeholders', 'GET', null, adminToken);
+      if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
+      assertShape(json.data, ['total', 'placeholders'], 'GET /admin/template-placeholders');
+      if (!Array.isArray(json.data.placeholders) || json.data.placeholders.length === 0) {
+        throw new Error('Expected non-empty placeholders array');
+      }
+      capturedTemplatesFixtures.placeholders = sanitizeFixtureData(json.data);
+    });
+
+    await runCheck('GET /admin/template-starter returns valid downloadable DOCX archive', async () => {
+      const { res, buffer } = await apiBuffer('/admin/template-starter', 'GET', null, adminToken);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const disposition = res.headers.get('content-disposition') || '';
+      if (!disposition.includes('starter-certificate-template.docx')) {
+        throw new Error(`Expected starter-certificate-template.docx in Content-Disposition: "${disposition}"`);
+      }
+      if (buffer.length < 500 || buffer.readUInt32LE(0) !== 0x04034b50) {
+        throw new Error('Downloaded starter is not a valid ZIP/DOCX archive');
+      }
+      starterBuffer = buffer;
+    });
+
+    if (starterBuffer && PizZip) {
+      await runCheck('POST .../templates rejects invalid template file with 400 and validation report', async () => {
+        // Inject unknown placeholder and broken syntax into document.xml
+        const zip = new PizZip(starterBuffer);
+        const docXml = zip.file('word/document.xml').asText();
+        const corruptedDocXml = docXml.replace(
+          '</w:body>',
+          '<w:p><w:r><w:t>{unknown_resident_name}</w:t></w:r></w:p></w:body>'
+        );
+        zip.file('word/document.xml', corruptedDocXml);
+        const invalidBuffer = zip.generate({ type: 'nodebuffer' });
+
+        const form = new FormData();
+        form.append('template', new Blob([invalidBuffer]), 'invalid-template.docx');
+
+        const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}/templates`, 'POST', form, adminToken, true);
+        if (res.status !== 400) throw new Error(`Expected 400 for invalid template, got ${res.status}`);
+        const validation = json?.data?.validation || json?.data;
+        if (!validation || validation.valid !== false) {
+          throw new Error('Expected validation report with valid: false in response data on 400');
+        }
+        capturedTemplatesFixtures.uploadInvalid = sanitizeFixtureData({ stored: false, validation });
+      });
+
+      await runCheck('POST .../templates accepts template with warnings and stores it', async () => {
+        // Remove {full_name} and {full_name_upper} to generate standard warning
+        const zip = new PizZip(starterBuffer);
+        let docXml = zip.file('word/document.xml').asText();
+        docXml = docXml.replace('{full_name}', 'Resident Citizen').replace('{full_name_upper}', 'RESIDENT CITIZEN');
+        zip.file('word/document.xml', docXml);
+        const warningBuffer = zip.generate({ type: 'nodebuffer' });
+
+        const form = new FormData();
+        form.append('template', new Blob([warningBuffer]), 'warning-template.docx');
+
+        const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}/templates`, 'POST', form, adminToken, true);
+        if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+        assertShape(json.data, ['stored', 'template', 'validation'], 'POST /templates warning');
+        capturedTemplatesFixtures.uploadWarningsOnly = sanitizeFixtureData(json.data);
+      });
+    }
+
+    if (starterBuffer) {
+      await runCheck('POST .../templates uploads clean starter template successfully (201)', async () => {
+        const form = new FormData();
+        form.append('template', new Blob([starterBuffer]), 'starter-template.docx');
+
+        const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}/templates`, 'POST', form, adminToken, true);
+        if (res.status !== 201 || json.success !== true) {
+          throw new Error(`Expected 201, got ${res.status}: ${json?.message}`);
+        }
+        assertShape(json.data, ['stored', 'template.version', 'template.sha256', 'validation'], 'POST /templates clean');
+        if (json.data.stored !== true) throw new Error('Expected stored: true');
+        activeVersionNumber = json.data.template.version;
+        capturedTemplatesFixtures.uploadSuccess = sanitizeFixtureData(json.data);
+      });
+
+      await runCheck('GET .../templates lists version history of templates', async () => {
+        const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}/templates`, 'GET', null, adminToken);
+        if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}`);
+        if (!Array.isArray(json.data) || json.data.length === 0) {
+          throw new Error('Expected non-empty array of templates');
+        }
+        capturedTemplatesFixtures.templatesList = sanitizeFixtureData(json.data);
+      });
+
+      if (activeVersionNumber) {
+        await runCheck('POST .../templates/:version/preview generates sample rendered DOCX file', async () => {
+          const { res, buffer } = await apiBuffer(
+            `/admin/document-types/${throwawayDocTypeId}/templates/${activeVersionNumber}/preview`,
+            'POST',
+            null,
+            adminToken
+          );
+          if (!res.ok) throw new Error(`Status ${res.status}`);
+          const disposition = res.headers.get('content-disposition') || '';
+          if (!disposition.includes(`template-preview-v${activeVersionNumber}.docx`)) {
+            throw new Error(`Expected template-preview-v${activeVersionNumber}.docx in Content-Disposition: "${disposition}"`);
+          }
+          const docXml = readZipEntry(buffer, 'word/document.xml');
+          if (!docXml) throw new Error('Preview DOCX is missing word/document.xml');
+          if (docXml.includes('{full_name}') || docXml.includes('{certificate_number}')) {
+            throw new Error('Preview DOCX still contains unrendered literal placeholders');
+          }
+        });
+
+        await runCheck('POST .../templates/:version/activate activates template and switches mode to custom', async () => {
+          const { res, json } = await api(
+            `/admin/document-types/${throwawayDocTypeId}/templates/${activeVersionNumber}/activate`,
+            'POST',
+            null,
+            adminToken
+          );
+          if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+          if (json.data.template_mode !== 'custom') {
+            throw new Error(`Expected template_mode "custom", got "${json.data.template_mode}"`);
+          }
+          capturedTemplatesFixtures.activateResponse = sanitizeFixtureData(json.data);
+        });
+
+        await runCheck('Citizen files request for custom-template document type', async () => {
+          const { res, json } = await api('/citizen/requests', 'POST', {
+            document_type_id: throwawayDocTypeId,
+            purpose: 'Official Employment Requirements',
+            copies: 1,
+          }, citizenToken);
+          if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+          const customTracking = json.data.tracking_number;
+          const lookup = await api(`/staff/requests?search=${customTracking}`, 'GET', null, staffToken);
+          customTemplateRequestId = lookup.json?.data?.items?.[0]?._id;
+          if (!customTemplateRequestId) {
+            throw new Error(`Could not find request ID for tracking number ${customTracking}`);
+          }
+        });
+
+        if (customTemplateRequestId) {
+          await runCheck('Staff processes request to in_preparation state', async () => {
+            let step = await api(`/staff/requests/${customTemplateRequestId}/review`, 'POST', null, staffToken);
+            if (!step.res.ok) throw new Error(`Review failed: ${step.res.status}`);
+            step = await api(`/staff/requests/${customTemplateRequestId}/approve`, 'POST', null, staffToken);
+            if (!step.res.ok) throw new Error(`Approve failed: ${step.res.status}`);
+            step = await api(`/staff/requests/${customTemplateRequestId}/prepare`, 'POST', null, staffToken);
+            if (!step.res.ok) throw new Error(`Prepare failed: ${step.res.status}`);
+          });
+
+          await runCheck('Staff issues certificate recording template snapshot and data_warnings', async () => {
+            const { res, json } = await api(`/staff/requests/${customTemplateRequestId}/issue`, 'POST', {
+              remarks: 'Certificate issued with custom template',
+            }, staffToken);
+            if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+            assertShape(json.data, ['request', 'issued_document'], 'POST /staff/requests/:id/issue');
+            if (json.data.issued_document?.template_version !== activeVersionNumber) {
+              throw new Error(`Expected template_version ${activeVersionNumber}, got ${json.data.issued_document?.template_version}`);
+            }
+            if (!Array.isArray(json.data.data_warnings)) {
+              throw new Error('Expected data_warnings array in issue response');
+            }
+            capturedTemplatesFixtures.issueWithWarnings = sanitizeFixtureData(json.data);
+          });
+
+          await runCheck('Staff downloads issued DOCX certificate and verifies contents', async () => {
+            const { res, buffer } = await apiBuffer(
+              `/staff/requests/${customTemplateRequestId}/certificate?format=docx`,
+              'GET',
+              null,
+              staffToken
+            );
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            const disposition = res.headers.get('content-disposition') || '';
+            if (!disposition.includes('certificate-')) {
+              throw new Error(`Expected certificate filename in Content-Disposition: "${disposition}"`);
+            }
+            const docXml = readZipEntry(buffer, 'word/document.xml');
+            if (!docXml) throw new Error('Issued certificate is missing word/document.xml');
+            originalRenderedDocxXml = docXml;
+          });
+
+          await runCheck('Snapshot Rule Invariant: Re-downloaded certificate is identical after profile update', async () => {
+            // Update citizen profile with new information
+            await api('/citizen/profile', 'PUT', {
+              occupation: 'Lead Research Scientist',
+              street_address: '999 Innovation Boulevard',
+            }, citizenToken);
+
+            const { res, buffer } = await apiBuffer(
+              `/staff/requests/${customTemplateRequestId}/certificate?format=docx`,
+              'GET',
+              null,
+              staffToken
+            );
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            const docXml = readZipEntry(buffer, 'word/document.xml');
+            if (docXml !== originalRenderedDocxXml) {
+              throw new Error('Snapshot violation: Certificate rendered text changed after citizen profile edit');
+            }
+          });
+
+          await runCheck('Retiring active template version is rejected with 409 Conflict', async () => {
+            const { res } = await api(
+              `/admin/document-types/${throwawayDocTypeId}/templates/${activeVersionNumber}/retire`,
+              'POST',
+              null,
+              adminToken
+            );
+            if (res.status !== 409) throw new Error(`Expected 409 Conflict when retiring active template, got ${res.status}`);
+          });
+
+          await runCheck('POST .../template-mode switches mode back to builtin', async () => {
+            const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}/template-mode`, 'POST', {
+              mode: 'builtin',
+            }, adminToken);
+            if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+            if (json.data.template_mode !== 'builtin') {
+              throw new Error(`Expected template_mode "builtin", got "${json.data.template_mode}"`);
+            }
+            capturedTemplatesFixtures.setModeResponse = sanitizeFixtureData(json.data);
+          });
+
+          await runCheck('Retiring inactive template version succeeds', async () => {
+            const { res, json } = await api(
+              `/admin/document-types/${throwawayDocTypeId}/templates/1/retire`,
+              'POST',
+              null,
+              adminToken
+            );
+            if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
+            if (!json.data.retired_at) throw new Error('Expected retired_at timestamp in response');
+            capturedTemplatesFixtures.retireResponse = sanitizeFixtureData(json.data);
+          });
+
+          // Save complete sanitized fixtures file
+          try {
+            fs.writeFileSync(TEMPLATES_FIXTURE_PATH, JSON.stringify(capturedTemplatesFixtures, null, 2), 'utf8');
+            console.log(`  [FIXTURES] Successfully captured real template fixtures to: ${TEMPLATES_FIXTURE_PATH}`);
+          } catch (err) {
+            console.warn(`  ⚠️ Failed to write templates.json: ${err.message}`);
+          }
+
+          // Clean up custom request
+          await runCheck('Admin cleans up custom template test request', async () => {
+            const { res } = await api(`/admin/requests/${customTemplateRequestId}`, 'DELETE', { confirm: 'DELETE' }, adminToken);
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+          });
+        }
+      }
+    }
+
     await runCheck('DELETE /admin/document-types/:id deletes catalog item', async () => {
       const { res, json } = await api(`/admin/document-types/${throwawayDocTypeId}`, 'DELETE', null, adminToken);
       if (!res.ok || json.success !== true) throw new Error(`Status ${res.status}: ${json?.message}`);
@@ -1025,6 +1383,58 @@ async function main() {
         if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
       });
     }
+
+    // Admin template endpoints enforce 403 for staff users
+    const dummyDocTypeId = '6aeff952cb1d415793f07e4e';
+    await runCheck('Staff receives 403 on GET /admin/template-placeholders', async () => {
+      const { res } = await api('/admin/template-placeholders', 'GET', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on GET /admin/template-starter', async () => {
+      const { res } = await api('/admin/template-starter', 'GET', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on POST /admin/document-types/:id/templates', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates`, 'POST', {}, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on GET /admin/document-types/:id/templates', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates`, 'GET', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on POST /admin/document-types/:id/templates/:v/activate', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates/1/activate`, 'POST', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on POST /admin/document-types/:id/template-mode', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/template-mode`, 'POST', { mode: 'builtin' }, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on POST /admin/document-types/:id/templates/:v/preview', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates/1/preview`, 'POST', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on GET /admin/document-types/:id/templates/:v/file', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates/1/file`, 'GET', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on POST /admin/document-types/:id/templates/:v/retire', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates/1/retire`, 'POST', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
+
+    await runCheck('Staff receives 403 on DELETE /admin/document-types/:id/templates/:v', async () => {
+      const { res } = await api(`/admin/document-types/${dummyDocTypeId}/templates/1`, 'DELETE', null, staffToken);
+      if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
+    });
 
     // Teardown zero-permissions staff user
     await runCheck('Admin permanently deletes zero-permissions test staff user via typed DELETE', async () => {

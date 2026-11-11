@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../../../services/adminService';
 import { DocTypeFormModal } from './DocTypeFormModal';
+import { TemplateModeBadge } from './templates/TemplateModeBadge';
 import { TypedDeleteModal } from '../../../components/shared/TypedDeleteModal';
 import { Button } from '../../../components/shared/Button';
 import { Loader } from '../../../components/shared/Loader';
@@ -17,6 +18,7 @@ export function AdminDocTypesPage() {
 
   // Modals
   const [formModalOpen, setFormModalOpen] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState('details');
   const [selectedDocType, setSelectedDocType] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -43,11 +45,19 @@ export function AdminDocTypesPage() {
 
   const handleCreate = () => {
     setSelectedDocType(null);
+    setModalInitialTab('details');
     setFormModalOpen(true);
   };
 
   const handleEdit = (dt) => {
     setSelectedDocType(dt);
+    setModalInitialTab('details');
+    setFormModalOpen(true);
+  };
+
+  const handleOpenTemplates = (dt) => {
+    setSelectedDocType(dt);
+    setModalInitialTab('template');
     setFormModalOpen(true);
   };
 
@@ -140,7 +150,7 @@ export function AdminDocTypesPage() {
                 <th>Document Name</th>
                 <th>Standard Fee</th>
                 <th>Turnaround</th>
-                <th>Requirements</th>
+                <th>Template</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -168,9 +178,7 @@ export function AdminDocTypesPage() {
                     {dt.processing_days} {dt.processing_days === 1 ? 'day' : 'days'}
                   </td>
                   <td>
-                    <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                      {dt.requirements?.length || 0} required items
-                    </span>
+                    <TemplateModeBadge docType={dt} />
                   </td>
                   <td>
                     <span
@@ -191,6 +199,14 @@ export function AdminDocTypesPage() {
                     <div className="qf-admin-staff__actions" style={{ justifyContent: 'flex-end' }}>
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(dt)} aria-label="Edit document type">
                         Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenTemplates(dt)}
+                        aria-label="Configure certificate template"
+                      >
+                        Template
                       </Button>
                       <Button
                         variant="ghost"
@@ -225,6 +241,8 @@ export function AdminDocTypesPage() {
         onSave={handleSaveDocType}
         docType={selectedDocType}
         isSaving={saving}
+        initialTab={modalInitialTab}
+        onDocTypeUpdated={fetchDocTypes}
       />
 
       {/* Typed DELETE Modal for DocType */}

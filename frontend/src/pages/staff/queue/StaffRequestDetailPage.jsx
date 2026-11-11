@@ -15,6 +15,7 @@ import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
 import { formatDate, formatCurrency } from '../../../utils/formatters';
+import { downloadBlob } from '../../../utils/downloadHelper';
 import './StaffRequestDetailPage.css';
 
 export function StaffRequestDetailPage() {
@@ -26,6 +27,7 @@ export function StaffRequestDetailPage() {
   const [error, setError] = useState(null);
   const [conflictNotice, setConflictNotice] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [dataWarnings, setDataWarnings] = useState([]);
 
   const [loadingAction, setLoadingAction] = useState(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -84,8 +86,45 @@ export function StaffRequestDetailPage() {
   const handlePrepare = () =>
     handleWorkflowAction(() => staffService.prepareRequest(id), 'prepare', 'Request moved to In Preparation.');
 
-  const handleIssue = () =>
-    handleWorkflowAction(() => staffService.issueRequest(id), 'issue', 'Document issued and marked Ready for Pickup.');
+  const handleIssue = async () => {
+    setLoadingAction('issue');
+    setError(null);
+    setConflictNotice(null);
+    setSuccessMessage(null);
+    setDataWarnings([]);
+    try {
+      const res = await staffService.issueRequest(id);
+      setSuccessMessage('Document issued and marked Ready for Pickup.');
+      if (res?.data_warnings && Array.isArray(res.data_warnings) && res.data_warnings.length > 0) {
+        setDataWarnings(res.data_warnings);
+      }
+      await fetchRequestDetails();
+    } catch (err) {
+      if (err.status === 409 || err.code === 'CONFLICT') {
+        setConflictNotice(
+          'This request was updated by another staff member. Reloading latest state...'
+        );
+        await fetchRequestDetails();
+      } else {
+        setError(err.message || 'Failed to issue request.');
+      }
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    setLoadingAction('download_docx');
+    setError(null);
+    try {
+      const { blob, filename } = await staffService.downloadCertificateDocx(id);
+      downloadBlob(blob, filename);
+    } catch (err) {
+      setError(err.message || 'Failed to download certificate DOCX.');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   const handleReleaseConfirm = (paymentData) => {
     setReleaseModalOpen(false);
@@ -147,6 +186,11 @@ export function StaffRequestDetailPage() {
       {conflictNotice && <Alert variant="warning" onClose={() => setConflictNotice(null)}>{conflictNotice}</Alert>}
       {error && <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert>}
       {successMessage && <Alert variant="success" onClose={() => setSuccessMessage(null)}>{successMessage}</Alert>}
+      {dataWarnings.length > 0 && (
+        <Alert variant="warning" onClose={() => setDataWarnings([])}>
+          Notice: The certificate template contains placeholders that were empty in the resident&apos;s record at issue time: <strong>{dataWarnings.join(', ')}</strong>.
+        </Alert>
+      )}
 
       {/* Header Banner */}
       <div className="qf-staff-detail-header">
@@ -169,6 +213,7 @@ export function StaffRequestDetailPage() {
           request={request}
           hasPermission={hasPermission}
           role={user?.role}
+          issuedDocument={issuedDocument}
           onReview={handleReview}
           onApprove={handleApprove}
           onOpenReject={() => setRejectModalOpen(true)}
@@ -176,6 +221,7 @@ export function StaffRequestDetailPage() {
           onIssue={handleIssue}
           onOpenRelease={() => setReleaseModalOpen(true)}
           onArchive={handleArchive}
+          onDownloadDocx={handleDownloadDocx}
           loadingAction={loadingAction}
         />
       </div>

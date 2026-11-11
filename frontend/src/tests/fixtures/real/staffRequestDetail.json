@@ -1,15 +1,15 @@
 {
   "request": {
-    "_id": "6af010addad412cef49c2576",
-    "tracking_number": "QF-20261108-086872",
+    "_id": "6af3c86e767da01da6c46756",
+    "tracking_number": "QF-20261111-BDFADB",
     "citizen_id": {
-      "_id": "6aeff952cb1d415793f07e55",
+      "_id": "6af3c8656d19bc69af1bd96e",
       "email": "resident@quickfile.ph",
       "full_name": "Juan Dela Cruz",
       "phone": "09170000000"
     },
     "document_type_id": {
-      "_id": "6aeff953cb1d415793f07e63",
+      "_id": "6af3c8656d19bc69af1bd97f",
       "name": "Barangay Business Clearance",
       "code": "BUS-CLR",
       "description": "Permit clearance required for local business registration and renewal.",
@@ -20,8 +20,10 @@
         "Lease Contract or Land Title"
       ],
       "is_active": true,
-      "created_at": "2026-11-08T04:23:47.050Z",
-      "updated_at": "2026-11-08T04:23:47.050Z",
+      "template_mode": "builtin",
+      "active_template_id": null,
+      "created_at": "2026-11-11T01:44:05.415Z",
+      "updated_at": "2026-11-11T01:44:05.415Z",
       "__v": 0
     },
     "created_by_staff_id": null,
@@ -36,16 +38,16 @@
     "waiver_reason": "",
     "payment_recorded_by": null,
     "attachment_name": "sample_id.png",
-    "attachment_path": "fac17c962ff957311545f509b1830e87.png",
+    "attachment_path": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
     "attachments": [
       {
         "original_name": "sample_id.png",
-        "stored_filename": "fac17c962ff957311545f509b1830e87.png",
+        "stored_filename": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
         "mime_type": "image/png",
         "file_size": 70,
-        "path": "fac17c962ff957311545f509b1830e87.png",
-        "uploaded_at": "2026-11-08T06:03:25.280Z",
-        "_id": "6af010addad412cef49c2577"
+        "path": "2bb3fdc4894b3b3db07c00fb51e9a896.png",
+        "uploaded_at": "2026-11-11T01:44:14.049Z",
+        "_id": "6af3c86e767da01da6c46757"
       }
     ],
     "rejection_reason": "",
@@ -63,13 +65,13 @@
     "released_at": null,
     "archived_at": null,
     "cancelled_at": null,
-    "created_at": "2026-11-08T06:03:25.296Z",
-    "updated_at": "2026-11-08T06:03:25.407Z",
+    "created_at": "2026-11-11T01:44:14.061Z",
+    "updated_at": "2026-11-11T01:44:14.183Z",
     "__v": 0
   },
   "citizen_profile": {
-    "_id": "6aeff952cb1d415793f07e57",
-    "user_id": "6aeff952cb1d415793f07e55",
+    "_id": "6af3c8656d19bc69af1bd973",
+    "user_id": "6af3c8656d19bc69af1bd96e",
     "first_name": "Maria",
     "middle_name": "Santos",
     "last_name": "Clara",
@@ -94,11 +96,11 @@
     "proof_of_residency_type": "Utility Bill",
     "proof_of_residency_image": "",
     "verification_status": "verified",
-    "verified_at": "2026-11-08T04:23:46.989Z",
-    "verified_by": "6aeff952cb1d415793f07e4b",
+    "verified_at": "2026-11-11T01:44:05.387Z",
+    "verified_by": "6af3c8646d19bc69af1bd961",
     "rejection_reason": "",
-    "created_at": "2026-11-08T04:23:46.991Z",
-    "updated_at": "2026-11-08T05:40:29.864Z",
+    "created_at": "2026-11-11T01:44:05.389Z",
+    "updated_at": "2026-11-11T01:44:13.984Z",
     "__v": 0
   },
   "issued_document": null

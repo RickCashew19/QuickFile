@@ -1,98 +1,48 @@
 {
   "status_counts": {
-    "pending": 5,
+    "pending": 1,
     "under_review": 0,
     "approved": 0,
     "in_preparation": 0,
     "ready_for_pickup": 0,
     "released": 0,
     "rejected": 0,
-    "archived": 2,
+    "archived": 1,
     "cancelled": 0
   },
-  "revenue_today": 0,
-  "revenue_this_month": 0,
-  "active_citizens_count": 2,
-  "active_staff_count": 2,
+  "revenue_today": 150,
+  "revenue_this_month": 150,
+  "active_citizens_count": 1,
+  "active_staff_count": 1,
   "demand_by_type": [
     {
-      "document_type_id": "6aeff953cb1d415793f07e63",
+      "document_type_id": "6af3c8656d19bc69af1bd97f",
       "name": "Barangay Business Clearance",
       "code": "BUS-CLR",
-      "count": 7,
-      "collected_revenue": 300
+      "count": 2,
+      "collected_revenue": 150
     }
   ],
   "recent_requests": [
     {
-      "id": "6af010afdad412cef49c25cc",
-      "tracking_number": "QF-20261108-4D9EE7",
+      "id": "6af3c86e767da01da6c467a6",
+      "tracking_number": "QF-20261111-9B5CD1",
       "citizen_name": "Juan Dela Cruz",
       "document_type_name": "Barangay Business Clearance",
       "document_type_code": "BUS-CLR",
       "status": "pending",
       "fee": 150,
-      "created_at": "2026-11-08T06:03:27.784Z"
+      "created_at": "2026-11-11T01:44:14.427Z"
     },
     {
-      "id": "6af010addad412cef49c2576",
-      "tracking_number": "QF-20261108-086872",
+      "id": "6af3c86e767da01da6c46756",
+      "tracking_number": "QF-20261111-BDFADB",
       "citizen_name": "Juan Dela Cruz",
       "document_type_name": "Barangay Business Clearance",
       "document_type_code": "BUS-CLR",
       "status": "archived",
       "fee": 150,
-      "created_at": "2026-11-08T06:03:25.296Z"
-    },
-    {
-      "id": "6af00d2ff926ceb0e6bbd368",
-      "tracking_number": "QF-20261108-5BAF03",
-      "citizen_name": "Juan Dela Cruz",
-      "document_type_name": "Barangay Business Clearance",
-      "document_type_code": "BUS-CLR",
-      "status": "pending",
-      "fee": 150,
-      "created_at": "2026-11-08T05:48:31.979Z"
-    },
-    {
-      "id": "6af00d2df926ceb0e6bbd317",
-      "tracking_number": "QF-20261108-CD08E9",
-      "citizen_name": "Juan Dela Cruz",
-      "document_type_name": "Barangay Business Clearance",
-      "document_type_code": "BUS-CLR",
-      "status": "archived",
-      "fee": 150,
-      "created_at": "2026-11-08T05:48:29.381Z"
-    },
-    {
-      "id": "6af00c58f926ceb0e6bbd1f2",
-      "tracking_number": "QF-20261108-965779",
-      "citizen_name": "Juan Dela Cruz",
-      "document_type_name": "Barangay Business Clearance",
-      "document_type_code": "BUS-CLR",
-      "status": "pending",
-      "fee": 150,
-      "created_at": "2026-11-08T05:44:56.656Z"
-    },
-    {
-      "id": "6af00c57f926ceb0e6bbd1ad",
-      "tracking_number": "QF-20261108-F7C25F",
-      "citizen_name": "Juan Dela Cruz",
-      "document_type_name": "Barangay Business Clearance",
-      "document_type_code": "BUS-CLR",
-      "status": "pending",
-      "fee": 150,
-      "created_at": "2026-11-08T05:44:55.094Z"
-    },
-    {
-      "id": "6af00b4ff926ceb0e6bbd0a9",
-      "tracking_number": "QF-20261108-B737EF",
-      "citizen_name": "Juan Dela Cruz",
-      "document_type_name": "Barangay Business Clearance",
-      "document_type_code": "BUS-CLR",
-      "status": "pending",
-      "fee": 150,
-      "created_at": "2026-11-08T05:40:31.940Z"
+      "created_at": "2026-11-11T01:44:14.061Z"
     }
   ]
 }

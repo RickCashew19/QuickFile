@@ -351,3 +351,30 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 26.6**: (Simulated 423 Lockout): If failed key attempts exceed limit, server returns 423 Locked.
 - [ ] **Expected**: Modal closes and a prominent red alert banner displays "Super Admin Key Lockout Active: ...".
 
+---
+
+### Test Suite 27: Certificate DOCX Templates (Admin Management & Staff Issuance/Download)
+- [ ] **Step 27.1**: As Administrator, navigate to `/admin/document-types`. Observe the "Template" column displaying badges ("Built-in" or "Custom v#").
+- [ ] **Step 27.2**: Click the "Template" button on a document type (or edit and switch to "Certificate Template" tab).
+- [ ] **Step 27.3**: Click "Download Starter Template (.docx)". Confirm a valid starter template downloads with pre-filled layout and QR placeholder.
+- [ ] **Step 27.4**: In the Placeholders table, type in the search box to filter by key, and filter by group dropdown. Click "Copy" next to `{full_name}` and confirm button shows "Copied!" and clipboard receives `{full_name}`.
+- [ ] **Step 27.5**: Attempt to upload a non-DOCX file (e.g. `.pdf` or `.png`).
+- [ ] **Expected**: Client-side validation blocks upload with alert: *"Only Microsoft Word documents (.docx) are supported."*
+- [ ] **Step 27.6**: Attempt to upload a valid `.docx` with unrecognized tags or broken syntax.
+- [ ] **Expected**: Server returns HTTP 400 with validation report (`ApiError.data.validation`). Red error cards list syntax problems, amber warnings list missing standard tags, and unknown tags show fuzzy match suggestions.
+- [ ] **Step 27.7**: Upload a valid template `.docx`.
+- [ ] **Expected**: Upload succeeds with HTTP 201. Green report displays detected placeholders and confirms QR placeholder status. New version row appears in Version History table.
+- [ ] **Step 27.8**: In the Version History table, click "Preview" on the uploaded version.
+- [ ] **Expected**: A populated DOCX (`template-preview-v{version}.docx`) is downloaded via POST request containing sample resident data.
+- [ ] **Step 27.9**: Click "Activate" on the template version.
+- [ ] **Expected**: Version badge updates to "Active", document type mode updates to "Custom v{version}".
+- [ ] **Step 27.10**: Click "Retire" on the active template version.
+- [ ] **Expected**: Server rejects retirement with 409 Conflict. Red alert displays: *"Cannot retire an active template. Switch to built-in mode or activate another template first."*
+- [ ] **Step 27.11**: Click "Switch to Built-in". Confirm modal dialog opens. Confirming switches mode back to "Built-in".
+- [ ] **Step 27.12**: As Staff with `can_prepare_documents` and `can_print_documents`, open a request for a custom-template document type in `/staff/requests/:id`.
+- [ ] **Step 27.13**: If the resident's profile has empty fields (e.g. empty address or occupation), proceed to Issue certificate.
+- [ ] **Expected**: Request issues successfully into `ready_for_pickup`. An amber notice appears listing the non-blocking warnings: *"Some placeholders were empty at issue: address, occupation"*.
+- [ ] **Step 27.14**: On the issued request detail page, observe the "Download certificate (DOCX)" button with note *"Open in Word to print"*. Clicking it downloads `certificate-{certNo}.docx`.
+- [ ] **Step 27.15**: Verify that `render_data` object is NEVER displayed anywhere on the screen or in dev inspection elements.
+
+

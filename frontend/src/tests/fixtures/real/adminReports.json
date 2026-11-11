@@ -1,9 +1,9 @@
 {
   "summary": {
-    "total_requests": 7,
+    "total_requests": 2,
     "released_count": 0,
     "rejected_count": 0,
-    "total_revenue": 300,
+    "total_revenue": 150,
     "waived_count": 0,
     "waived_amount": 0,
     "from": "2026-11-01",
@@ -13,19 +13,19 @@
     {
       "document_code": "BUS-CLR",
       "document_name": "Barangay Business Clearance",
-      "count": 7,
+      "count": 2,
       "unit_fee": 150,
-      "collected_amount": 300
+      "collected_amount": 150
     }
   ],
   "by_status": [
     {
       "status": "pending",
-      "count": 5
+      "count": 1
     },
     {
       "status": "archived",
-      "count": 2
+      "count": 1
     }
   ],
   "staff_workload": [
@@ -33,14 +33,14 @@
       "staff_name": "Juan Dela Cruz",
       "role": "staff",
       "per_status": {
-        "ready_for_pickup": 2,
         "in_preparation": 2,
-        "released": 2,
         "under_review": 2,
         "approved": 2,
-        "archived": 2
+        "released": 1,
+        "archived": 1,
+        "ready_for_pickup": 2
       },
-      "total_actions": 12
+      "total_actions": 10
     }
   ],
   "transactions": {
@@ -49,102 +49,32 @@
         "applicant_name": "Maria Santos Clara",
         "document_name": "Barangay Business Clearance",
         "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-4D9EE7",
+        "tracking_number": "QF-20261111-9B5CD1",
         "status": "pending",
         "fee": 150,
         "payment_status": "unpaid",
         "payment_reference": "",
         "waiver_reason": "",
         "paid_at": null,
-        "created_at": "2026-11-08T06:03:27.784Z",
+        "created_at": "2026-11-11T01:44:14.427Z",
         "released_at": null
       },
       {
         "applicant_name": "Maria Santos Clara",
         "document_name": "Barangay Business Clearance",
         "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-086872",
+        "tracking_number": "QF-20261111-BDFADB",
         "status": "archived",
         "fee": 150,
         "payment_status": "paid",
         "payment_reference": "OR-998877",
         "waiver_reason": "",
-        "paid_at": "2026-11-08T06:03:28.431Z",
-        "created_at": "2026-11-08T06:03:25.296Z",
-        "released_at": "2026-11-08T06:03:28.431Z"
-      },
-      {
-        "applicant_name": "Maria Santos Clara",
-        "document_name": "Barangay Business Clearance",
-        "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-5BAF03",
-        "status": "pending",
-        "fee": 150,
-        "payment_status": "unpaid",
-        "payment_reference": "",
-        "waiver_reason": "",
-        "paid_at": null,
-        "created_at": "2026-11-08T05:48:31.979Z",
-        "released_at": null
-      },
-      {
-        "applicant_name": "Maria Santos Clara",
-        "document_name": "Barangay Business Clearance",
-        "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-CD08E9",
-        "status": "archived",
-        "fee": 150,
-        "payment_status": "paid",
-        "payment_reference": "OR-998877",
-        "waiver_reason": "",
-        "paid_at": "2026-11-08T05:48:32.431Z",
-        "created_at": "2026-11-08T05:48:29.381Z",
-        "released_at": "2026-11-08T05:48:32.431Z"
-      },
-      {
-        "applicant_name": "Maria Santos Clara",
-        "document_name": "Barangay Business Clearance",
-        "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-965779",
-        "status": "pending",
-        "fee": 150,
-        "payment_status": "unpaid",
-        "payment_reference": "",
-        "waiver_reason": "",
-        "paid_at": null,
-        "created_at": "2026-11-08T05:44:56.656Z",
-        "released_at": null
-      },
-      {
-        "applicant_name": "Maria Santos Clara",
-        "document_name": "Barangay Business Clearance",
-        "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-F7C25F",
-        "status": "pending",
-        "fee": 150,
-        "payment_status": "unpaid",
-        "payment_reference": "",
-        "waiver_reason": "",
-        "paid_at": null,
-        "created_at": "2026-11-08T05:44:55.094Z",
-        "released_at": null
-      },
-      {
-        "applicant_name": "Maria Santos Clara",
-        "document_name": "Barangay Business Clearance",
-        "document_code": "BUS-CLR",
-        "tracking_number": "QF-20261108-B737EF",
-        "status": "pending",
-        "fee": 150,
-        "payment_status": "unpaid",
-        "payment_reference": "",
-        "waiver_reason": "",
-        "paid_at": null,
-        "created_at": "2026-11-08T05:40:31.940Z",
-        "released_at": null
+        "paid_at": "2026-11-11T01:44:14.768Z",
+        "created_at": "2026-11-11T01:44:14.061Z",
+        "released_at": "2026-11-11T01:44:14.768Z"
       }
     ],
-    "total": 7,
+    "total": 2,
     "page": 1,
     "limit": 50,
     "truncated": false,
