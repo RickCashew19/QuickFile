@@ -138,8 +138,8 @@ export function AdminReportsPage() {
       )}
 
       {/* Filter Row */}
-      <div className="qf-admin-staff__controls">
-        <div style={{ width: '160px' }}>
+      <div className="qf-admin-reports__filters">
+        <div className="qf-admin-reports__date-filter">
           <Input
             label="From Date"
             type="date"
@@ -147,7 +147,7 @@ export function AdminReportsPage() {
             onChange={(e) => setFromDate(e.target.value)}
           />
         </div>
-        <div style={{ width: '160px' }}>
+        <div className="qf-admin-reports__date-filter">
           <Input
             label="To Date"
             type="date"
@@ -155,7 +155,7 @@ export function AdminReportsPage() {
             onChange={(e) => setToDate(e.target.value)}
           />
         </div>
-        <div style={{ flex: 1 }}>
+        <div className="qf-admin-reports__document-filter">
           <Select
             label="Document Type Filter"
             value={docTypeId}
@@ -166,7 +166,7 @@ export function AdminReportsPage() {
             ]}
           />
         </div>
-        <div style={{ alignSelf: 'flex-end' }}>
+        <div className="qf-admin-reports__filter-action">
           <Button variant="secondary" onClick={fetchReports}>
             Filter
           </Button>
@@ -248,12 +248,12 @@ export function AdminReportsPage() {
                 </thead>
                 <tbody>
                   {(reportData?.by_document_type || []).map((dt) => (
-                    <tr key={dt.document_type_id || dt.code}>
-                      <td style={{ fontWeight: 'var(--font-semibold)' }}>{dt.name}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)' }}>{dt.code}</td>
+                    <tr key={dt.document_code || dt.document_name}>
+                      <td style={{ fontWeight: 'var(--font-semibold)' }}>{dt.document_name}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>{dt.document_code}</td>
                       <td style={{ textAlign: 'right', fontWeight: 'var(--font-semibold)' }}>{dt.count}</td>
                       <td style={{ textAlign: 'right', color: 'var(--color-success)' }}>
-                        {formatCurrency(dt.revenue)}
+                        {formatCurrency(dt.collected_amount)}
                       </td>
                     </tr>
                   ))}

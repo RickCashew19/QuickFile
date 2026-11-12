@@ -174,6 +174,26 @@ describe('Login Integrations Hooks & Page Suite', () => {
     });
   });
 
+  describe('LoginPage navigation', () => {
+    it('shows a labeled back-to-home link and keeps the logo non-interactive', async () => {
+      publicService.getConfig.mockResolvedValue({
+        integrations: { recaptcha_enabled: false, google_login_enabled: false },
+      });
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
+      expect(screen.queryByRole('link', { name: /return to home/i })).not.toBeInTheDocument();
+    });
+  });
+
   describe('LoginPage Wrong Password Alert Guarantee', () => {
     it('shows ONE red error alert and NO session expired warning on 401 wrong password', async () => {
       publicService.getConfig.mockResolvedValue({

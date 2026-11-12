@@ -3,3 +3,43 @@
   flex-direction: column;
   gap: var(--space-6);
 }
+
+.qf-admin-reports__filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.qf-admin-reports__date-filter,
+.qf-admin-reports__document-filter {
+  min-width: 0;
+}
+
+.qf-admin-reports__filters .qf-field {
+  margin-bottom: 0;
+}
+
+.qf-admin-reports__document-filter,
+.qf-admin-reports__filter-action {
+  grid-column: 1 / -1;
+}
+
+.qf-admin-reports__filter-action {
+  justify-self: end;
+}
+
+@media (min-width: 900px) {
+  .qf-admin-reports__filters {
+    grid-template-columns: 160px 160px minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .qf-admin-reports__document-filter,
+  .qf-admin-reports__filter-action {
+    grid-column: auto;
+  }
+}

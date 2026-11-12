@@ -30,6 +30,20 @@ Copy-Item .\frontend\.env.example .\frontend\.env
 Configure the backend values in `backend/.env`, including MongoDB connection,
 JWT, Super Admin key, jurisdiction, and seed account settings.
 
+## Demonstration data
+
+The backend's demo seeder adds clearly labeled request records across the
+processing workflow, including issued certificates for QR verification. It
+only runs against a local `quickfile` or `quickfile_demo` MongoDB database and
+refuses production mode.
+
+```powershell
+npm --prefix backend run seed:demo
+```
+
+The seeder is safe to rerun: existing sample records are reused and advanced
+only as needed. It does not send email or alter existing non-demo records.
+
 ## Development
 
 Run the API and frontend in separate terminals:

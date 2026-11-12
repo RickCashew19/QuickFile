@@ -67,10 +67,14 @@ export function ForgotPasswordPage() {
   return (
     <div className="qf-auth-layout">
       <div className="qf-auth-card">
+        <Link to="/" className="qf-auth-header__back qf-btn qf-btn--secondary qf-btn--sm">
+          <Icon name="chevron-left" size={16} />
+          Back to Home
+        </Link>
         <div className="qf-auth-header">
-          <Link to="/" className="qf-auth-header__logo" aria-label="Return to Home">
+          <div className="qf-auth-header__logo" aria-hidden="true">
             <Icon name="lock" size={26} />
-          </Link>
+          </div>
           <h1 className="qf-auth-header__title">Reset Password</h1>
           <p className="qf-auth-header__subtitle">
             Enter your registered email address and we'll send you instructions to reset your password.

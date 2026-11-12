@@ -22,6 +22,11 @@
   margin-bottom: var(--space-6);
 }
 
+.qf-auth-header__back {
+  margin-bottom: var(--space-6);
+  text-decoration: none;
+}
+
 .qf-auth-header__logo {
   width: 48px;
   height: 48px;
