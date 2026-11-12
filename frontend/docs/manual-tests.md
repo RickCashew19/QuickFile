@@ -15,7 +15,7 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 ---
 
 ### Test Suite 2: Public Landing Page & Configuration Hydration
-- [ ] **Step 2.1**: Start the backend (`npm start` on port 5000) and open `http://localhost:3000/`.
+- [ ] **Step 2.1**: Start the backend and frontend (`npm --prefix backend run dev` and `npm --prefix frontend run dev` from the repository root), then open `http://localhost:5173/`.
 - [ ] **Step 2.2**: Observe the brand header, hero title, and footer.
 - [ ] **Expected**:
   - Barangay Name and Jurisdiction match backend settings (`Barangay Central, City Hall, Metro Manila`).
@@ -40,10 +40,10 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 4.2**: Enter any email address and submit.
 - [ ] **Expected**: Displays generic success message: *"If the email address is registered, instructions have been sent."*
 - [ ] **Step 4.3**: Simulate receiving a reset link by navigating to:
-  `http://localhost:3000/reset-password?token=mock_sample_reset_token`
+  `http://localhost:5173/reset-password?token=mock_sample_reset_token`
 - [ ] **Expected**:
   - The token is captured by React state.
-  - Immediately, the browser URL changes to `http://localhost:3000/reset-password` without reload (`history.replaceState`).
+  - Immediately, the browser URL changes to `http://localhost:5173/reset-password` without reload (`history.replaceState`).
   - Inspecting the address bar confirms no secret token is visible.
 
 ---
