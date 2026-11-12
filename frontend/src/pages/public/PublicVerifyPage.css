@@ -1,5 +1,5 @@
 .qf-verify-container {
-  max-width: 600px;
+  max-width: 760px;
   margin: var(--space-8) auto;
   padding: 0 var(--space-4);
 }
@@ -43,8 +43,18 @@
 
 .qf-verify-form {
   display: flex;
+  align-items: stretch;
   gap: var(--space-3);
   margin-bottom: var(--space-6);
+}
+
+.qf-verify-form .qf-field {
+  margin-bottom: 0;
+}
+
+.qf-verify-form .qf-btn {
+  height: var(--touch-target);
+  min-height: var(--touch-target);
 }
 
 @media (max-width: 480px) {
