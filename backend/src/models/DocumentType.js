@@ -60,4 +60,6 @@ const documentTypeSchema = new mongoose.Schema(
   }
 );
 
+documentTypeSchema.index({ created_at: -1 });
+
 module.exports = mongoose.model('DocumentType', documentTypeSchema);

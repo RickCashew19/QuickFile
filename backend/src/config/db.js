@@ -6,7 +6,8 @@ let isConnected = false;
 // Register event listeners once at module load time to prevent stacking on repeated connectDB() calls
 mongoose.connection.on('connected', () => {
   isConnected = true;
-  console.log(`[MongoDB] Connected to database: ${mongoose.connection.name}`);
+  const host = mongoose.connection.host || 'cluster';
+  console.log(`[MongoDB] MongoDB connected: ${host}`);
 });
 
 mongoose.connection.on('error', (err) => {
@@ -19,16 +20,21 @@ mongoose.connection.on('disconnected', () => {
 });
 
 async function connectDB(customUri = null) {
-  if (isConnected) {
+  if (isConnected && mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }
 
-  const uri = customUri || process.env.MONGO_URI || config.mongoUri;
+  const uri = customUri || config.mongoUri || process.env.MONGODB_URI || process.env.MONGO_URI;
+
+  if (!uri) {
+    throw new Error('[MongoDB] Fatal Error: MongoDB connection URI is missing.');
+  }
 
   try {
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       autoIndex: config.nodeEnv !== 'production',
+      dbName: 'quickfile',
     });
     return mongoose.connection;
   } catch (error) {
@@ -38,12 +44,21 @@ async function connectDB(customUri = null) {
 }
 
 async function disconnectDB() {
-  if (isConnected) {
+  if (isConnected || mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
     isConnected = false;
     console.log('[MongoDB] Connection closed successfully.');
   }
 }
+
+// Graceful termination handling for process signals
+process.on('SIGINT', async () => {
+  await disconnectDB();
+});
+
+process.on('SIGTERM', async () => {
+  await disconnectDB();
+});
 
 module.exports = {
   connectDB,

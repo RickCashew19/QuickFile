@@ -29,10 +29,14 @@ function resolveSetting(customKey, defaultKey) {
  * Halts immediately if critical security or jurisdiction variables are missing
  */
 function validateConfig() {
+  const mongoUriVal = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!mongoUriVal || !mongoUriVal.trim()) {
+    throw new Error('[Config] Fatal Error: MONGODB_URI or MONGO_URI (MongoDB Connection URI) is missing in .env.');
+  }
+
   const requiredVars = [
     { key: 'SU_ADMIN_KEY', label: 'Super Admin Key' },
     { key: 'JWT_SECRET', label: 'JWT Secret' },
-    { key: 'MONGO_URI', label: 'MongoDB Connection URI' },
     { key: 'BARANGAY_NAME', label: 'Barangay Name' },
     { key: 'CITY_MUNICIPALITY', label: 'City/Municipality' },
     { key: 'PROVINCE', label: 'Province' },
@@ -99,8 +103,8 @@ const config = {
   exportDocMaxRows: parseInt(process.env.EXPORT_DOC_MAX_ROWS, 10) || 500,
   exportMaxRows: parseInt(process.env.EXPORT_MAX_ROWS, 10) || 5000,
 
-  // Database (strictly from .env; no hardcoded fallback)
-  mongoUri: process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '',
+  // Database (strictly from .env; supports MONGODB_URI or MONGO_URI; no hardcoded fallback)
+  mongoUri: process.env.MONGODB_URI ? process.env.MONGODB_URI.trim() : (process.env.MONGO_URI ? process.env.MONGO_URI.trim() : ''),
 
   // JWT configuration (no fallback secret)
   jwt: {
