@@ -20,6 +20,10 @@ const passwordResetSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    attempts: {
+      type: Number,
+      default: 0,
+    },
     expires_at: {
       type: Date,
       required: true,

@@ -1,5 +1,31 @@
 import '@testing-library/jest-dom';
 
+// Polyfill localStorage for Node 22 / JSDOM test runner
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: (key) => store[key] || null,
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+
 // Polyfill window.matchMedia for JSDOM
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

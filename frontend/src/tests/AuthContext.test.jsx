@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AuthProvider } from '../contexts/AuthContext';
 import { useAuth } from '../hooks/useAuth';
-import { authStorage } from '../services/authStorage';
-import { authService } from '../services/authService';
+import { authStorage } from '../api/authStorage';
+import { authService } from '../api/authService';
 import { ROLES, STAFF_PERMISSIONS } from '../config/constants';
 
 function TestConsumer() {

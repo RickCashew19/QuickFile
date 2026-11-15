@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminSettingsPage } from '../pages/admin/settings/AdminSettingsPage';
-import { adminService } from '../services/adminService';
-import { ApiError } from '../services/apiClient';
+import { adminService } from '../api/adminService';
+import { ApiError } from '../api/apiClient';
 
-vi.mock('../services/adminService', () => ({
+vi.mock('../api/adminService', () => ({
   adminService: {
     getSettings: vi.fn(),
     updateCustomSettings: vi.fn(),

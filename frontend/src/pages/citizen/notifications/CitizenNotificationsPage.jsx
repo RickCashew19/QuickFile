@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { notificationService } from '../../../services/notificationService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { notificationService } from '../../../api/notificationService';
 import { NotificationCard } from './NotificationCard';
 import { Button } from '../../../components/shared/Button';
 import { Modal } from '../../../components/shared/Modal';

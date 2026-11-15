@@ -7,8 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed": "node src/utils/seeder.js",
-    "seed:demo": "node src/utils/demoSeeder.js"
+    "seed": "node src/helpers/seeder.js",
+    "seed:demo": "node src/helpers/demoSeeder.js",
+    "test": "node tests/test_phase1_real.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

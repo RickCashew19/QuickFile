@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authStorage } from '../services/authStorage';
-import { authService } from '../services/authService';
+import { authStorage } from '../api/authStorage';
+import { authService } from '../api/authService';
 import { ROLES } from '../config/constants';
 
 export const AuthContext = createContext(null);

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
-import { publicService } from '../../services/publicService';
+import { publicService } from '../../api/publicService';
 import { getSafeRedirect } from '../../utils/urlHelper';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';

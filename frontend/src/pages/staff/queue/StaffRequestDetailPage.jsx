@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { staffService } from '../../../services/staffService';
+import { staffService } from '../../../api/staffService';
 import { STAFF_PERMISSIONS } from '../../../config/constants';
 import { StaffActionButtons } from './StaffActionButtons';
 import { StaffNotesSection } from './StaffNotesSection';

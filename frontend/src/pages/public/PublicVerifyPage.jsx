@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { verifyService } from '../../services/verifyService';
+import { verifyService } from '../../api/verifyService';
 import { extractVerificationCode, QrExtractionError } from '../../utils/qrCodeHelper';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { publicService } from '../services/publicService';
+import { publicService } from '../api/publicService';
 
 /**
  * Custom Hook for Google Identity Services (GIS) OAuth

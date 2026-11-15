@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { adminService } from '../../../services/adminService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { adminService } from '../../../api/adminService';
 import { RevokeModal } from './RevokeModal';
 import { TypedDeleteModal } from '../../../components/shared/TypedDeleteModal';
 import { Button } from '../../../components/shared/Button';

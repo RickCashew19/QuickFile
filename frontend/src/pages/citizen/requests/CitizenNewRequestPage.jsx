@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { citizenService } from '../../../services/citizenService';
-import { requestService } from '../../../services/requestService';
-import { validateRequestForm } from '../../../utils/validators';
+import { citizenService } from '../../../api/citizenService';
+import { requestService } from '../../../api/requestService';
+import { validateRequestForm } from '../../../validators/validators';
 import { calculateDisplayFee } from '../../../utils/feeCalculator';
 import { Button } from '../../../components/shared/Button';
 import { Input } from '../../../components/shared/Input';

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { usePolling } from '../../../hooks/usePolling';
-import { staffService } from '../../../services/staffService';
+import { staffService } from '../../../api/staffService';
 import { STAFF_PERMISSIONS } from '../../../config/constants';
 import { StaffStatCards } from './StaffStatCards';
 import { StaffRecentTable } from './StaffRecentTable';

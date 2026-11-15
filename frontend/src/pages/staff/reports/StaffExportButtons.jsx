@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { staffService } from '../../../services/staffService';
+﻿import { useState } from 'react';
+import { staffService } from '../../../api/staffService';
 import { downloadBlob } from '../../../utils/downloadHelper';
 import { Button } from '../../../components/shared/Button';
 import { Icon } from '../../../components/shared/Icon';

@@ -4,22 +4,22 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { config } = require('./src/config');
 const { API_PREFIX } = require('./src/config/constants');
-const { notFoundHandler } = require('./src/middleware/notFound.middleware');
-const { errorHandler } = require('./src/middleware/errorHandler.middleware');
-const { sanitizeNoSql } = require('./src/middleware/sanitizeNoSql.middleware');
+const { notFoundHandler } = require('./src/middlewares/notFound.middleware');
+const { errorHandler } = require('./src/middlewares/errorHandler.middleware');
+const { sanitizeNoSql } = require('./src/middlewares/sanitizeNoSql.middleware');
 
 // Route imports
-const authRoutes = require('./src/modules/auth/auth.routes');
-const settingsRoutes = require('./src/modules/settings/settings.routes');
-const publicRoutes = require('./src/modules/public/public.routes');
-const citizenRoutes = require('./src/modules/citizen/citizen.routes');
-const notificationRoutes = require('./src/modules/notification/notification.routes');
-const documentTypesRoutes = require('./src/modules/admin/documentTypes/documentTypes.routes');
-const requestRoutes = require('./src/modules/request/request.routes');
-const staffRoutes = require('./src/modules/staff/staff.routes');
-const verifyRoutes = require('./src/modules/verify/verify.routes');
-const fileRoutes = require('./src/modules/file/file.routes');
-const adminRoutes = require('./src/modules/admin/admin.routes');
+const authRoutes = require('./src/routes/auth.routes');
+const settingsRoutes = require('./src/routes/settings.routes');
+const publicRoutes = require('./src/routes/public.routes');
+const citizenRoutes = require('./src/routes/citizen.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
+const documentTypesRoutes = require('./src/routes/documentTypes.routes');
+const requestRoutes = require('./src/routes/request.routes');
+const staffRoutes = require('./src/routes/staff.routes');
+const verifyRoutes = require('./src/routes/verify.routes');
+const fileRoutes = require('./src/routes/file.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 
 const app = express();
 

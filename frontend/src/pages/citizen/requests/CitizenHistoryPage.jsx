@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { requestService } from '../../../services/requestService';
+import { requestService } from '../../../api/requestService';
 import { CitizenRequestCard } from './CitizenRequestCard';
 import { HistoryPagination } from './HistoryPagination';
 import { Button } from '../../../components/shared/Button';

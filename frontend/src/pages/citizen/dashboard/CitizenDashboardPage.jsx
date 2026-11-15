@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { citizenService } from '../../../services/citizenService';
-import { requestService } from '../../../services/requestService';
+import { citizenService } from '../../../api/citizenService';
+import { requestService } from '../../../api/requestService';
 import { StatusSummaryCards } from './StatusSummaryCards';
 import { IncompleteProfileBanner } from './IncompleteProfileBanner';
 import { Button } from '../../../components/shared/Button';

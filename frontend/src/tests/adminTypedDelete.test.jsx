@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TypedDeleteModal } from '../components/shared/TypedDeleteModal';
 import { AdminStaffPage } from '../pages/admin/staff/AdminStaffPage';
 import { AdminCitizensPage } from '../pages/admin/citizens/AdminCitizensPage';
-import { adminService } from '../services/adminService';
+import { adminService } from '../api/adminService';
 
-vi.mock('../services/adminService', () => ({
+vi.mock('../api/adminService', () => ({
   adminService: {
     listStaff: vi.fn(),
     deleteStaff: vi.fn(),

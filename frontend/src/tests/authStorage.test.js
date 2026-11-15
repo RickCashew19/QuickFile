@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { authStorage } from '../services/authStorage';
+import { authStorage } from '../api/authStorage';
 
 describe('AuthStorage Service Suite', () => {
   beforeEach(() => {

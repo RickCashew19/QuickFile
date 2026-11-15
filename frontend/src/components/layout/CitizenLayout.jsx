@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePolling } from '../../hooks/usePolling';
-import { apiClient } from '../../services/apiClient';
+import { apiClient } from '../../api/apiClient';
 import { Icon } from '../shared/Icon';
 import { Button } from '../shared/Button';
 import './Layout.css';

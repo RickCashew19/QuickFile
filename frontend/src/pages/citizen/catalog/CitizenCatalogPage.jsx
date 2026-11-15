@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { citizenService } from '../../../services/citizenService';
+import { citizenService } from '../../../api/citizenService';
 import { Button } from '../../../components/shared/Button';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';

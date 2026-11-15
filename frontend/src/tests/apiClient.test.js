@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { apiClient, ApiError } from '../services/apiClient';
-import { authStorage } from '../services/authStorage';
+import { apiClient, ApiError } from '../api/apiClient';
+import { authStorage } from '../api/authStorage';
 
 describe('ApiClient Service Suite', () => {
   beforeEach(() => {

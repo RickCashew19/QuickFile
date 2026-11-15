@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { staffService } from '../../../services/staffService';
-import { citizenService } from '../../../services/citizenService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { staffService } from '../../../api/staffService';
+import { citizenService } from '../../../api/citizenService';
 import { StaffQueueFilters } from './StaffQueueFilters';
 import { StaffQueueTable } from './StaffQueueTable';
 import { Pagination } from '../../../components/shared/Pagination';

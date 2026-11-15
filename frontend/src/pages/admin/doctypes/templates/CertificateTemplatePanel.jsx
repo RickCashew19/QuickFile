@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { adminService } from '../../../../services/adminService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { adminService } from '../../../../api/adminService';
 import { Button } from '../../../../components/shared/Button';
 import { Alert } from '../../../../components/shared/Alert';
 import { Loader } from '../../../../components/shared/Loader';

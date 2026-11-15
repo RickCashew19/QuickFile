@@ -1,6 +1,6 @@
 const path = require('path');
 const dotenv = require('dotenv');
-const { maskSecret } = require('../utils/masker');
+const { maskSecret } = require('../helpers/masker');
 
 function getEnvFilePath() {
   return process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.resolve(__dirname, '../../.env');

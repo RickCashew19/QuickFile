@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { adminService } from '../../../../services/adminService';
+﻿import { useState } from 'react';
+import { adminService } from '../../../../api/adminService';
 import { Button } from '../../../../components/shared/Button';
 import { Icon } from '../../../../components/shared/Icon';
 import { ConfirmDialog } from '../../../../components/shared/ConfirmDialog';

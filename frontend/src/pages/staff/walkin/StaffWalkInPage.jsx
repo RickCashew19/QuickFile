@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { staffService } from '../../../services/staffService';
-import { citizenService } from '../../../services/citizenService';
+import { staffService } from '../../../api/staffService';
+import { citizenService } from '../../../api/citizenService';
 import { STAFF_PERMISSIONS } from '../../../config/constants';
 import { ResidentSearchInput } from './ResidentSearchInput';
 import { Select } from '../../../components/shared/Select';

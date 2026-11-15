@@ -3,10 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { StaffActionButtons } from '../pages/staff/queue/StaffActionButtons';
 import { StaffRequestDetailPage } from '../pages/staff/queue/StaffRequestDetailPage';
-import { staffService } from '../services/staffService';
+import { staffService } from '../api/staffService';
 import * as useAuthModule from '../hooks/useAuth';
 import { REQUEST_STATUSES, STAFF_PERMISSIONS } from '../config/constants';
-import { ApiError } from '../services/apiClient';
+import { ApiError } from '../api/apiClient';
 import realStaffRequestDetail from './fixtures/real/staffRequestDetail.json';
 
 describe('Staff Action Buttons & Permissions Suite', () => {

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+﻿import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { ProtectedRoute } from '../components/guards/ProtectedRoute';
-import { RoleRoute } from '../components/guards/RoleRoute';
-import { PermissionRoute } from '../components/guards/PermissionRoute';
+import { ProtectedRoute } from '../routes/guards/ProtectedRoute';
+import { RoleRoute } from '../routes/guards/RoleRoute';
+import { PermissionRoute } from '../routes/guards/PermissionRoute';
 import { ROLES, STAFF_PERMISSIONS } from '../config/constants';
 import * as useAuthModule from '../hooks/useAuth';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AttachmentListCard } from '../pages/staff/queue/AttachmentListCard';
-import { apiClient } from '../services/apiClient';
+import { apiClient } from '../api/apiClient';
 
 describe('AttachmentListCard & useAttachmentBlob Suite', () => {
   const mockAttachments = [

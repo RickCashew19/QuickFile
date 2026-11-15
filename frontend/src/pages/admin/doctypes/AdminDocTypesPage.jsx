@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { adminService } from '../../../services/adminService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { adminService } from '../../../api/adminService';
 import { DocTypeFormModal } from './DocTypeFormModal';
 import { TemplateModeBadge } from './templates/TemplateModeBadge';
 import { TypedDeleteModal } from '../../../components/shared/TypedDeleteModal';

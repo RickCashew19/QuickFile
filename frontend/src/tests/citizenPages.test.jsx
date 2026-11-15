@@ -1,20 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CitizenHistoryPage } from '../pages/citizen/requests/CitizenHistoryPage';
 import { CitizenProfilePage } from '../pages/citizen/profile/CitizenProfilePage';
 import { CitizenDashboardPage } from '../pages/citizen/dashboard/CitizenDashboardPage';
 import { IncompleteProfileBanner } from '../pages/citizen/dashboard/IncompleteProfileBanner';
-import { requestService } from '../services/requestService';
-import { citizenService } from '../services/citizenService';
+import { requestService } from '../api/requestService';
+import { citizenService } from '../api/citizenService';
 
-vi.mock('../services/requestService', () => ({
+vi.mock('../api/requestService', () => ({
   requestService: {
     listRequests: vi.fn(),
   },
 }));
 
-vi.mock('../services/citizenService', () => ({
+vi.mock('../api/citizenService', () => ({
   citizenService: {
     getProfile: vi.fn(),
     updateProfile: vi.fn(),

@@ -3,24 +3,25 @@ const { config } = require('./index');
 
 let isConnected = false;
 
+// Register event listeners once at module load time to prevent stacking on repeated connectDB() calls
+mongoose.connection.on('connected', () => {
+  isConnected = true;
+  console.log(`[MongoDB] Connected to database: ${mongoose.connection.name}`);
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error(`[MongoDB] Connection error: ${err.message}`);
+});
+
+mongoose.connection.on('disconnected', () => {
+  isConnected = false;
+  console.warn('[MongoDB] Disconnected from database.');
+});
+
 async function connectDB(customUri = null) {
   if (isConnected) {
     return mongoose.connection;
   }
-
-  mongoose.connection.on('connected', () => {
-    isConnected = true;
-    console.log(`[MongoDB] Connected to database: ${mongoose.connection.name}`);
-  });
-
-  mongoose.connection.on('error', (err) => {
-    console.error(`[MongoDB] Connection error: ${err.message}`);
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    isConnected = false;
-    console.warn('[MongoDB] Disconnected from database.');
-  });
 
   const uri = customUri || process.env.MONGO_URI || config.mongoUri;
 

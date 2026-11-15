@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiClient } from '../services/apiClient';
+import { apiClient } from '../api/apiClient';
 
 /**
  * Custom hook for securely streaming, downloading, and previewing document attachments.
