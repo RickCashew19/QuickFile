@@ -60,6 +60,7 @@ export function CitizenLayout() {
 
   const navItems = [
     { to: '/citizen/dashboard', label: 'Dashboard', icon: 'building', end: true },
+    { to: '/voting', label: 'Online Voting (iVOTE)', icon: 'vote' },
     { to: '/citizen/catalog', label: 'Browse Catalog', icon: 'file' },
     { to: '/citizen/requests/new', label: 'New Request', icon: 'upload' },
     { to: '/citizen/requests', label: 'Request History', icon: 'calendar', end: true },

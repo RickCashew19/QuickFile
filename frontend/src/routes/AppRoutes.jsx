@@ -49,6 +49,7 @@ import { AdminCertificatesPage } from '../pages/admin/certificates/AdminCertific
 import { AdminAuditLogsPage } from '../pages/admin/audit/AdminAuditLogsPage';
 import { AdminSettingsPage } from '../pages/admin/settings/AdminSettingsPage';
 import { AdminReportsPage } from '../pages/admin/reports/AdminReportsPage';
+import { IVoteDashboardPage } from '../pages/voting/IVoteDashboardPage';
 
 export default function AppRoutes() {
   return (
@@ -202,6 +203,10 @@ export default function AppRoutes() {
         <Route path="settings" element={<AdminSettingsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
       </Route>
+
+      {/* iVOTE Online Voting System Dashboard & Flow */}
+      <Route path="/voting" element={<IVoteDashboardPage />} />
+      <Route path="/ivote" element={<IVoteDashboardPage />} />
 
       {/* 404 Catch-All */}
       <Route path="*" element={<NotFoundPage />} />

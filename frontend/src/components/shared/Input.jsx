@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Icon } from './Icon';
 import './Input.css';
 
 export function Input({
@@ -6,9 +7,12 @@ export function Input({
   label,
   type = 'text',
   name,
-  value,
+  value = '',
   onChange,
   onBlur,
+  onKeyDown,
+  onClear,
+  onSubmitSearch,
   placeholder = '',
   required = false,
   disabled = false,
@@ -27,10 +31,42 @@ export function Input({
   const errorId = `${inputId}-error`;
   const effectiveHelperText = helperText || helpText;
 
+  const isSearch = type === 'search';
+  const effectivePrefix = prefix || (isSearch ? <Icon name="search" size={18} /> : null);
+
+  const handleClear = () => {
+    if (onClear) {
+      onClear();
+    } else if (onChange) {
+      onChange({ target: { name, value: '' } });
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && onSubmitSearch) {
+      onSubmitSearch(value);
+    }
+    if (onKeyDown) {
+      onKeyDown(e);
+    }
+  };
+
+  const showClearButton = isSearch && Boolean(value) && !disabled;
+  const effectiveSuffix = suffix || (showClearButton ? (
+    <button
+      type="button"
+      className="qf-field__clear-btn"
+      onClick={handleClear}
+      aria-label="Clear search text"
+    >
+      <Icon name="close" size={14} />
+    </button>
+  ) : null);
+
   const inputClasses = [
     'qf-field__input',
-    prefix ? 'qf-field__input--has-prefix' : '',
-    suffix ? 'qf-field__input--has-suffix' : '',
+    effectivePrefix ? 'qf-field__input--has-prefix' : '',
+    effectiveSuffix ? 'qf-field__input--has-suffix' : '',
     error ? 'qf-field__input--error' : '',
   ]
     .filter(Boolean)
@@ -48,7 +84,7 @@ export function Input({
       )}
 
       <div className="qf-field__input-wrapper">
-        {prefix && <span className="qf-field__prefix">{prefix}</span>}
+        {effectivePrefix && <span className="qf-field__prefix">{effectivePrefix}</span>}
         <input
           id={inputId}
           name={name}
@@ -56,6 +92,7 @@ export function Input({
           value={value}
           onChange={onChange}
           onBlur={onBlur}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           required={required}
           disabled={disabled}
@@ -65,12 +102,13 @@ export function Input({
           className={inputClasses}
           {...props}
         />
-        {suffix && <span className="qf-field__suffix">{suffix}</span>}
+        {effectiveSuffix && <span className="qf-field__suffix">{effectiveSuffix}</span>}
       </div>
 
       {error ? (
         <span id={errorId} className="qf-field__error" role="alert">
-          {error}
+          <Icon name="alert" size={14} className="qf-field__error-icon" />
+          <span>{error}</span>
         </span>
       ) : effectiveHelperText ? (
         <span id={helperId} className="qf-field__helper">

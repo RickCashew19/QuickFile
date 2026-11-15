@@ -55,6 +55,11 @@ export function LandingPage() {
                 Verify Certificate
               </Button>
             </Link>
+            <Link to="/voting">
+              <Button variant="secondary" size="lg" iconLeft={<Icon name="vote" size={18} />}>
+                iVOTE Portal
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

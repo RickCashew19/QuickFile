@@ -3,101 +3,161 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--touch-target);
+  min-height: var(--touch-target, 44px);
+  min-width: 44px;
   padding: 0 var(--space-4);
   font-family: inherit;
   font-size: var(--font-sm);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-semibold, 600);
   line-height: 1;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  border-radius: var(--radius-btn, 14px);
+  border: 1.5px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-normal, 180ms) ease-out,
+              color var(--transition-normal, 180ms) ease-out,
+              transform var(--transition-normal, 180ms) ease-out,
+              box-shadow var(--transition-normal, 180ms) ease-out,
+              border-color var(--transition-normal, 180ms) ease-out;
   white-space: nowrap;
   user-select: none;
   text-decoration: none;
+  box-sizing: border-box;
 }
 
-/* Sizes */
+/* Accessible Keyboard Focus Ring - Never remove focus outline */
+.qf-btn:focus-visible {
+  outline: 2px solid var(--color-primary-deep-label, #1e3a8a) !important;
+  outline-offset: 2px !important;
+}
+
+/* Sizes with Mobile-Safe Min Touch Targets (44px) */
 .qf-btn--sm {
-  min-height: 36px;
+  min-height: var(--touch-target, 44px);
   padding: 0 var(--space-3);
   font-size: var(--font-xs);
+  border-radius: var(--radius-md, 10px);
 }
 
 .qf-btn--md {
-  min-height: var(--touch-target);
+  min-height: var(--touch-target, 44px);
   padding: 0 var(--space-4);
   font-size: var(--font-sm);
+  border-radius: var(--radius-btn, 14px);
 }
 
 .qf-btn--lg {
   min-height: 52px;
   padding: 0 var(--space-6);
   font-size: var(--font-base);
+  border-radius: var(--radius-card, 16px);
 }
 
 .qf-btn--full {
   width: 100%;
 }
 
-/* Variants */
+/* Primary Variant (Light Blue Fill with Deep Blue Text) */
 .qf-btn--primary {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  background-color: var(--btn-primary-bg, #e0edff);
+  color: var(--btn-primary-text, #1e3a8a);
+  border-color: var(--btn-primary-border, #bfdbfe);
 }
+
 .qf-btn--primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
+  background-color: var(--btn-primary-hover-bg, #cfe2fe);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-btn-lift, 0 4px 12px rgba(30, 58, 138, 0.12));
 }
+
 .qf-btn--primary:active:not(:disabled) {
-  background-color: var(--color-primary-active);
+  background-color: var(--btn-primary-active-bg, #bddbff);
+  transform: translateY(1px);
+  box-shadow: var(--shadow-btn-pressed, 0 1px 3px rgba(30, 58, 138, 0.15));
 }
 
+/* Secondary Variant (White or Transparent Fill with Light Blue Border) */
 .qf-btn--secondary {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-border);
-}
-.qf-btn--secondary:hover:not(:disabled) {
-  background-color: var(--color-surface-hover);
-  border-color: var(--color-border-hover);
+  background-color: var(--btn-secondary-bg, #ffffff);
+  color: var(--btn-secondary-text, #1e3a8a);
+  border-color: var(--btn-secondary-border, #bfdbfe);
 }
 
+.qf-btn--secondary:hover:not(:disabled) {
+  background-color: var(--btn-secondary-hover-bg, #e0edff);
+  border-color: var(--btn-secondary-border, #bfdbfe);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-btn-lift, 0 4px 12px rgba(30, 58, 138, 0.12));
+}
+
+.qf-btn--secondary:active:not(:disabled) {
+  background-color: var(--btn-primary-hover-bg, #cfe2fe);
+  transform: translateY(1px);
+  box-shadow: var(--shadow-btn-pressed, 0 1px 3px rgba(30, 58, 138, 0.15));
+}
+
+/* Outline Variant */
 .qf-btn--outline {
   background-color: transparent;
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  color: var(--btn-secondary-text, #1e3a8a);
+  border-color: var(--btn-secondary-border, #bfdbfe);
 }
+
 .qf-btn--outline:hover:not(:disabled) {
-  background-color: var(--color-primary-light);
+  background-color: var(--btn-primary-bg, #e0edff);
+  transform: translateY(-1px);
 }
 
+/* Danger Variant (Destructive Actions) */
 .qf-btn--danger {
-  background-color: var(--color-danger);
-  color: var(--color-text-inverse);
-}
-.qf-btn--danger:hover:not(:disabled) {
-  background-color: #b91c1c;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
 }
 
+.qf-btn--danger:hover:not(:disabled) {
+  background-color: #fecaca;
+  color: #7f1d1d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+
+.qf-btn--danger:active:not(:disabled) {
+  background-color: #fca5a5;
+  transform: translateY(1px);
+}
+
+/* Ghost Variant (Transparent with Light Blue Border / Fill on Hover) */
 .qf-btn--ghost {
   background-color: transparent;
-  color: var(--color-text-secondary);
+  color: var(--btn-secondary-text, #1e3a8a);
+  border-color: transparent;
 }
+
 .qf-btn--ghost:hover:not(:disabled) {
-  background-color: var(--color-surface-hover);
-  color: var(--color-text);
+  background-color: var(--btn-primary-bg, #e0edff);
+  border-color: var(--btn-secondary-border, #bfdbfe);
 }
 
-/* States */
+/* Disabled State: 40% Opacity, No Hover Lift, Not-Allowed Cursor */
 .qf-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  opacity: 0.40 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
 }
 
+/* Loading State: Spinner with Fixed Width to Prevent Layout Shift */
 .qf-btn--loading {
   position: relative;
   pointer-events: none;
+  cursor: wait;
+}
+
+.qf-btn__loading-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .qf-btn__spinner {
@@ -107,6 +167,8 @@
   border-right-color: transparent;
   border-radius: var(--radius-full);
   animation: qf-btn-spin 600ms linear infinite;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 @keyframes qf-btn-spin {
