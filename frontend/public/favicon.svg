@@ -1,0 +1,41 @@
+<svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="qfDocGrad" x1="10" y1="8" x2="88" y2="94" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="qfFoldGrad" x1="56" y1="8" x2="88" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="45%" stop-color="#dbeafe" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.45" />
+    </linearGradient>
+    <filter id="qfGlow" x="0" y="4" width="100" height="96" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1d4ed8" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  <!-- Document Silhouette -->
+  <path
+    d="M 26 8 H 58 L 88 38 V 76 C 88 85.941 79.941 94 70 94 H 26 C 16.059 94 8 85.941 8 76 V 26 C 8 16.059 16.059 8 26 8 Z"
+    fill="url(#qfDocGrad)"
+    filter="url(#qfGlow)"
+  />
+  <!-- Translucent Glass Folded Dog-Ear Flap -->
+  <path
+    d="M 58 8 V 26 C 58 32.627 63.373 38 70 38 H 88 Z"
+    fill="url(#qfFoldGrad)"
+  />
+  <path
+    d="M 58 38 H 88"
+    stroke="rgba(255, 255, 255, 0.3)"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  />
+  <!-- Center Bold Rounded Checkmark -->
+  <path
+    d="M 31 53 L 45 67 L 72 40"
+    stroke="#ffffff"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

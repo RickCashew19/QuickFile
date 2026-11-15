@@ -9,6 +9,7 @@ import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
+import { Logo } from '../../components/shared/Logo';
 import { ROLES } from '../../config/constants';
 import './LoginPage.css';
 
@@ -131,7 +132,7 @@ export function LoginPage() {
         </Link>
         <div className="qf-auth-header">
           <div className="qf-auth-header__logo" aria-hidden="true">
-            <Icon name="building" size={26} />
+            <Logo size={52} />
           </div>
           <h1 className="qf-auth-header__title">Welcome Back</h1>
           <p className="qf-auth-header__subtitle">Sign in to access your QuickFile portal</p>

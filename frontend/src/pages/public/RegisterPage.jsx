@@ -7,6 +7,7 @@ import { Input } from '../../components/shared/Input';
 import { Select } from '../../components/shared/Select';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
+import { Logo } from '../../components/shared/Logo';
 import { cleanPhoneInput, normalizePhilippinePhone } from '../../utils/phoneUtil';
 import './RegisterPage.css';
 import './LoginPage.css';
@@ -170,7 +171,7 @@ export function RegisterPage() {
         </Link>
         <div className="qf-auth-header">
           <div className="qf-auth-header__logo" aria-hidden="true">
-            <Icon name="building" size={26} />
+            <Logo size={52} />
           </div>
           <h1 className="qf-auth-header__title">Resident Registration</h1>
           <p className="qf-auth-header__subtitle">

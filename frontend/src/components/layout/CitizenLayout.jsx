@@ -5,6 +5,7 @@ import { usePolling } from '../../hooks/usePolling';
 import { apiClient } from '../../api/apiClient';
 import { Icon } from '../shared/Icon';
 import { Button } from '../shared/Button';
+import { Logo } from '../shared/Logo';
 import './Layout.css';
 
 export function CitizenLayout() {
@@ -110,7 +111,7 @@ export function CitizenLayout() {
           </button>
           <Link to="/citizen/dashboard" className="qf-brand" aria-label="Citizen Portal Home">
             <div className="qf-brand__logo">
-              <Icon name="building" size={22} />
+              <Logo size={36} />
             </div>
             <div className="qf-brand__text">
               <span className="qf-brand__title">QuickFile</span>

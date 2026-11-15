@@ -6,6 +6,7 @@ import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
+import { Logo } from '../../components/shared/Logo';
 import './LoginPage.css';
 
 export function ForgotPasswordPage() {
@@ -74,7 +75,7 @@ export function ForgotPasswordPage() {
         </Link>
         <div className="qf-auth-header">
           <div className="qf-auth-header__logo" aria-hidden="true">
-            <Icon name="lock" size={26} />
+            <Logo size={52} />
           </div>
           <h1 className="qf-auth-header__title">Reset Password</h1>
           <p className="qf-auth-header__subtitle">

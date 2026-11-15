@@ -6,6 +6,8 @@ import { Input } from '../components/shared/Input';
 import { Modal } from '../components/shared/Modal';
 import { Alert } from '../components/shared/Alert';
 import { StatusBadge } from '../components/shared/StatusBadge';
+import { Logo } from '../components/shared/Logo';
+import { Icon } from '../components/shared/Icon';
 
 describe('Shared UI Components Suite', () => {
   describe('Button Component', () => {
@@ -164,6 +166,46 @@ describe('Shared UI Components Suite', () => {
       const badge = screen.getByText('Ready for Pickup');
       expect(badge).toBeInTheDocument();
       expect(badge.parentElement).toHaveClass('qf-status-badge--success');
+    });
+  });
+
+  describe('Logo & Icon Suite (Photo 1 Style)', () => {
+    it('renders QuickFile Logo SVG with document fold and checkmark', () => {
+      const { container } = render(<Logo size={48} />);
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg).toHaveAttribute('viewBox', '0 0 100 100');
+      expect(svg).toHaveAttribute('width', '48');
+    });
+
+    it('renders Logo with brand title and subtitle when showText is true', () => {
+      render(<Logo size={36} showText title="QuickFile" subtitle="Resident Portal" />);
+      expect(screen.getByText('QuickFile')).toBeInTheDocument();
+      expect(screen.getByText('Resident Portal')).toBeInTheDocument();
+    });
+
+    it('renders Logo image when useImage is true', () => {
+      render(<Logo size={40} useImage alt="QuickFile Brand" />);
+      const img = screen.getByAltText('QuickFile Brand');
+      expect(img).toBeInTheDocument();
+      expect(img).toHaveAttribute('src', '/logo.jpg');
+    });
+
+    it('renders tailored cohesive icons matching Photo 1 design language', () => {
+      const { container, rerender } = render(<Icon name="logo" size={32} />);
+      expect(container.querySelector('svg')).toBeInTheDocument();
+
+      rerender(<Icon name="check" size={24} />);
+      expect(container.querySelector('svg')).toHaveAttribute('stroke-width', '2.8');
+
+      rerender(<Icon name="file" size={24} />);
+      expect(container.querySelector('svg')).toBeInTheDocument();
+
+      rerender(<Icon name="building" size={24} />);
+      expect(container.querySelector('svg')).toBeInTheDocument();
+
+      rerender(<Icon name="qr" size={24} />);
+      expect(container.querySelector('svg')).toBeInTheDocument();
     });
   });
 });
