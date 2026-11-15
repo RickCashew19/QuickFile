@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { publicService } from '../../api/publicService';
 import { Button } from '../../components/shared/Button';
@@ -53,11 +53,6 @@ export function LandingPage() {
             <Link to="/verify">
               <Button variant="outline" size="lg" iconLeft={<Icon name="qr" size={18} />}>
                 Verify Certificate
-              </Button>
-            </Link>
-            <Link to="/voting">
-              <Button variant="secondary" size="lg" iconLeft={<Icon name="vote" size={18} />}>
-                iVOTE Portal
               </Button>
             </Link>
           </div>

@@ -206,24 +206,6 @@ export function Icon({ name, size = 20, color = 'currentColor', className = '', 
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       );
-    case 'vote':
-      return (
-        <svg {...iconProps}>
-          <path d="M19 14v6H5v-6" />
-          <path d="M16 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V2" />
-          <rect x="3" y="10" width="18" height="4" rx="1" />
-          <path d="m9 5 2 2 4-4" />
-        </svg>
-      );
-    case 'guideline':
-      return (
-        <svg {...iconProps}>
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-          <path d="M8 7h8" />
-          <path d="M8 11h8" />
-          <path d="M8 15h5" />
-        </svg>
-      );
     case 'settings':
       return (
         <svg {...iconProps}>
