@@ -20,6 +20,7 @@ backend/uploads/*
 backend/tests/uploads/
 backend/tests/export-samples/
 backend/mongodb_data/
+backend/test_mongo_data/
 backend/export-samples/
 *.env.tmp
 backend/test_*.env*

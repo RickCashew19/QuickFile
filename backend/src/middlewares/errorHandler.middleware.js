@@ -27,8 +27,10 @@ function errorHandler(err, req, res, next) {
           error: err.message,
         },
         ip_address: req.ip || '',
-        user_agent: req.get('User-Agent') || '',
-      }).catch(() => null);
+        user_agent: typeof req.get === 'function' ? req.get('User-Agent') : '',
+      }).catch((e) => {
+        console.warn('[AuditLog] Failed to record VERSION_CONFLICT:', e.message);
+      });
     } catch (_) {}
   }
 
