@@ -8,7 +8,7 @@ import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
 import { Pagination } from '../../../components/shared/Pagination';
 import { Icon } from '../../../components/shared/Icon';
-import { formatDate } from '../../../utils/formatters';
+import { formatDate, formatDateTimeMs } from '../../../utils/formatters';
 import './AdminAuditLogsPage.css';
 
 export function AdminAuditLogsPage() {
@@ -164,8 +164,16 @@ export function AdminAuditLogsPage() {
             <tbody>
               {logs.map((l) => (
                 <tr key={l._id}>
-                  <td style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-xs)', whiteSpace: 'nowrap' }}>
-                    {formatDate(l.created_at)}
+                  <td
+                    style={{
+                      color: 'var(--color-text-secondary)',
+                      fontSize: 'var(--font-xs)',
+                      fontFamily: 'var(--font-mono)',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={l.created_at ? new Date(l.created_at).toISOString() : ''}
+                  >
+                    {formatDateTimeMs(l.created_at)}
                   </td>
                   <td style={{ fontWeight: 'var(--font-semibold)' }}>
                     {l.actor_name || 'System / Guest'}
@@ -233,7 +241,7 @@ export function AdminAuditLogsPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)' }}>
-              Logged on {formatDate(viewedLog.created_at)} by <strong>{viewedLog.actor_name}</strong> (IP: {viewedLog.ip_address || 'N/A'})
+              Logged on <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatDateTimeMs(viewedLog.created_at)}</strong> ({viewedLog.created_at ? new Date(viewedLog.created_at).toISOString() : '—'}) by <strong>{viewedLog.actor_name}</strong> (IP: {viewedLog.ip_address || 'N/A'})
             </div>
             <pre
               style={{
@@ -246,7 +254,23 @@ export function AdminAuditLogsPage() {
                 margin: 0,
               }}
             >
-              {JSON.stringify(viewedLog.details, null, 2)}
+              {JSON.stringify(
+                {
+                  _id: viewedLog._id,
+                  timestamp: viewedLog.created_at ? new Date(viewedLog.created_at).toISOString() : null,
+                  timestamp_formatted: formatDateTimeMs(viewedLog.created_at),
+                  actor_name: viewedLog.actor_name,
+                  module: viewedLog.module,
+                  action: viewedLog.action,
+                  target_type: viewedLog.target_type,
+                  target_id: viewedLog.target_id,
+                  ip_address: viewedLog.ip_address,
+                  user_agent: viewedLog.user_agent,
+                  details: viewedLog.details,
+                },
+                null,
+                2
+              )}
             </pre>
           </div>
         </Modal>

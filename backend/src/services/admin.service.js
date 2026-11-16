@@ -1157,11 +1157,18 @@ async function listAuditLogs({ action, module, user_id, actor_name, from, to, pa
   }
 
   const total = await AuditLog.countDocuments(query);
-  const logs = await AuditLog.find(query)
+  const rawLogs = await AuditLog.find(query)
     .sort({ created_at: -1 })
     .skip(skip)
     .limit(limitNum)
     .lean();
+
+  const logs = rawLogs.map((log) => ({
+    ...log,
+    created_at: log.created_at ? new Date(log.created_at).toISOString() : null,
+    created_at_iso: log.created_at ? new Date(log.created_at).toISOString() : null,
+    timestamp_ms: log.created_at ? new Date(log.created_at).getTime() : null,
+  }));
 
   return {
     logs,
