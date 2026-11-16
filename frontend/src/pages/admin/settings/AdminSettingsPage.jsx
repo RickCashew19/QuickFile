@@ -260,7 +260,7 @@ export function AdminSettingsPage() {
                   Google OAuth 2.0 Single Sign-On
                 </h3>
                 <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                  Enables one-tap Google login for verified residents and staff.
+                  Enables one-tap Google login for verified residents (Staff and Admin use password login for security).
                 </span>
               </div>
               <span className={`qf-source-badge qf-source-badge--${integrations.google?.source || 'default'}`}>
