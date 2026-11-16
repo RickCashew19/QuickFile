@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { staffService } from '../../../services/staffService';
+﻿import { useState } from 'react';
+import { staffService } from '../../../api/staffService';
 import { StaffQrScanner } from './StaffQrScanner';
 import { StaffVerificationResult } from './StaffVerificationResult';
 import { Alert } from '../../../components/shared/Alert';

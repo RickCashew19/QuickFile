@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { staffService } from '../../../services/staffService';
+import { staffService } from '../../../api/staffService';
+import { API_BASE_URL } from '../../../api/apiClient';
+import { authStorage } from '../../../api/authStorage';
 import { STAFF_PERMISSIONS } from '../../../config/constants';
 import { StaffActionButtons } from './StaffActionButtons';
 import { StaffNotesSection } from './StaffNotesSection';
@@ -33,6 +35,34 @@ export function StaffRequestDetailPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
 
+  // Concurrency control: Lock state
+  const [lockState, setLockState] = useState({
+    isLockedByOther: false,
+    holderName: '',
+    expiresAt: null,
+  });
+
+  const acquireOrRenewLock = useCallback(async () => {
+    try {
+      const res = await staffService.acquireOrRenewLock(id);
+      setLockState({
+        isLockedByOther: false,
+        holderName: '',
+        expiresAt: res?.data?.expires_at || null,
+      });
+    } catch (err) {
+      if (err.status === 423 || err.code === 'LOCKED') {
+        const holder = err.data?.lock?.locked_by_name || 'another staff member';
+        const expires = err.data?.lock?.expires_at || null;
+        setLockState({
+          isLockedByOther: true,
+          holderName: holder,
+          expiresAt: expires,
+        });
+      }
+    }
+  }, [id]);
+
   const fetchRequestDetails = useCallback(async () => {
     try {
       // Backend returns { request, citizen_profile, issued_document }
@@ -49,6 +79,37 @@ export function StaffRequestDetailPage() {
     fetchRequestDetails();
   }, [fetchRequestDetails]);
 
+  // Lock lifecycle: Acquire on mount, renew every 2 minutes, release on unmount and beforeunload
+  useEffect(() => {
+    acquireOrRenewLock();
+
+    const renewInterval = setInterval(() => {
+      acquireOrRenewLock();
+    }, 2 * 60 * 1000);
+
+    const handleBeforeUnload = () => {
+      try {
+        const token = authStorage.getToken();
+        const url = `${API_BASE_URL}/staff/requests/${encodeURIComponent(id)}/lock`;
+        fetch(url, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          keepalive: true,
+        }).catch(() => null);
+      } catch (_) {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(renewInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      staffService.releaseLock(id).catch(() => null);
+    };
+  }, [id, acquireOrRenewLock]);
+
   const handleWorkflowAction = async (actionFn, actionName, successText) => {
     setLoadingAction(actionName);
     setError(null);
@@ -58,8 +119,18 @@ export function StaffRequestDetailPage() {
       await actionFn();
       setSuccessMessage(successText);
       await fetchRequestDetails();
+      acquireOrRenewLock();
     } catch (err) {
-      if (err.status === 409 || err.code === 'CONFLICT') {
+      if (err.status === 423 || err.code === 'LOCKED') {
+        const holder = err.data?.lock?.locked_by_name || 'another staff member';
+        const expires = err.data?.lock?.expires_at || null;
+        setLockState({
+          isLockedByOther: true,
+          holderName: holder,
+          expiresAt: expires,
+        });
+        setError(err.message || `Request is currently locked by ${holder}.`);
+      } else if (err.status === 409 || err.code === 'CONFLICT') {
         setConflictNotice(
           'This request was updated by another staff member. Reloading latest state...'
         );
@@ -99,8 +170,18 @@ export function StaffRequestDetailPage() {
         setDataWarnings(res.data_warnings);
       }
       await fetchRequestDetails();
+      acquireOrRenewLock();
     } catch (err) {
-      if (err.status === 409 || err.code === 'CONFLICT') {
+      if (err.status === 423 || err.code === 'LOCKED') {
+        const holder = err.data?.lock?.locked_by_name || 'another staff member';
+        const expires = err.data?.lock?.expires_at || null;
+        setLockState({
+          isLockedByOther: true,
+          holderName: holder,
+          expiresAt: expires,
+        });
+        setError(err.message || `Request is currently locked by ${holder}.`);
+      } else if (err.status === 409 || err.code === 'CONFLICT') {
         setConflictNotice(
           'This request was updated by another staff member. Reloading latest state...'
         );
@@ -142,7 +223,16 @@ export function StaffRequestDetailPage() {
       await fetchRequestDetails();
       return true;
     } catch (err) {
-      if (err.status === 409 || err.code === 'CONFLICT') {
+      if (err.status === 423 || err.code === 'LOCKED') {
+        const holder = err.data?.lock?.locked_by_name || 'another staff member';
+        const expires = err.data?.lock?.expires_at || null;
+        setLockState({
+          isLockedByOther: true,
+          holderName: holder,
+          expiresAt: expires,
+        });
+        setError(err.message || `Request is currently locked by ${holder}.`);
+      } else if (err.status === 409 || err.code === 'CONFLICT') {
         setConflictNotice('This request was updated by another staff member. Reloading latest state...');
         await fetchRequestDetails();
       } else {
@@ -183,6 +273,16 @@ export function StaffRequestDetailPage() {
         <Link to="/staff/requests" className="qf-back-link">&larr; Back to Queue</Link>
       </div>
 
+      {lockState.isLockedByOther && (
+        <Alert variant="warning" className="qf-lock-banner">
+          <strong>Locked by {lockState.holderName}</strong> until{' '}
+          {lockState.expiresAt
+            ? new Date(lockState.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'active session expires'}
+          . Actions and modifications are temporarily disabled to prevent conflicting changes.
+        </Alert>
+      )}
+
       {conflictNotice && <Alert variant="warning" onClose={() => setConflictNotice(null)}>{conflictNotice}</Alert>}
       {error && <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert>}
       {successMessage && <Alert variant="success" onClose={() => setSuccessMessage(null)}>{successMessage}</Alert>}
@@ -214,6 +314,7 @@ export function StaffRequestDetailPage() {
           hasPermission={hasPermission}
           role={user?.role}
           issuedDocument={issuedDocument}
+          disabled={lockState.isLockedByOther}
           onReview={handleReview}
           onApprove={handleApprove}
           onOpenReject={() => setRejectModalOpen(true)}

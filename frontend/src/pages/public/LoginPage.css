@@ -28,11 +28,6 @@
 }
 
 .qf-auth-header__logo {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
   display: inline-flex;
   align-items: center;
   justify-content: center;

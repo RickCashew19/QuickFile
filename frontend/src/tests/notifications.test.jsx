@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CitizenNotificationsPage } from '../pages/citizen/notifications/CitizenNotificationsPage';
-import { notificationService } from '../services/notificationService';
+import { notificationService } from '../api/notificationService';
 
-vi.mock('../services/notificationService', () => ({
+vi.mock('../api/notificationService', () => ({
   notificationService: {
     listNotifications: vi.fn(),
     markAllRead: vi.fn(),

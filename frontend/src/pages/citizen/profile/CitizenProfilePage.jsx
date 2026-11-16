@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { citizenService } from '../../../services/citizenService';
+﻿import { useState, useEffect } from 'react';
+import { citizenService } from '../../../api/citizenService';
 import { useAuth } from '../../../hooks/useAuth';
-import { validateProfileForm } from '../../../utils/validators';
+import { validateProfileForm } from '../../../validators/validators';
 import { ProfileCompletenessBar } from './ProfileCompletenessBar';
 import { ProfileFormFields } from './ProfileFormFields';
 import { Button } from '../../../components/shared/Button';

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
   formatDateTime,
+  formatDateTimeMs,
   formatDate,
   formatFileSize,
   getStatusMeta,
@@ -35,9 +36,23 @@ describe('Formatters Utility Suite', () => {
       expect(d).toContain('Nov');
     });
 
+    it('formats timestamps down to milliseconds with formatDateTimeMs', () => {
+      const isoWithMs = '2026-11-08T00:00:00.789Z'; // 8:00:00.789 AM Manila
+      const formatted = formatDateTimeMs(isoWithMs);
+      expect(formatted).toContain('2026');
+      expect(formatted).toContain('Nov');
+      expect(formatted).toContain('.789');
+
+      const dateObj = new Date(1731746112456);
+      const formattedFromObj = formatDateTimeMs(dateObj);
+      expect(formattedFromObj).toMatch(/\.\d{3}/); // Exactly 3 fractional second digits
+    });
+
     it('returns fallback dash for invalid dates', () => {
       expect(formatDateTime(null)).toBe('—');
       expect(formatDateTime('invalid-date')).toBe('—');
+      expect(formatDateTimeMs(null)).toBe('—');
+      expect(formatDateTimeMs('invalid-date')).toBe('—');
       expect(formatDate(undefined)).toBe('—');
     });
   });

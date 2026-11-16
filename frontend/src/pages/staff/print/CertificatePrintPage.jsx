@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { staffService } from '../../../services/staffService';
-import { printService } from '../../../services/printService';
+import { staffService } from '../../../api/staffService';
+import { printService } from '../../../api/printService';
 import { Button } from '../../../components/shared/Button';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';

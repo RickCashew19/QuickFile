@@ -72,5 +72,7 @@ const documentTemplateSchema = new mongoose.Schema(
 
 // Enforce per-document-type unique integer versioning
 documentTemplateSchema.index({ document_type_id: 1, version: 1 }, { unique: true });
+documentTemplateSchema.index({ document_type_id: 1, is_active: 1 });
+documentTemplateSchema.index({ created_at: -1 });
 
 module.exports = mongoose.model('DocumentTemplate', documentTemplateSchema);

@@ -3,6 +3,7 @@ import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Icon } from '../shared/Icon';
 import { Button } from '../shared/Button';
+import { Logo } from '../shared/Logo';
 import './Layout.css';
 
 export function AdminLayout() {
@@ -77,8 +78,8 @@ export function AdminLayout() {
             <Icon name="search" size={20} />
           </button>
           <Link to="/admin/dashboard" className="qf-brand" aria-label="Admin Portal Home">
-            <div className="qf-brand__logo" style={{ backgroundColor: 'var(--color-text)' }}>
-              <Icon name="shield" size={22} />
+            <div className="qf-brand__logo">
+              <Logo size={36} />
             </div>
             <div className="qf-brand__text">
               <span className="qf-brand__title">QuickFile</span>

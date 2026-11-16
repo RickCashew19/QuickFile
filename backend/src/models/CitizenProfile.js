@@ -148,6 +148,8 @@ const citizenProfileSchema = new mongoose.Schema(
   }
 );
 
+citizenProfileSchema.index({ created_at: -1 });
+
 citizenProfileSchema.virtual('full_name').get(function () {
   const parts = [this.first_name, this.middle_name, this.last_name, this.suffix];
   return parts.filter(Boolean).join(' ');

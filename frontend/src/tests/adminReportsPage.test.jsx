@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { AdminReportsPage } from '../pages/admin/reports/AdminReportsPage';
-import { adminService } from '../services/adminService';
+import { adminService } from '../api/adminService';
 
 describe('AdminReportsPage', () => {
   beforeEach(() => {

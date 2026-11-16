@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { authService } from '../../services/authService';
-import { publicService } from '../../services/publicService';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../../api/authService';
+import { publicService } from '../../api/publicService';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
+import { Logo } from '../../components/shared/Logo';
 import './LoginPage.css';
 
 export function ForgotPasswordPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -73,20 +75,27 @@ export function ForgotPasswordPage() {
         </Link>
         <div className="qf-auth-header">
           <div className="qf-auth-header__logo" aria-hidden="true">
-            <Icon name="lock" size={26} />
+            <Logo size={52} />
           </div>
           <h1 className="qf-auth-header__title">Reset Password</h1>
           <p className="qf-auth-header__subtitle">
-            Enter your registered email address and we'll send you instructions to reset your password.
+            Enter your registered email address to receive a 4-digit verification PIN code to reset your password.
           </p>
         </div>
 
         {submitted ? (
           <div>
-            <Alert variant="success" title="Check Your Email">
-              If the email address is registered in QuickFile, you will receive password reset instructions shortly.
+            <Alert variant="success" title="4-Digit PIN Code Sent">
+              If <strong>{email}</strong> is registered, a 4-digit verification PIN code has been sent to your email address (valid for 15 minutes).
             </Alert>
-            <div style={{ marginTop: 'var(--space-6)' }}>
+            <div style={{ marginTop: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email)}`)}
+              >
+                Enter 4-Digit PIN & Set New Password
+              </Button>
               <Link to="/login">
                 <Button variant="secondary" fullWidth>
                   Return to Sign In
@@ -120,7 +129,7 @@ export function ForgotPasswordPage() {
             )}
 
             <Button type="submit" fullWidth loading={loading}>
-              Send Reset Link
+              Send 4-Digit Reset PIN
             </Button>
 
             <div className="qf-auth-footer">

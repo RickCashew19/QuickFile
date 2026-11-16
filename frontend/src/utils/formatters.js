@@ -37,6 +37,43 @@ export function formatDateTime(dateInput) {
 }
 
 /**
+ * Precise Date, Time & Millisecond Formatter in Asia/Manila Timezone
+ * Produces format: "Nov 16, 2026, 08:35:12.456 AM"
+ */
+export function formatDateTimeMs(dateInput) {
+  if (!dateInput) return '—';
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return '—';
+
+  try {
+    return new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      fractionalSecondDigits: 3,
+      hour12: true,
+    }).format(date);
+  } catch (_) {
+    const base = new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    }).format(date);
+    const ms = String(date.getMilliseconds()).padStart(3, '0');
+    return `${base}.${ms}`;
+  }
+}
+
+/**
  * Date-only Formatter in Asia/Manila Timezone
  */
 export function formatDate(dateInput) {

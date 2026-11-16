@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { CertificatePrintPage } from '../pages/staff/print/CertificatePrintPage';
 import { StaffVerifyPage } from '../pages/staff/verify/StaffVerifyPage';
-import { staffService } from '../services/staffService';
-import { printService } from '../services/printService';
-import { ApiError } from '../services/apiClient';
+import { staffService } from '../api/staffService';
+import { printService } from '../api/printService';
+import { ApiError } from '../api/apiClient';
 import realPrintData from './fixtures/real/staffPrintData.json';
 import realVerifyResult from './fixtures/real/staffVerifyResult.json';
 

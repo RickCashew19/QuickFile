@@ -60,6 +60,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.index({ created_at: -1 });
+
 userSchema.methods.comparePassword = async function (plainPassword) {
   if (!this.password_hash) return false;
   return bcrypt.compare(plainPassword, this.password_hash);

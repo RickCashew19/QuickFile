@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { adminService } from '../../../services/adminService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { adminService } from '../../../api/adminService';
 import { usePolling } from '../../../hooks/usePolling';
 import { AdminStatCards } from './AdminStatCards';
 import { AdminDemandTable } from './AdminDemandTable';

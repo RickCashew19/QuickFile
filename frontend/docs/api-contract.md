@@ -66,6 +66,9 @@ This document provides the definitive REST API contract between the QuickFile Re
 | `GET` | `/api/v1/staff/dashboard` | `role(staff, admin)` | None | `{ kpis: { pending, under_review, in_preparation, ready_for_pickup, released_today, total_processed, avg_turnaround_hours }, pending_queue: [ ... ] }` | Staff Dashboard Summary |
 | `GET` | `/api/v1/staff/requests` | `can_review_requests` | Query: `?page=1&limit=10&status=&search=` | `{ items: [ ... ], pagination: { total, page, limit, total_pages } }` | Staff Request Queue Screen |
 | `GET` | `/api/v1/staff/requests/:id` | `can_review_requests` | None | Full request record including citizen details, internal processing notes, attachments, history | Staff Request Detail Modal / Page |
+| `PUT` | `/api/v1/staff/requests/:id/lock` | `can_review_requests` | None or `{}` | `{ locked_by, locked_by_name, locked_at, expires_at }` | Concurrency Control: Acquire or renew document lock (200 OK / 423 Locked) |
+| `DELETE` | `/api/v1/staff/requests/:id/lock` | `can_review_requests` (or `role: admin`) | None | `null` | Concurrency Control: Release held lock (200 OK) / Admin force release |
+| `GET` | `/api/v1/staff/requests/:id/lock` | `can_review_requests` | None | `{ is_locked, is_held_by_current_user, lock }` | Concurrency Control: Check lock status and holder attribution |
 | `POST` | `/api/v1/staff/requests/:id/notes` | `can_review_requests` | `{ note: string }` | Updated request with appended note & staff attribution | Staff Internal Notes Drawer |
 | `POST` | `/api/v1/staff/requests/:id/review` | `can_review_requests` | None | Updated request (`status: "under_review"`) | Action: Start Review |
 | `POST` | `/api/v1/staff/requests/:id/approve` | `can_review_requests` | None | Updated request (`status: "approved"`) | Action: Approve Request |

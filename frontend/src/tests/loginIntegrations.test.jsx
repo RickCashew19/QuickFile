@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, renderHook, act, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { useGoogleSignIn } from '../hooks/useGoogleSignIn';
 import { LoginPage } from '../pages/public/LoginPage';
-import { publicService } from '../services/publicService';
+import { publicService } from '../api/publicService';
 
-vi.mock('../services/publicService', () => ({
+vi.mock('../api/publicService', () => ({
   publicService: {
     getConfig: vi.fn(),
     loadRecaptchaScript: vi.fn(),

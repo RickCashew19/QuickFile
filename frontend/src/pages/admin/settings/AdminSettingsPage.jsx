@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { adminService } from '../../../services/adminService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { adminService } from '../../../api/adminService';
 import { SuperAdminKeyModal } from '../../../components/shared/SuperAdminKeyModal';
 import { Button } from '../../../components/shared/Button';
 import { Input } from '../../../components/shared/Input';

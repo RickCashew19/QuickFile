@@ -8,11 +8,11 @@ import { TemplatePlaceholdersTable } from '../pages/admin/doctypes/templates/Tem
 import { CertificateTemplatePanel } from '../pages/admin/doctypes/templates/CertificateTemplatePanel';
 import { StaffActionButtons } from '../pages/staff/queue/StaffActionButtons';
 import { StaffRequestDetailPage } from '../pages/staff/queue/StaffRequestDetailPage';
-import { adminService } from '../services/adminService';
-import { staffService } from '../services/staffService';
+import { adminService } from '../api/adminService';
+import { staffService } from '../api/staffService';
 import * as useAuthModule from '../hooks/useAuth';
 import * as downloadHelperModule from '../utils/downloadHelper';
-import { ApiError } from '../services/apiClient';
+import { ApiError } from '../api/apiClient';
 import { REQUEST_STATUSES, STAFF_PERMISSIONS } from '../config/constants';
 import templatesFixture from './fixtures/templates.json';
 

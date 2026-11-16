@@ -37,7 +37,7 @@ function productionCspPlugin(mode) {
         "img-src 'self' data: blob: https://*.googleusercontent.com https://www.gstatic.com",
         "media-src 'self' blob:",
         "frame-src 'self' https://accounts.google.com/gsi/ https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/",
-        `connect-src 'self' ${apiOrigin === "'self'" ? '' : apiOrigin} https://accounts.google.com/gsi/`.replace(/\s+/g, ' ').trim(),
+        `connect-src 'self'${apiOrigin !== "'self'" ? ` ${apiOrigin}` : ''} https://accounts.google.com/gsi/`,
       ];
 
       const metaTag = `    <meta http-equiv="Content-Security-Policy" content="${cspDirectives.join('; ')};" />`;

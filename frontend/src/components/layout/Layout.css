@@ -70,6 +70,39 @@
   background-color: var(--color-surface-hover);
 }
 
+.qf-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.qf-brand__logo {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qf-brand__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.qf-brand__title {
+  font-size: var(--font-lg);
+  font-weight: var(--font-bold);
+  line-height: 1.2;
+}
+
+.qf-brand__subtitle {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+}
+
 .qf-user-badge {
   display: flex;
   align-items: center;

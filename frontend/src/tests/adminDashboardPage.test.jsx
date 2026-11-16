@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminDashboardPage } from '../pages/admin/dashboard/AdminDashboardPage';
-import { adminService } from '../services/adminService';
+import { adminService } from '../api/adminService';
 import realDashboardFixture from './fixtures/real/adminDashboard.json';
 import realLiveStatsFixture from './fixtures/real/adminLiveStats.json';
 

@@ -24,12 +24,10 @@
 .qf-brand__logo {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-md);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .qf-brand__text {

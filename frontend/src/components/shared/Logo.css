@@ -1,0 +1,58 @@
+.qf-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  text-decoration: none;
+  line-height: 1;
+}
+
+.qf-logo__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast, 150ms ease-out);
+}
+
+.qf-logo:hover .qf-logo__mark {
+  transform: scale(1.04);
+}
+
+.qf-logo__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md, 12px);
+}
+
+.qf-logo__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.qf-logo__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.qf-logo__title {
+  font-family: var(--font-sans, 'Poppins', 'Inter', sans-serif);
+  font-size: var(--font-lg, 18px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text, #0f172a);
+  line-height: 1.2;
+}
+
+.qf-logo__subtitle {
+  font-family: var(--font-sans, 'Poppins', 'Inter', sans-serif);
+  font-size: var(--font-xs, 12px);
+  font-weight: 500;
+  color: var(--color-text-secondary, #64748b);
+  line-height: 1.2;
+}

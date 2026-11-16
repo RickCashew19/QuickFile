@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   validateRequestForm,
   validateProfileForm,
   validateAttachments,
   MAX_ATTACHMENT_SIZE_BYTES,
-} from '../utils/validators';
+} from '../validators/validators';
 
 describe('Citizen Validation Suite', () => {
   describe('validateRequestForm', () => {

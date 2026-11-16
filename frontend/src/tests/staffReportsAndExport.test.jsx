@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { StaffExportButtons } from '../pages/staff/reports/StaffExportButtons';
 import { StaffReportsPage } from '../pages/staff/reports/StaffReportsPage';
-import { staffService } from '../services/staffService';
-import { citizenService } from '../services/citizenService';
+import { staffService } from '../api/staffService';
+import { citizenService } from '../api/citizenService';
 import * as downloadHelperModule from '../utils/downloadHelper';
 import realStaffReports from './fixtures/real/staffReports.json';
 

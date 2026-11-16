@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractFilenameFromHeader, downloadBlob } from '../utils/downloadHelper';
-import { apiClient } from '../services/apiClient';
-import { authStorage } from '../services/authStorage';
+import { apiClient } from '../api/apiClient';
+import { authStorage } from '../api/authStorage';
 
 describe('Download Helper & Export Streaming Suite', () => {
   beforeEach(() => {

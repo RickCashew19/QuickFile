@@ -1,0 +1,114 @@
+.qf-toast-container {
+  position: fixed;
+  bottom: var(--space-6, 24px);
+  right: var(--space-6, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 420px;
+  width: calc(100vw - 32px);
+}
+
+.qf-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background-color: var(--color-surface, #ffffff);
+  border-radius: var(--radius-btn, 14px);
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  animation: qf-toast-slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+@keyframes qf-toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.qf-toast--success {
+  border-left: 4px solid var(--color-success, #16a34a);
+  background-color: #f0fdf4;
+}
+
+.qf-toast--error {
+  border-left: 4px solid var(--color-danger, #dc2626);
+  background-color: #fef2f2;
+}
+
+.qf-toast--info {
+  border-left: 4px solid var(--color-primary-deep-label, #1e3a8a);
+  background-color: #eff6ff;
+}
+
+.qf-toast__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.qf-toast--success .qf-toast__icon {
+  color: var(--color-success, #16a34a);
+}
+
+.qf-toast--error .qf-toast__icon {
+  color: var(--color-danger, #dc2626);
+}
+
+.qf-toast--info .qf-toast__icon {
+  color: var(--color-primary-deep-label, #1e3a8a);
+}
+
+.qf-toast__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-toast__title {
+  font-size: var(--font-sm, 14px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--color-text, #0f172a);
+  margin-bottom: 2px;
+}
+
+.qf-toast__message {
+  font-size: var(--font-xs, 12px);
+  color: var(--color-text-secondary, #475569);
+  line-height: 1.4;
+}
+
+.qf-toast__close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full, 9999px);
+  transition: all var(--transition-fast, 150ms);
+}
+
+.qf-toast__close:hover {
+  background-color: rgba(15, 23, 42, 0.08);
+  color: var(--color-text, #0f172a);
+}
+
+@media (max-width: 640px) {
+  .qf-toast-container {
+    bottom: var(--space-4, 16px);
+    right: var(--space-4, 16px);
+    left: var(--space-4, 16px);
+    width: auto;
+  }
+}

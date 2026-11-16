@@ -1,0 +1,9 @@
+node_modules/
+.env
+mongodb_data/
+uploads/*
+!uploads/.gitkeep
+tests/*.tmp
+tests/test_docx.env.tmp
+.DS_Store
+Thumbs.db

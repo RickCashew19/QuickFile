@@ -1,3 +1,4 @@
+_legacy/
 node_modules/
 .env
 .env.*
@@ -16,7 +17,10 @@ backend/src/uploads/*
 !backend/src/uploads/.gitkeep
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/tests/uploads/
+backend/tests/export-samples/
 backend/mongodb_data/
+backend/test_mongo_data/
 backend/export-samples/
 *.env.tmp
 backend/test_*.env*
@@ -24,5 +28,7 @@ frontend/node_modules/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+frontend/dist/
+.vite/
 .DS_Store
 *.log

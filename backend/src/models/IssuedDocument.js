@@ -97,4 +97,7 @@ const issuedDocumentSchema = new mongoose.Schema(
   }
 );
 
+issuedDocumentSchema.index({ created_at: -1 });
+issuedDocumentSchema.index({ validity_status: 1, expires_at: 1 });
+
 module.exports = mongoose.model('IssuedDocument', issuedDocumentSchema);

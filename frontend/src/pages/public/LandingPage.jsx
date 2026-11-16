@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { publicService } from '../../services/publicService';
+import { publicService } from '../../api/publicService';
 import { Button } from '../../components/shared/Button';
 import { Icon } from '../../components/shared/Icon';
 import './LandingPage.css';

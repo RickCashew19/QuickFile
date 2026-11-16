@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, NavLink } from 'react-router-dom';
 import { Icon } from '../shared/Icon';
 import { Button } from '../shared/Button';
+import { Logo } from '../shared/Logo';
 import './Layout.css';
 import '../../pages/public/LandingPage.css';
 
@@ -40,7 +41,7 @@ export function PublicLayout() {
           </button>
           <Link to="/" className="qf-brand" aria-label="QuickFile Portal Home">
             <div className="qf-brand__logo">
-              <Icon name="building" size={22} />
+              <Logo size={36} />
             </div>
             <div className="qf-brand__text">
               <span className="qf-brand__title">QuickFile</span>

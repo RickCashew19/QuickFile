@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { staffService } from '../../../services/staffService';
+﻿import { useState, useEffect } from 'react';
+import { staffService } from '../../../api/staffService';
 import { Input } from '../../../components/shared/Input';
 import { Loader } from '../../../components/shared/Loader';
 

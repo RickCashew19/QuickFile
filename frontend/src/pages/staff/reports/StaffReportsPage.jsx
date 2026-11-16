@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { staffService } from '../../../services/staffService';
-import { citizenService } from '../../../services/citizenService';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { staffService } from '../../../api/staffService';
+import { citizenService } from '../../../api/citizenService';
 import { StaffExportButtons } from './StaffExportButtons';
 import { StaffReportSummaryCards } from './StaffReportSummaryCards';
 import { Select } from '../../../components/shared/Select';

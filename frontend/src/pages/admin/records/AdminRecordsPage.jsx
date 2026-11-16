@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { adminService } from '../../../services/adminService';
+import { adminService } from '../../../api/adminService';
 import { AdminRequestDetailModal } from './AdminRequestDetailModal';
 import { TypedDeleteModal } from '../../../components/shared/TypedDeleteModal';
 import { Button } from '../../../components/shared/Button';
