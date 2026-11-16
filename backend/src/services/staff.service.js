@@ -16,6 +16,7 @@ const {
 } = require('../config/constants');
 const { config } = require('../config');
 const { transitionRequestStatus } = require('../helpers/requestTransition');
+const requestLockService = require('./requestLock.service');
 const { createRequest } = require('./request.service');
 const {
   generateUniqueCertificateNumber,
@@ -415,6 +416,9 @@ async function prepareRequest(requestId, actorUser, ipAddress, userAgent) {
  * Item 7: QR code uses config.publicAppUrl
  */
 async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
+  // Concurrency control: Assert lock held before issuing certificate
+  await requestLockService.assertLockHeld(requestId, actorUser, { ipAddress, userAgent });
+
   const request = await DocumentRequest.findById(requestId)
     .populate('document_type_id')
     .populate('citizen_id');

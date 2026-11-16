@@ -15,6 +15,7 @@ export function StaffActionButtons({
   permissions,
   role = 'staff',
   issuedDocument = null,
+  disabled = false,
   onReview,
   onApprove,
   onOpenReject,
@@ -64,9 +65,13 @@ export function StaffActionButtons({
           return (
             <Link
               key={act.id}
-              to={href}
-              className={`qf-btn qf-btn--${act.variant || 'secondary'}`}
+              to={disabled ? '#' : href}
+              className={`qf-btn qf-btn--${act.variant || 'secondary'} ${disabled ? 'qf-btn--disabled' : ''}`}
               aria-label="Open Certificate Print View"
+              aria-disabled={disabled}
+              onClick={(e) => {
+                if (disabled) e.preventDefault();
+              }}
             >
               {act.label}
             </Link>
@@ -80,7 +85,7 @@ export function StaffActionButtons({
               variant={act.variant || 'secondary'}
               onClick={handlers.download_docx}
               loading={loadingAction === 'download_docx'}
-              disabled={Boolean(loadingAction)}
+              disabled={disabled || Boolean(loadingAction)}
               aria-label={act.label}
               title={act.hint || 'Open in Word to print'}
             >
@@ -96,7 +101,7 @@ export function StaffActionButtons({
             variant={act.variant || 'primary'}
             onClick={handler}
             loading={loadingAction === act.id}
-            disabled={Boolean(loadingAction)}
+            disabled={disabled || Boolean(loadingAction)}
             aria-label={act.label}
           >
             {act.label}

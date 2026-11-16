@@ -8,6 +8,30 @@ function errorHandler(err, req, res, next) {
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || null;
 
+  // Handle Mongoose VersionError (Optimistic Concurrency Conflict)
+  if (err.name === 'VersionError') {
+    statusCode = 409;
+    message = 'Conflict: The record was modified by someone else and should be reloaded.';
+    try {
+      const AuditLog = require('../models/AuditLog');
+      AuditLog.create({
+        user_id: req.user?._id || req.user?.id || null,
+        actor_name: req.user?.full_name || req.user?.name || 'System / Anonymous',
+        action: 'VERSION_CONFLICT',
+        module: 'CONCURRENCY_CONTROL',
+        target_id: req.params?.id || '',
+        target_type: 'DocumentRequest',
+        details: {
+          path: req.originalUrl,
+          method: req.method,
+          error: err.message,
+        },
+        ip_address: req.ip || '',
+        user_agent: req.get('User-Agent') || '',
+      }).catch(() => null);
+    } catch (_) {}
+  }
+
   // Handle Mongoose Validation Error
   if (err.name === 'ValidationError') {
     statusCode = 400;
@@ -72,7 +96,7 @@ function errorHandler(err, req, res, next) {
     success: false,
     message,
     ...(errors && { errors }),
-    data: null,
+    data: err.data !== undefined ? err.data : (err.lock ? { lock: err.lock } : null),
   });
 }
 

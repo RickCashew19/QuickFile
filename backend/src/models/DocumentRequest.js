@@ -183,13 +183,37 @@ const documentRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Concurrency control: Pessimistic locking subdocument
+    lock: {
+      locked_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      locked_by_name: {
+        type: String,
+        default: null,
+      },
+      locked_at: {
+        type: Date,
+        default: null,
+      },
+      expires_at: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+    optimisticConcurrency: true,
+    versionKey: '__v',
   }
 );
 
 documentRequestSchema.index({ citizen_id: 1, status: 1 });
 documentRequestSchema.index({ created_at: -1 });
+documentRequestSchema.index({ 'lock.locked_by': 1 });
+documentRequestSchema.index({ 'lock.expires_at': 1 });
 
 module.exports = mongoose.model('DocumentRequest', documentRequestSchema);

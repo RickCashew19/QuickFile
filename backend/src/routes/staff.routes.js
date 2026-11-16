@@ -35,6 +35,27 @@ router.get(
   requirePermission('can_review_requests'),
   staffController.getRequest
 );
+
+// Concurrency Control: Request Locking (Noun-based REST endpoints)
+router.put(
+  '/requests/:id/lock',
+  validateObjectIdParam('id'),
+  requirePermission('can_review_requests'),
+  staffController.acquireOrRenewLock
+);
+router.delete(
+  '/requests/:id/lock',
+  validateObjectIdParam('id'),
+  requirePermission('can_review_requests'),
+  staffController.releaseRequestLock
+);
+router.get(
+  '/requests/:id/lock',
+  validateObjectIdParam('id'),
+  requirePermission('can_review_requests'),
+  staffController.getRequestLockStatus
+);
+
 router.post(
   '/requests/:id/notes',
   validateObjectIdParam('id'),

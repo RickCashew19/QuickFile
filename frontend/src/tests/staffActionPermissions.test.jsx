@@ -257,4 +257,43 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
       expect(screen.getByRole('button', { name: /approve application/i })).toBeInTheDocument();
     });
   });
+
+  it('displays lock banner and disables action buttons when request is locked by another staff member (423 Locked)', async () => {
+    vi.spyOn(staffService, 'getRequest').mockResolvedValue(realStaffRequestDetail);
+    vi.spyOn(staffService, 'acquireOrRenewLock').mockRejectedValue(
+      new ApiError('Request is currently locked by Staff Roberto.', 423, 'LOCKED', {
+        lock: {
+          locked_by_name: 'Staff Roberto',
+          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        },
+      })
+    );
+    const releaseSpy = vi.spyOn(staffService, 'releaseLock').mockResolvedValue({});
+
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { full_name: 'Staff Maria', role: 'staff' },
+      hasPermission: () => true,
+    });
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={[`/staff/requests/${realStaffRequestDetail.request._id}`]}>
+        <Routes>
+          <Route path="/staff/requests/:id" element={<StaffRequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Confirms lock banner appears with holder name
+    await waitFor(() => {
+      expect(screen.getByText(/Locked by Staff Roberto/i)).toBeInTheDocument();
+    });
+
+    // Confirms action button is disabled
+    const startReviewBtn = screen.getByRole('button', { name: /start review/i });
+    expect(startReviewBtn).toBeDisabled();
+
+    // Confirms releaseLock is invoked on unmount
+    unmount();
+    expect(releaseSpy).toHaveBeenCalledWith(realStaffRequestDetail.request._id);
+  });
 });

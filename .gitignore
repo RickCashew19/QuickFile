@@ -28,5 +28,6 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 frontend/dist/
+.vite/
 .DS_Store
 *.log

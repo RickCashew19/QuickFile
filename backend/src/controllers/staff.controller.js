@@ -1,5 +1,6 @@
 const staffService = require('../services/staff.service');
 const reportsService = require('../services/reports.service');
+const requestLockService = require('../services/requestLock.service');
 const { formatContentDisposition } = require('../helpers/contentDisposition');
 const asyncHandler = require('../helpers/asyncHandler');
 
@@ -360,6 +361,39 @@ const exportStaffReport = asyncHandler(async (req, res) => {
   return res.status(200).send(result.buffer);
 });
 
+const acquireOrRenewLock = asyncHandler(async (req, res) => {
+  const lock = await requestLockService.acquireLock(req.params.id, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
+  return res.status(200).json({
+    success: true,
+    message: 'Lock acquired successfully.',
+    data: lock,
+  });
+});
+
+const releaseRequestLock = asyncHandler(async (req, res) => {
+  await requestLockService.releaseLock(req.params.id, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
+  return res.status(200).json({
+    success: true,
+    message: 'Lock released successfully.',
+    data: null,
+  });
+});
+
+const getRequestLockStatus = asyncHandler(async (req, res) => {
+  const status = await requestLockService.getLockStatus(req.params.id, req.user);
+  return res.status(200).json({
+    success: true,
+    message: 'Lock status retrieved.',
+    data: status,
+  });
+});
+
 module.exports = {
   getDashboard,
   getLiveStats,
@@ -380,4 +414,7 @@ module.exports = {
   createWalkIn,
   getReports,
   exportStaffReport,
+  acquireOrRenewLock,
+  releaseRequestLock,
+  getRequestLockStatus,
 };

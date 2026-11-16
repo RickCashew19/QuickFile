@@ -38,6 +38,27 @@ export const staffService = {
   },
 
   /**
+   * Concurrency Control: Acquires or renews a pessimistic lock on a request
+   */
+  async acquireOrRenewLock(id) {
+    return apiClient.put(`/staff/requests/${encodeURIComponent(id)}/lock`, {});
+  },
+
+  /**
+   * Concurrency Control: Releases a lock on a request
+   */
+  async releaseLock(id) {
+    return apiClient.delete(`/staff/requests/${encodeURIComponent(id)}/lock`);
+  },
+
+  /**
+   * Concurrency Control: Retrieves lock status for a request
+   */
+  async getLockStatus(id) {
+    return apiClient.get(`/staff/requests/${encodeURIComponent(id)}/lock`);
+  },
+
+  /**
    * Retrieves comprehensive request details (notes, audit history, citizen info)
    */
   async getRequest(id) {

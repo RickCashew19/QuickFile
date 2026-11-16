@@ -4,6 +4,7 @@ const { sendNotification } = require('../services/notification.service');
 const { sendSms } = require('./sms');
 const { sendMail } = require('./mailer');
 const { escapeHtml } = require('./escapeHtml');
+const requestLockService = require('../services/requestLock.service');
 
 /**
  * Single, central service function for executing all document request status transitions
@@ -33,7 +34,10 @@ async function transitionRequestStatus({
     throw error;
   }
 
-  // 1. Validate status transition graph
+  // 1. Concurrency control: Assert lock held (or unlocked) before executing workflow action
+  await requestLockService.assertLockHeld(reqId, actorUser, { ipAddress, userAgent });
+
+  // 2. Validate status transition graph
   const allowedNextStatuses = ALLOWED_STATUS_TRANSITIONS[expectedStatus] || [];
   if (!allowedNextStatuses.includes(newStatus)) {
     const error = new Error(
@@ -43,10 +47,20 @@ async function transitionRequestStatus({
     throw error;
   }
 
-  // 2. Build atomic update operations
+  // Check if a lock was currently held prior to state transition (for audit log)
+  const priorDoc = await DocumentRequest.findById(reqId).select('lock tracking_number');
+
+  // 3. Build atomic update operations
   const updateFields = {
     status: newStatus,
     ...extraUpdates,
+    // Concurrency control: Automatically release the lock when an action completes work or reaches a terminal state
+    lock: {
+      locked_by: null,
+      locked_by_name: null,
+      locked_at: null,
+      expires_at: null,
+    },
   };
 
   // Specific timestamp & actor recording per transition stage
@@ -77,10 +91,10 @@ async function transitionRequestStatus({
     updateFields.processing_notes = processingNotes.trim();
   }
 
-  // 3. Section 2B.A: Concurrency-safe atomic findOneAndUpdate with expected status filter
+  // 4. Concurrency-safe atomic findOneAndUpdate with expected status filter and version increment
   const updatedRequest = await DocumentRequest.findOneAndUpdate(
     { _id: reqId, status: expectedStatus },
-    { $set: updateFields },
+    { $set: updateFields, $inc: { __v: 1 } },
     { new: true, runValidators: true }
   );
 
@@ -120,6 +134,26 @@ async function transitionRequestStatus({
     ip_address: ipAddress || '',
     user_agent: userAgent || '',
   });
+
+  // Concurrency control: Record audit log for automatic lock release if held prior to action
+  if (priorDoc && priorDoc.lock && priorDoc.lock.locked_by) {
+    await AuditLog.create({
+      user_id: actorUser._id,
+      actor_name: actorUser.full_name || 'Staff Member',
+      action: 'LOCK_RELEASED',
+      module: 'REQUEST_LOCK',
+      target_id: updatedRequest._id.toString(),
+      target_type: 'DocumentRequest',
+      details: {
+        tracking_number: updatedRequest.tracking_number,
+        released_holder_id: priorDoc.lock.locked_by,
+        released_holder_name: priorDoc.lock.locked_by_name,
+        trigger: `TRANSITION_TO_${newStatus.toUpperCase()}`,
+      },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    }).catch(() => null);
+  }
 
   // 5. In-app notification to citizen
   const readableStatus = newStatus.replace(/_/g, ' ').toUpperCase();
