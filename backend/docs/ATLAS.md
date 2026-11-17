@@ -36,6 +36,13 @@ Provisioning applies `$jsonSchema` validation (7 core collections), the full ind
 - **Optimistic concurrency**: `DocumentRequest` uses `__v` with Mongoose `optimisticConcurrency`; `requestTransition.js` guards on expected status and increments `__v`.
 - **MVCC / transactions**: `helpers/transaction.js` uses snapshot reads + majority writes. `issueRequest` (certificate + status transition), `transitionRequestStatus` (status + audit + notification), and the password-reset flow commit atomically. On a standalone server the helper degrades gracefully (no transactions); Atlas and the local replica set run full transactions.
 
+## Schema invariants
+
+- **Attachments**: `DocumentRequest.attachments[]` is the only store for uploaded files. The legacy `attachment_name`/`attachment_path` mirror was removed from the model and is `$unset` by `atlas:normalize:apply`.
+- **Template activation**: `DocumentType.active_template_id` is the sole authority for the live template. `DocumentTemplate.is_active` remains as a display-only mirror and is never used in retire/delete decisions.
+- **Citizen mirror**: `helpers/userProfileSync.js` is the only place that derives `User.full_name` / `User.phone` from `CitizenProfile`; profile updates must call `syncUserFromProfile()` so clearing the profile phone also clears the mirror.
+- **Cancellation audit**: `DocumentRequest.cancelled_by` records the actor on a transition to `cancelled` alongside `cancelled_at` / `cancellation_reason`.
+
 ## Local development
 
 Local mongod must be a replica set to support transactions:

@@ -1,5 +1,6 @@
 const { User, CitizenProfile, DocumentType, AuditLog } = require('../models');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
+const { buildUserProfileMirror, syncUserFromProfile } = require('../helpers/userProfileSync');
 
 const PROFILE_COMPLETENESS_FIELDS = [
   'first_name',
@@ -122,19 +123,9 @@ async function updateCitizenProfile(userId, updateData, ipAddress, userAgent) {
 
   await profile.save();
 
-  // Sync with User model: full_name and phone
-  const fullNameParts = [profile.first_name, profile.middle_name, profile.last_name, profile.suffix].filter(Boolean);
-  const fullName = fullNameParts.join(' ');
-  const primaryPhone = profile.contact_number || '';
-
-  const user = await User.findById(userId);
-  if (user) {
-    user.full_name = fullName;
-    if (primaryPhone) {
-      user.phone = primaryPhone;
-    }
-    await user.save();
-  }
+  // Sync with User model via the single shared helper (clears phone when empty).
+  const { full_name: fullName } = buildUserProfileMirror(profile);
+  await syncUserFromProfile(profile);
 
   // Audit log entry
   await AuditLog.create({

@@ -50,6 +50,11 @@ function normalizedChanges(name, doc) {
       }
       if (!('rejected_by' in d)) set.rejected_by = null;
       if (!('archived_by' in d)) set.archived_by = null;
+      if (!('cancelled_by' in d)) set.cancelled_by = null;
+      // Legacy single-attachment mirror fields were replaced by `attachments[]`.
+      for (const legacy of ['attachment_name', 'attachment_path']) {
+        if (legacy in d) unset.push(legacy);
+      }
       if (typeof d.__v !== 'number') set.__v = 0;
       break;
     case 'documenttypes':

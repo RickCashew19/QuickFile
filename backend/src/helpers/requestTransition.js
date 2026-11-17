@@ -87,6 +87,7 @@ async function transitionRequestStatus({
     updateFields.rejection_reason = rejectionReason.trim();
   } else if (newStatus === REQUEST_STATUSES.CANCELLED) {
     updateFields.cancelled_at = new Date();
+    updateFields.cancelled_by = actorUser?._id || null;
     updateFields.cancellation_reason = rejectionReason ? rejectionReason.trim() : 'Cancelled by citizen';
   } else if (newStatus === REQUEST_STATUSES.ARCHIVED) {
     updateFields.archived_by = actorUser._id;

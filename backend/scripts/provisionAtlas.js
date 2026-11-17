@@ -43,6 +43,7 @@ const VALIDATORS = {
         },
         citizen_id: { bsonType: 'objectId' },
         document_type_id: { bsonType: 'objectId' },
+        cancelled_by: { bsonType: ['objectId', 'null'] },
       },
     },
   },

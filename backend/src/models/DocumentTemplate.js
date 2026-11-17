@@ -55,6 +55,8 @@ const documentTemplateSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Display-only mirror of DocumentType.active_template_id. That field is the
+    // sole authority for "which template is live"; never gate logic on this flag.
     is_active: {
       type: Boolean,
       default: false,

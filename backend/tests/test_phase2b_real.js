@@ -714,7 +714,10 @@ async function runTests() {
     );
     assert(cancelRes.status === 200, `Cancel request failed with status ${cancelRes.status}`);
     assert(cancelRes.data?.data?.status === 'cancelled', 'Request status should now be cancelled');
-    console.log('PASS: Pending request cancelled successfully.');
+    const cancelledDoc = await DocumentRequest.findOne({ tracking_number: trackingNumber });
+    assert(cancelledDoc.cancelled_by?.toString() === citizenUser._id.toString(), 'cancelled_by must record the cancelling citizen');
+    assert(cancelledDoc.attachment_name === undefined && cancelledDoc.attachment_path === undefined, 'Legacy attachment mirror fields must be gone');
+    console.log('PASS: Pending request cancelled successfully (cancelled_by recorded, no legacy attachment fields).');
 
     // 8g: Attempting to edit or cancel a non-pending request must fail with 400
     const editCancelledRes = await makeRequest(

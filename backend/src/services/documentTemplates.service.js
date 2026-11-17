@@ -531,7 +531,8 @@ async function retireTemplate(documentTypeId, versionNum, actorUser, ipAddress, 
     docType.active_template_id &&
     docType.active_template_id.toString() === template._id.toString();
 
-  if (template.is_active || isActiveInDocType) {
+  // DocumentType.active_template_id is the sole authority for "active".
+  if (isActiveInDocType) {
     const error = new Error(
       'Cannot retire the active template. Please activate another template or switch mode to builtin before retiring.'
     );
@@ -598,7 +599,8 @@ async function deleteTemplate(documentTypeId, versionNum, actorUser, ipAddress, 
     docType.active_template_id &&
     docType.active_template_id.toString() === template._id.toString();
 
-  if (template.is_active || isActiveInDocType) {
+  // DocumentType.active_template_id is the sole authority for "active".
+  if (isActiveInDocType) {
     const error = new Error('Cannot delete the active template.');
     error.statusCode = 409;
     throw error;

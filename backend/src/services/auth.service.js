@@ -15,6 +15,7 @@ const {
 const { sendMail } = require('../helpers/mailer');
 const { sendSms } = require('../helpers/sms');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
+const { buildUserProfileMirror } = require('../helpers/userProfileSync');
 const { isValidEmail } = require('../helpers/emailValidator');
 const { escapeHtml } = require('../helpers/escapeHtml');
 const { withTransaction } = require('../helpers/transaction');
@@ -108,9 +109,6 @@ async function registerCitizen(payload, ipAddress, userAgent) {
   }
 
   const passwordHash = await User.hashPassword(password);
-  const fullName = [first_name.trim(), middle_name ? middle_name.trim() : '', last_name.trim(), suffix ? suffix.trim() : '']
-    .filter(Boolean)
-    .join(' ');
 
   let primaryPhone = (phone || contact_number || '').trim();
   if (primaryPhone) {
@@ -128,27 +126,17 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     }
   }
 
-  // 1. Create User
-  const newUser = await User.create({
-    email: normalizedEmail,
-    password_hash: passwordHash,
-    full_name: fullName,
-    phone: primaryPhone,
-    role: ROLES.CITIZEN,
-    is_active: true,
-  });
-
-  // 2. Create Citizen Profile (standard registration includes birthdate & gender)
-  const profile = await CitizenProfile.create({
-    user_id: newUser._id,
+  // Build the profile payload first, then derive the User mirror from the very
+  // same data so the two records can never disagree at creation time.
+  const profileData = {
     first_name: first_name.trim(),
     middle_name: (middle_name || '').trim(),
     last_name: last_name.trim(),
     suffix: (suffix || '').trim(),
+    contact_number: primaryPhone,
     birthdate: new Date(birthdate),
     gender,
     civil_status: civil_status || 'single',
-    contact_number: primaryPhone,
     purok_zone: (purok_zone || '').trim(),
     street_address: (street_address || '').trim(),
     barangay: (barangay || config.jurisdiction.barangayName()).trim(),
@@ -158,6 +146,23 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     emergency_contact_name: (emergency_contact_name || '').trim(),
     emergency_contact_number: emergencyPhone,
     profile_complete: true,
+  };
+  const mirror = buildUserProfileMirror(profileData);
+  const fullName = mirror.full_name;
+
+  // 1. Create User
+  const newUser = await User.create({
+    email: normalizedEmail,
+    password_hash: passwordHash,
+    ...mirror,
+    role: ROLES.CITIZEN,
+    is_active: true,
+  });
+
+  // 2. Create Citizen Profile (standard registration includes birthdate & gender)
+  const profile = await CitizenProfile.create({
+    user_id: newUser._id,
+    ...profileData,
   });
 
   // 3. Issue Token

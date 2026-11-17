@@ -120,10 +120,6 @@ async function createRequest({
   // 5. Generate unique tracking number
   const trackingNumber = await generateTrackingNumber();
 
-  const primaryAttachment = savedAttachments[0] || null;
-  const attachmentName = primaryAttachment ? primaryAttachment.original_name : '';
-  const attachmentPath = primaryAttachment ? primaryAttachment.stored_filename : '';
-
   // 6. Create DocumentRequest record
   let newRequest;
   try {
@@ -139,8 +135,6 @@ async function createRequest({
       fee,
       payment_status: paymentStatus,
       form_data: parsedFormData,
-      attachment_name: attachmentName,
-      attachment_path: attachmentPath,
       attachments: savedAttachments,
     });
   } catch (createErr) {
@@ -361,9 +355,6 @@ async function updateCitizenRequest({
         updateFields.attachments = [...existing.attachments, ...newlySaved];
       }
 
-      const primary = (updateFields.attachments || [])[0] || null;
-      updateFields.attachment_name = primary ? primary.original_name : '';
-      updateFields.attachment_path = primary ? primary.stored_filename : '';
     }
 
     // Atomic update conditioned on pending status with runValidators: true

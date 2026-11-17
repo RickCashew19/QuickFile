@@ -102,14 +102,8 @@ const documentRequestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    attachment_name: {
-      type: String,
-      default: '',
-    },
-    attachment_path: {
-      type: String,
-      default: '',
-    },
+    // Attachments are stored only in the `attachments` array; the former
+    // attachment_name/attachment_path single-file mirror fields were removed.
     attachments: {
       type: [attachmentSchema],
       default: [],
@@ -191,6 +185,11 @@ const documentRequestSchema = new mongoose.Schema(
     },
     cancelled_at: {
       type: Date,
+      default: null,
+    },
+    cancelled_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       default: null,
     },
     // Concurrency control: Pessimistic locking subdocument
