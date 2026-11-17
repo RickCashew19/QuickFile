@@ -11,6 +11,7 @@ const Notification = require('./Notification');
 const AuditLog = require('./AuditLog');
 const AppSetting = require('./AppSetting');
 const SuperAdminLockout = require('./SuperAdminLockout');
+const TwoFactorVerification = require('./TwoFactorVerification');
 
 module.exports = {
   User,
@@ -26,4 +27,5 @@ module.exports = {
   AuditLog,
   AppSetting,
   SuperAdminLockout,
+  TwoFactorVerification,
 };

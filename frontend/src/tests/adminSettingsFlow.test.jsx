@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminSettingsPage } from '../pages/admin/settings/AdminSettingsPage';
@@ -11,10 +11,14 @@ vi.mock('../api/adminService', () => ({
     updateCustomSettings: vi.fn(),
     updateToggles: vi.fn(),
     updateGeneralSettings: vi.fn(),
+    verifySuperAdminPin: vi.fn(),
+    validateApiKey: vi.fn(),
+    initiateApiKeyUpdate: vi.fn(),
+    confirmApiKeyUpdate: vi.fn(),
   },
 }));
 
-describe('Admin Settings & Super Admin Key Flow', () => {
+describe('Admin Settings & API Key Management Suite', () => {
   const mockSettingsData = {
     integrations: {
       google: {
@@ -40,25 +44,191 @@ describe('Admin Settings & Super Admin Key Flow', () => {
       },
       rest_api: {
         source: 'default',
-        secret_key: '••••••••••••••••••••••••••••••••',
+        secret_key: '••••••••••••••••',
       },
     },
     app_settings: [
       { key: 'system_name', value: 'Barangay San Isidro QuickFile' },
       { key: 'barangay_captain', value: 'Hon. Maria Santos' },
       { key: 'enable_google_login', value: false },
+      { key: 'enable_recaptcha', value: false },
+      { key: 'enable_sms_notifications', value: false },
+      { key: 'enable_email_notifications', value: false },
+      { key: 'enable_rest_api_gateway', value: false },
     ],
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     adminService.getSettings.mockResolvedValue(mockSettingsData);
+    adminService.verifySuperAdminPin.mockResolvedValue({
+      verified: true,
+      grant_token: 'mock_grant_token',
+      expires_in_seconds: 900,
+    });
+    adminService.validateApiKey.mockResolvedValue({
+      valid: true,
+      message: 'REST API Secret Key validated successfully.',
+    });
+    adminService.initiateApiKeyUpdate.mockResolvedValue({
+      verification_id: 'v_test_123',
+      email_masked: 'a***n@quickfile.gov.ph',
+      expires_in_seconds: 600,
+    });
+    adminService.confirmApiKeyUpdate.mockResolvedValue({
+      modified_keys: ['CUSTOM_REST_API_SECRET_KEY'],
+      integrations: {
+        ...mockSettingsData.integrations,
+        rest_api: {
+          source: 'custom',
+          secret_key: 'custom_secret_key',
+        },
+      },
+    });
+    adminService.updateToggles.mockResolvedValue({
+      enable_rest_api_gateway: true,
+      enable_google_login: true,
+    });
   });
 
-  it('renders masked integration values and Default/Custom source badges', async () => {
+  it('Section 1: Instantly asks for Super Admin PIN before granting access to System Settings', async () => {
     render(
       <MemoryRouter>
         <AdminSettingsPage />
+      </MemoryRouter>
+    );
+
+    // Initial view must instantly show the PIN verification challenge
+    await waitFor(() => {
+      expect(screen.getByText('Super Admin PIN Verification Required')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Enter Super Admin PIN/i)).toBeInTheDocument();
+    });
+
+    // Neither settings tabs nor integration cards are accessible yet
+    expect(screen.queryByText('Google OAuth 2.0 Single Sign-On')).not.toBeInTheDocument();
+    expect(screen.queryByText('Barangay Information & Signatories')).not.toBeInTheDocument();
+
+    // Enter incorrect PIN
+    adminService.verifySuperAdminPin.mockRejectedValueOnce(
+      new Error('Incorrect Super Admin PIN. Verification failed.')
+    );
+
+    const pinInput = screen.getByPlaceholderText(/Enter Super Admin PIN/i);
+    fireEvent.change(pinInput, { target: { value: 'wrong-pin' } });
+
+    const unlockBtn = screen.getByRole('button', { name: /Verify PIN/i });
+    fireEvent.click(unlockBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Incorrect Super Admin PIN. Verification failed.')).toBeInTheDocument();
+    });
+
+    // Enter correct PIN
+    fireEvent.change(pinInput, { target: { value: 'CorrectPin@2026' } });
+    fireEvent.click(unlockBtn);
+
+    // Settings page unlocks and renders navigation and integration cards
+    await waitFor(() => {
+      expect(screen.getByText('Super Admin Session Active')).toBeInTheDocument();
+      expect(screen.getByText('Google OAuth 2.0 Single Sign-On')).toBeInTheDocument();
+      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+    });
+  });
+
+  it('Section 2: Feature Toggles tab is removed and unified into API Key Management & Gateways', async () => {
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage initialPinVerified={true} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('API Key Management & Gateways')).toBeInTheDocument();
+      expect(screen.getByText('Barangay Information & Signatories')).toBeInTheDocument();
+    });
+
+    // Assert that the standalone "Feature Toggles" tab button is NOT present in the navigation
+    const tabButtons = screen.getAllByRole('button');
+    const hasStandaloneTogglesTab = tabButtons.some(
+      (btn) => btn.className.includes('qf-settings-tab-btn') && btn.textContent.includes('Feature Toggles')
+    );
+    expect(hasStandaloneTogglesTab).toBe(false);
+
+    // Assert that the Feature Toggles overview panel is inside API Key Management & Gateways
+    expect(screen.getByText('Core Service & Feature Toggles')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Toggle REST API Gateway Service/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Toggle Google Login Service/i })).toBeInTheDocument();
+  });
+
+  it('Section 3: Direct Enable/Disable toggle inside REST API Gateway card', async () => {
+    adminService.updateToggles.mockResolvedValue({
+      enable_rest_api_gateway: true,
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage initialPinVerified={true} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+    });
+
+    // Locate the direct toggle switch in the REST API Gateway card
+    const toggleCheckbox = screen.getByRole('checkbox', {
+      name: /Toggle REST API Gateway Authentication/i,
+    });
+    expect(toggleCheckbox).toBeInTheDocument();
+    expect(toggleCheckbox.checked).toBe(false);
+
+    // Toggle on
+    fireEvent.click(toggleCheckbox);
+
+    await waitFor(() => {
+      expect(adminService.updateToggles).toHaveBeenCalledWith(
+        expect.objectContaining({
+          enable_rest_api_gateway: true,
+        })
+      );
+      expect(
+        screen.getByText(/REST API Key Authentication enabled and strictly enforced/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('Section 4: Validates API key with provider and displays feedback', async () => {
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage initialPinVerified={true} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+    });
+
+    const apiKeyInput = screen.getByPlaceholderText(/Enter custom API secret key/i);
+    fireEvent.change(apiKeyInput, { target: { value: 'MySecureLongSecretKey2026!' } });
+
+    const validateBtn = screen.getByRole('button', { name: /Validate Key with Provider/i });
+    fireEvent.click(validateBtn);
+
+    await waitFor(() => {
+      expect(adminService.validateApiKey).toHaveBeenCalledWith({
+        provider: 'rest_api',
+        credentials: {
+          CUSTOM_REST_API_SECRET_KEY: 'MySecureLongSecretKey2026!',
+        },
+      });
+      expect(screen.getByText(/REST API Secret Key validated successfully/i)).toBeInTheDocument();
+    });
+  });
+
+  it('Section 5: Entering custom API (like Google Auth) sends 2FA and verifies if it is a working API', async () => {
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage initialPinVerified={true} />
       </MemoryRouter>
     );
 
@@ -66,133 +236,94 @@ describe('Admin Settings & Super Admin Key Flow', () => {
       expect(screen.getByText('Google OAuth 2.0 Single Sign-On')).toBeInTheDocument();
     });
 
-    // Verify Default and Custom badges
-    const defaultBadges = screen.getAllByText('Default');
-    expect(defaultBadges.length).toBeGreaterThanOrEqual(1);
+    // Enter custom Google OAuth credentials
+    const clientIdInput = screen.getByPlaceholderText(/Enter client ID to override/i);
+    const clientSecretInput = screen.getByPlaceholderText(/Enter client secret to override/i);
 
-    const customBadges = screen.getAllByText('Custom');
-    expect(customBadges.length).toBeGreaterThanOrEqual(1);
+    fireEvent.change(clientIdInput, {
+      target: { value: '123456789-abcdef.apps.googleusercontent.com' },
+    });
+    fireEvent.change(clientSecretInput, {
+      target: { value: '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s' },
+    });
 
-    // Verify masked preview text exists
-    expect(screen.getByText(/1234\.apps\.googleusercontent\.com/)).toBeInTheDocument();
-  });
+    // Locate Google OAuth card's Save & Verify (2FA) button
+    const googleCard = screen.getByText('Google OAuth 2.0 Single Sign-On').closest('.qf-integration-card');
+    const saveBtn = googleCard.querySelector('button.qf-btn--primary');
+    expect(saveBtn).toBeInTheDocument();
+    fireEvent.click(saveBtn);
 
-  it('prompts SuperAdminKeyModal on save, zeroes key from state after submit, and calls API', async () => {
-    adminService.updateCustomSettings.mockResolvedValue({
-      modified_keys: ['CUSTOM_GOOGLE_CLIENT_ID'],
+    // If Super Admin Key step-up modal opens, authorize
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    if (screen.queryByPlaceholderText(/Enter authorization key/i)) {
+      const suKeyInput = screen.getByPlaceholderText(/Enter authorization key/i);
+      fireEvent.change(suKeyInput, { target: { value: 'SuperAdminPIN@2026' } });
+      const authContinueBtn = screen.getByRole('button', { name: /Authorize & Continue/i });
+      fireEvent.click(authContinueBtn);
+    }
+
+    // 2FA verification code dispatched and 2FA modal opens
+    await waitFor(() => {
+      expect(adminService.initiateApiKeyUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            CUSTOM_GOOGLE_CLIENT_ID: '123456789-abcdef.apps.googleusercontent.com',
+            CUSTOM_GOOGLE_CLIENT_SECRET: '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s',
+          }),
+        })
+      );
+      expect(screen.getByText('Two-Factor Authentication (2FA)')).toBeInTheDocument();
+    });
+
+    // Scenario A: When API is verified as NOT working, backend rejects and modal shows error
+    adminService.confirmApiKeyUpdate.mockRejectedValueOnce(
+      new Error('Google OAuth API is not working: Invalid Google Client ID format.')
+    );
+
+    const codeInput = screen.getByPlaceholderText('000000');
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+
+    const verifyBtn = screen.getByRole('button', { name: /Verify & Activate API Key/i });
+    fireEvent.click(verifyBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Google OAuth API is not working: Invalid Google Client ID format/i)
+      ).toBeInTheDocument();
+    });
+
+    // Scenario B: When API is working, 2FA confirms and activates custom key
+    adminService.confirmApiKeyUpdate.mockResolvedValueOnce({
+      modified_keys: ['CUSTOM_GOOGLE_CLIENT_ID', 'CUSTOM_GOOGLE_CLIENT_SECRET'],
       integrations: {
         ...mockSettingsData.integrations,
         google: {
           source: 'custom',
-          client_id: 'custom-google-id',
+          client_id: '123456789-abcdef.apps.googleusercontent.com',
           client_secret: '••••••••••••••••',
         },
       },
     });
 
-    render(
-      <MemoryRouter>
-        <AdminSettingsPage />
-      </MemoryRouter>
-    );
+    fireEvent.click(verifyBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Google OAuth 2.0 Single Sign-On')).toBeInTheDocument();
-    });
-
-    // Fill in Custom Google Client ID draft
-    const clientIdInputs = screen.getAllByPlaceholderText(/Enter client ID to override/i);
-    fireEvent.change(clientIdInputs[0], { target: { value: 'custom-google-id' } });
-
-    // Click Save Settings for Google OAuth
-    const saveButtons = screen.getAllByRole('button', { name: /Save Settings/i });
-    fireEvent.click(saveButtons[0]);
-
-    // SuperAdminKeyModal should now be open
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/Authorize: Google OAuth/i)).toBeInTheDocument();
-    });
-
-    // Key input
-    const keyInput = screen.getByPlaceholderText(/Enter authorization key/i);
-    expect(keyInput).toBeInTheDocument();
-    fireEvent.change(keyInput, { target: { value: 'SecretKey@2026' } });
-
-    // Submit key
-    const authSaveBtn = screen.getByRole('button', { name: /Authorize & Save/i });
-    fireEvent.click(authSaveBtn);
-
-    await waitFor(() => {
-      expect(adminService.updateCustomSettings).toHaveBeenCalledWith({
-        su_admin_key: 'SecretKey@2026',
-        settings: { CUSTOM_GOOGLE_CLIENT_ID: 'custom-google-id' },
-        reset_keys: [],
-      });
-    });
-
-    // Verify success alert
-    await waitFor(() => {
-      expect(screen.getByText('Integration settings saved successfully.')).toBeInTheDocument();
+      expect(
+        screen.getByText(/2FA verification successful\. Custom API key configurations saved and activated/i)
+      ).toBeInTheDocument();
     });
   });
 
-  it('prompts SuperAdminKeyModal on Reset to Default with correct resetKeys', async () => {
-    adminService.updateCustomSettings.mockResolvedValue({
-      modified_keys: ['CUSTOM_SMS_API_TOKEN'],
-      integrations: {
-        ...mockSettingsData.integrations,
-        sms: {
-          source: 'default',
-          gateway_url: 'https://app.philsms.com/api/v3/sms/send',
-          api_token: '••••••••••••••••',
-        },
-      },
-    });
-
-    render(
-      <MemoryRouter>
-        <AdminSettingsPage />
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('PhilSMS Gateway')).toBeInTheDocument();
-    });
-
-    // Click Reset to Default for SMS Gateway (which has source: 'custom')
-    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
-    fireEvent.click(resetBtn);
-
-    // Modal opens for reset
-    await waitFor(() => {
-      expect(screen.getByText(/Authorize: SMS Gateway/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Authorize & Reset/i })).toBeInTheDocument();
-    });
-
-    // Provide key and submit
-    const keyInput = screen.getByPlaceholderText(/Enter authorization key/i);
-    fireEvent.change(keyInput, { target: { value: 'SecretKey@2026' } });
-
-    const authResetBtn = screen.getByRole('button', { name: /Authorize & Reset/i });
-    fireEvent.click(authResetBtn);
-
-    await waitFor(() => {
-      expect(adminService.updateCustomSettings).toHaveBeenCalledWith({
-        su_admin_key: 'SecretKey@2026',
-        settings: {},
-        reset_keys: ['CUSTOM_SMS_GATEWAY_URL', 'CUSTOM_SMS_API_TOKEN', 'CUSTOM_SMS_SENDER_ID'],
-      });
-    });
-  });
-
-  it('handles HTTP 423 Lockout error and renders prominent lockout alert banner', async () => {
+  it('handles HTTP 423 Lockout error gracefully', async () => {
     const lockoutError = new ApiError(
       'Super Admin Key is locked. Try again in 30 minute(s).',
       423,
       'LOCKED'
     );
-    adminService.updateCustomSettings.mockRejectedValue(lockoutError);
+    adminService.verifySuperAdminPin.mockRejectedValue(lockoutError);
 
     render(
       <MemoryRouter>
@@ -201,25 +332,20 @@ describe('Admin Settings & Super Admin Key Flow', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Google OAuth 2.0 Single Sign-On')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Enter Super Admin PIN/i)).toBeInTheDocument();
     });
 
-    const clientIdInputs = screen.getAllByPlaceholderText(/Enter client ID to override/i);
-    fireEvent.change(clientIdInputs[0], { target: { value: 'test' } });
+    const pinInput = screen.getByPlaceholderText(/Enter Super Admin PIN/i);
+    fireEvent.change(pinInput, { target: { value: 'locked-pin' } });
 
-    const saveButtons = screen.getAllByRole('button', { name: /Save Settings/i });
-    fireEvent.click(saveButtons[0]);
+    const unlockBtn = screen.getByRole('button', { name: /Verify PIN/i });
+    fireEvent.click(unlockBtn);
 
-    const keyInput = screen.getByPlaceholderText(/Enter authorization key/i);
-    fireEvent.change(keyInput, { target: { value: 'wrong-key' } });
-
-    const authSaveBtn = screen.getByRole('button', { name: /Authorize & Save/i });
-    fireEvent.click(authSaveBtn);
-
-    // Modal closes and prominent lockout banner appears
     await waitFor(() => {
       expect(screen.getByText('Super Admin Key Lockout Active')).toBeInTheDocument();
-      expect(screen.getByText(/Super Admin Key is locked\. Try again in 30 minute\(s\)\./)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Super Admin Key is locked\. Try again in 30 minute\(s\)\./)
+      ).toBeInTheDocument();
     });
   });
 });

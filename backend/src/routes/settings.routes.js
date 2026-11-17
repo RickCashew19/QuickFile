@@ -14,4 +14,10 @@ router.patch('/', suKeyLimiter, settingsController.updateSettings);
 router.patch('/toggles', settingsController.updateToggles);
 router.patch('/general', settingsController.updateGeneralSettings);
 
+// API Key Management Security Revisions: PIN Verification, Provider Validation & 2FA
+router.post('/verify-pin', suKeyLimiter, settingsController.verifyPin);
+router.post('/validate-key', settingsController.validateApiKey);
+router.post('/initiate-key-update', suKeyLimiter, settingsController.initiateKeyUpdate);
+router.post('/confirm-key-update', suKeyLimiter, settingsController.confirmKeyUpdate);
+
 module.exports = router;

@@ -20,6 +20,7 @@ const staffRoutes = require('./src/routes/staff.routes');
 const verifyRoutes = require('./src/routes/verify.routes');
 const fileRoutes = require('./src/routes/file.routes');
 const adminRoutes = require('./src/routes/admin.routes');
+const gatewayRoutes = require('./src/routes/gateway.routes');
 
 const app = express();
 
@@ -100,6 +101,7 @@ app.use(`${API_PREFIX}/admin/document-types`, documentTypesRoutes);
 app.use(`${API_PREFIX}/admin/settings`, settingsRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
 app.use(`${API_PREFIX}/public`, publicRoutes);
+app.use(`${API_PREFIX}/gateway`, gatewayRoutes);
 
 // ==============================================================================
 // 3. Error Handling

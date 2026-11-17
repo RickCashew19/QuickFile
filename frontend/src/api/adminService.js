@@ -417,6 +417,41 @@ export const adminService = {
     return apiClient.patch('/admin/settings/general', general);
   },
 
+  /**
+   * Verifies Super Admin PIN to access and unlock API Key Management
+   */
+  async verifySuperAdminPin(pin) {
+    return apiClient.post('/admin/settings/verify-pin', { pin });
+  },
+
+  /**
+   * Validates an API key against the provider
+   */
+  async validateApiKey({ provider, credentials }) {
+    return apiClient.post('/admin/settings/validate-key', { provider, credentials });
+  },
+
+  /**
+   * Initiates custom API key registration with 2FA email verification
+   */
+  async initiateApiKeyUpdate({ su_admin_key, settings = {}, reset_keys = [] }) {
+    return apiClient.post('/admin/settings/initiate-key-update', {
+      su_admin_key,
+      settings,
+      reset_keys,
+    });
+  },
+
+  /**
+   * Confirms 6-digit 2FA code and activates API keys
+   */
+  async confirmApiKeyUpdate({ verification_id, code }) {
+    return apiClient.post('/admin/settings/confirm-key-update', {
+      verification_id,
+      code,
+    });
+  },
+
   // ==============================================================================
   // 9. Executive Reports & Export
   // ==============================================================================

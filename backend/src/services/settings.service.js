@@ -1,8 +1,12 @@
 const { config } = require('../config');
+const jwt = require('jsonwebtoken');
 const { AppSetting, AuditLog } = require('../models');
 const { verifySuperAdminKey } = require('../helpers/superAdminKeyVerifier');
 const { formatEnvValue, writeCustomEnvVars } = require('../helpers/envWriter');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
+const { validateProviderKey } = require('./apiKeyValidator.service');
+const { initiateApiKey2FA, verifyApiKey2FA } = require('./twoFactor.service');
+const { ALLOWED_CUSTOM_ENV_KEYS } = require('../config/constants');
 
 /**
  * Retrieve current settings with masked integration secrets
@@ -260,10 +264,200 @@ async function updateGeneralSettings({ updates, actorUser, ipAddress, userAgent 
   return result;
 }
 
+/**
+ * Verifies the Super Admin PIN for accessing and unlocking API Key Management
+ * Grants a signed 15-minute verification token upon success.
+ */
+async function verifySuperAdminPin({ pin, user, ipAddress = '', userAgent = '' }) {
+  if (!pin || typeof pin !== 'string' || !pin.trim()) {
+    const err = new Error('Super Admin PIN is required.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Verify PIN using timing-safe comparison and lockout management
+  await verifySuperAdminKey({
+    providedKey: pin.trim(),
+    actorId: user._id,
+    actorName: user.full_name,
+    ipAddress,
+    userAgent,
+  });
+
+  // Generate a signed, time-limited PIN access grant token (15 minutes)
+  const secret = (config.jwt && config.jwt.getSecret()) || process.env.JWT_SECRET || 'quickfile_secret_key';
+  const grantToken = jwt.sign(
+    {
+      grant_type: 'SUPER_ADMIN_PIN_ACCESS',
+      user_id: user._id.toString(),
+      role: user.role,
+    },
+    secret,
+    { expiresIn: '15m' }
+  );
+
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'SU_PIN_ACCESS_GRANTED',
+    module: 'SETTINGS',
+    target_type: 'AppSetting',
+    details: { section: 'API_KEY_MANAGEMENT' },
+    ip_address: ipAddress,
+    user_agent: userAgent,
+  });
+
+  return {
+    verified: true,
+    grant_token: grantToken,
+    expires_in_seconds: 900,
+  };
+}
+
+/**
+ * Validates candidate API keys against provider requirements before acceptance
+ */
+async function validateApiKeyCandidate({ provider, credentials }) {
+  if (!provider) {
+    const err = new Error('Provider name is required for key validation.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return validateProviderKey(provider, credentials || {});
+}
+
+/**
+ * Initiates registration of new custom API keys with mandatory 2FA email verification.
+ * Verifies Super Admin PIN and dispatches 2FA code to administrator's email.
+ */
+async function initiateApiKeyRegistration({ suAdminKey, settings = {}, resetKeys = [], user, ipAddress, userAgent }) {
+  if (!suAdminKey) {
+    const err = new Error('Super Admin PIN is required to register or modify API keys.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1. Verify Super Admin Key
+  await verifySuperAdminKey({
+    providedKey: suAdminKey,
+    actorId: user._id,
+    actorName: user.full_name,
+    ipAddress,
+    userAgent,
+  });
+
+  // 2. Validate allowlisted custom keys
+  const keys = Object.keys(settings || {});
+  for (const k of keys) {
+    if (!ALLOWED_CUSTOM_ENV_KEYS.includes(k)) {
+      const err = new Error(`Invalid custom configuration key: "${k}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  // 3. Initiate 2FA code generation and email dispatch
+  return initiateApiKey2FA({
+    user,
+    pendingUpdates: settings,
+    pendingResetKeys: resetKeys,
+    ipAddress,
+    userAgent,
+  });
+}
+
+/**
+ * Confirms 2FA verification code and verifies whether custom API keys are working
+ * with their respective providers before writing and activating in .env.
+ * If not working, rejects activation and throws error ("if not then its not").
+ */
+async function confirmApiKeyRegistration({ verificationId, code, user, ipAddress, userAgent }) {
+  // 1. Verify 2FA code with attempt limits and expiry
+  const { pending_updates, pending_reset_keys } = await verifyApiKey2FA({
+    verificationId,
+    code,
+    user,
+    ipAddress,
+    userAgent,
+  });
+
+  // 2. Verify if submitted API keys are working with their providers before activation
+  if (pending_updates && Object.keys(pending_updates).length > 0) {
+    if (pending_updates.CUSTOM_REST_API_SECRET_KEY) {
+      const v = await validateProviderKey('rest_api', pending_updates);
+      if (!v.valid) {
+        const err = new Error(`REST API Key is not working: ${v.message}`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    if (pending_updates.CUSTOM_GOOGLE_CLIENT_ID || pending_updates.CUSTOM_GOOGLE_CLIENT_SECRET) {
+      const v = await validateProviderKey('google', pending_updates);
+      if (!v.valid) {
+        const err = new Error(`Google OAuth API is not working: ${v.message}`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    if (pending_updates.CUSTOM_SMS_API_TOKEN || pending_updates.CUSTOM_SMS_GATEWAY_URL) {
+      const v = await validateProviderKey('sms', pending_updates);
+      if (!v.valid) {
+        const err = new Error(`PhilSMS Gateway API is not working: ${v.message}`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    if (pending_updates.CUSTOM_SMTP_USER || pending_updates.CUSTOM_SMTP_PASS) {
+      const v = await validateProviderKey('smtp', pending_updates);
+      if (!v.valid) {
+        const err = new Error(`SMTP Mail Server is not working: ${v.message}`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    if (pending_updates.CUSTOM_RECAPTCHA_SECRET_KEY || pending_updates.CUSTOM_RECAPTCHA_SITE_KEY) {
+      const v = await validateProviderKey('recaptcha', pending_updates);
+      if (!v.valid) {
+        const err = new Error(`Google reCAPTCHA API is not working: ${v.message}`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+  }
+
+  // 3. Perform atomic write to .env ONLY after 2FA is verified AND API is verified working!
+  const { modifiedKeys } = writeCustomEnvVars(pending_updates, pending_reset_keys);
+
+  // 4. Audit log successful 2FA activation
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'SETTINGS_UPDATE_CUSTOM_KEYS_2FA',
+    module: 'SETTINGS',
+    target_type: 'AppConfig',
+    details: {
+      modified_keys: modifiedKeys,
+      verification_id: verificationId,
+    },
+    ip_address: ipAddress,
+    user_agent: userAgent,
+  });
+
+  return {
+    modified_keys: modifiedKeys,
+    integrations: config.getSafeIntegrationSummary(),
+  };
+}
+
 module.exports = {
   getSettings,
   updateCustomSettings,
   updateToggles,
   updateGeneralSettings,
+  verifySuperAdminPin,
+  validateApiKeyCandidate,
+  initiateApiKeyRegistration,
+  confirmApiKeyRegistration,
   formatEnvValue,
 };
