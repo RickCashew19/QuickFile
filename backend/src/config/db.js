@@ -31,10 +31,20 @@ async function connectDB(customUri = null) {
   }
 
   try {
+    // Honour the database name in the connection URI (tests use isolated DBs,
+    // production may point at a differently named Atlas database).
+    let dbName = 'quickfile';
+    try {
+      const fromUri = decodeURIComponent(new URL(uri).pathname.replace(/^\//, '').split('/')[0]);
+      if (fromUri) dbName = fromUri;
+    } catch {
+      // Keep the default when the URI cannot be parsed as a URL.
+    }
+
     await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 10000,
       autoIndex: config.nodeEnv !== 'production',
-      dbName: 'quickfile',
+      dbName,
     });
     return mongoose.connection;
   } catch (error) {

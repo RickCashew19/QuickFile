@@ -27,6 +27,7 @@ const { sendMail } = require('../helpers/mailer');
 const { escapeHtml } = require('../helpers/escapeHtml');
 const { getDateRanges, escapeRegex } = require('../helpers/dateUtil');
 const { buildRenderData } = require('../helpers/templatePlaceholders');
+const { withTransaction } = require('../helpers/transaction');
 const { verifyTemplateFileIntegrity } = require('../helpers/templateStorage');
 const { renderDocx } = require('./documentTemplates.service');
 const reportsService = require('./reports.service');
@@ -464,8 +465,8 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   }
 
   // Idempotency: reuse existing IssuedDocument if already created
-  let issuedDoc = await IssuedDocument.findOne({ request_id: request._id });
-  let createdIssuedDoc = false;
+  const existingIssuedDoc = await IssuedDocument.findOne({ request_id: request._id });
+  let issuedDoc = existingIssuedDoc;
 
   let certificateNumber;
   let verificationCode;
@@ -474,7 +475,7 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   let expiresAt = null;
   let issuedAt = new Date();
 
-  if (issuedDoc) {
+  if (existingIssuedDoc) {
     certificateNumber = issuedDoc.certificate_number;
     verificationCode = issuedDoc.verification_code;
     qrData = issuedDoc.qr_data;
@@ -515,33 +516,11 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
   };
   const renderData = buildRenderData(renderContext);
 
-  if (!issuedDoc) {
-    // 5. Create IssuedDocument with snapshot render_data and template metadata
-    issuedDoc = await IssuedDocument.create({
-      request_id: request._id,
-      certificate_number: certificateNumber,
-      document_name: docType.name,
-      issued_to_name: citizen.full_name,
-      verification_code: verificationCode,
-      qr_data: qrData,
-      qr_code_image: qrCodeImage,
-      issued_by: actorUser._id,
-      issued_at: issuedAt,
-      validity_status: VALIDITY_STATUSES.VALID,
-      expires_at: expiresAt,
-      template_id: templateId,
-      template_version: templateVersion,
-      render_data: renderData,
-    });
-    createdIssuedDoc = true;
-  } else {
-    // Backfill snapshot data if missing
-    if (!issuedDoc.render_data) {
-      issuedDoc.render_data = renderData;
-      issuedDoc.template_id = templateId;
-      issuedDoc.template_version = templateVersion;
-      await issuedDoc.save();
-    }
+  if (!existingIssuedDoc) {
+    // 5. Creation is deferred to the transaction below so the certificate and
+    //    the request status change commit together (no orphaned certificate).
+  } else if (!issuedDoc.render_data) {
+    // Backfill snapshot data if missing (also inside the transaction below).
   }
 
   // Calculate non-blocking data_warnings: keys used by active template whose values are empty
@@ -555,10 +534,34 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
     }
   }
 
-  // 6. Transition request status to ready_for_pickup atomically. If this fails,
-  // remove a certificate created by this attempt so no orphaned record survives.
+  // 6. Create the certificate and transition the request in one MVCC transaction:
+  //    either both persist or neither does.
   let updatedRequest;
-  try {
+  await withTransaction(async (session) => {
+    if (!existingIssuedDoc) {
+      issuedDoc = (await IssuedDocument.create([{
+        request_id: request._id,
+        certificate_number: certificateNumber,
+        document_name: docType.name,
+        issued_to_name: citizen.full_name,
+        verification_code: verificationCode,
+        qr_data: qrData,
+        qr_code_image: qrCodeImage,
+        issued_by: actorUser._id,
+        issued_at: issuedAt,
+        validity_status: VALIDITY_STATUSES.VALID,
+        expires_at: expiresAt,
+        template_id: templateId,
+        template_version: templateVersion,
+        render_data: renderData,
+      }], { session }))[0];
+    } else if (!issuedDoc.render_data) {
+      issuedDoc.render_data = renderData;
+      issuedDoc.template_id = templateId;
+      issuedDoc.template_version = templateVersion;
+      await issuedDoc.save({ session });
+    }
+
     updatedRequest = await transitionRequestStatus({
       requestId: request._id,
       expectedStatus: REQUEST_STATUSES.IN_PREPARATION,
@@ -567,13 +570,9 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
       skipExternalEmail: true,
       ipAddress,
       userAgent,
+      session,
     });
-  } catch (err) {
-    if (createdIssuedDoc && issuedDoc && issuedDoc._id) {
-      await IssuedDocument.deleteOne({ _id: issuedDoc._id }).catch(() => null);
-    }
-    throw err;
-  }
+  });
 
   // 7. Detailed pickup email (the generic status email is suppressed below).
   if (citizen && citizen.email) {

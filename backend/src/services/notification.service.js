@@ -11,12 +11,14 @@ async function sendNotification({
   type = 'info',
   channel = NOTIFICATION_CHANNELS.SYSTEM,
   metadata = {},
+  session = null,
 }) {
   if (!user_id || !title || !message) {
     throw new Error('user_id, title, and message are required to send a notification.');
   }
 
-  const notification = await Notification.create({
+  // Array form is required to pass options ({ session }) in Mongoose 8.
+  const notification = (await Notification.create([{
     user_id,
     title: title.trim(),
     message: message.trim(),
@@ -24,7 +26,7 @@ async function sendNotification({
     channel,
     metadata,
     is_read: false,
-  });
+  }], { session }))[0];
 
   return notification;
 }

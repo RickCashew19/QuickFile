@@ -17,6 +17,7 @@ const { sendSms } = require('../helpers/sms');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
 const { isValidEmail } = require('../helpers/emailValidator');
 const { escapeHtml } = require('../helpers/escapeHtml');
+const { withTransaction } = require('../helpers/transaction');
 
 /**
  * Dependency-injected Google Token Verifier (allows clean test mocking without environment backdoors)
@@ -556,32 +557,32 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
     throw error;
   }
 
-  // 4. Update password and record password_changed_at
-  user.password_hash = await User.hashPassword(newPassword);
-  user.password_changed_at = new Date();
-  await user.save();
+  // 4-7. Password change, token invalidation and audit log commit atomically.
+  const passwordHash = await User.hashPassword(newPassword);
+  await withTransaction(async (session) => {
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { password_hash: passwordHash, password_changed_at: new Date() } },
+      { session }
+    );
 
-  // 5. Invalidate token
-  resetRecord.used = true;
-  await resetRecord.save();
+    await PasswordReset.updateMany(
+      { user_id: user._id, used: false },
+      { $set: { used: true } },
+      { session }
+    );
 
-  // 6. Invalidate all other active reset records for this user
-  await PasswordReset.updateMany(
-    { user_id: user._id, used: false },
-    { $set: { used: true } }
-  );
-
-  // 7. Record audit log
-  await AuditLog.create({
-    user_id: user._id,
-    actor_name: user.full_name,
-    action: 'PASSWORD_RESET',
-    module: 'AUTH',
-    target_id: user._id.toString(),
-    target_type: 'User',
-    details: { email: user.email },
-    ip_address: ipAddress || '',
-    user_agent: userAgent || '',
+    await AuditLog.create([{
+      user_id: user._id,
+      actor_name: user.full_name,
+      action: 'PASSWORD_RESET',
+      module: 'AUTH',
+      target_id: user._id.toString(),
+      target_type: 'User',
+      details: { email: user.email },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    }], { session });
   });
 
   return {

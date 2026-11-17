@@ -24,6 +24,7 @@ async function transitionRequestStatus({
   skipExternalEmail = false,
   ipAddress = '',
   userAgent = '',
+  session = null,
 }) {
   const reqDoc = request;
   const reqId = passedRequestId || (reqDoc ? reqDoc._id : null);
@@ -38,7 +39,7 @@ async function transitionRequestStatus({
   // 1. Concurrency control: staff workflow actions honor request locks. A citizen
   //    cancelling their own pending request must not be blocked by a staff lock.
   if (actorUser && actorUser.role !== ROLES.CITIZEN) {
-    await requestLockService.assertLockHeld(reqId, actorUser, { ipAddress, userAgent });
+    await requestLockService.assertLockHeld(reqId, actorUser, { ipAddress, userAgent, session });
   }
 
   // 2. Validate status transition graph
@@ -52,7 +53,7 @@ async function transitionRequestStatus({
   }
 
   // Check if a lock was currently held prior to state transition (for audit log)
-  const priorDoc = await DocumentRequest.findById(reqId).select('lock tracking_number');
+  const priorDoc = await DocumentRequest.findById(reqId).select('lock tracking_number').session(session || null);
 
   // 3. Build atomic update operations
   const updateFields = {
@@ -99,12 +100,12 @@ async function transitionRequestStatus({
   const updatedRequest = await DocumentRequest.findOneAndUpdate(
     { _id: reqId, status: expectedStatus },
     { $set: updateFields, $inc: { __v: 1 } },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true, session }
   );
 
   // If null, someone modified the record concurrently
   if (!updatedRequest) {
-    const currentDoc = await DocumentRequest.findById(reqId);
+    const currentDoc = await DocumentRequest.findById(reqId).session(session || null);
     const actualCurrentStatus = currentDoc ? currentDoc.status : 'not found';
     const conflictError = new Error(
       `Conflict: The request was updated by another process (current status: "${actualCurrentStatus}"). Please refresh the page.`
@@ -122,7 +123,7 @@ async function transitionRequestStatus({
   }
 
   // 4. Record audit log for status transition
-  await AuditLog.create({
+  await AuditLog.create([{
     user_id: actorUser._id,
     actor_name: actorUser.full_name || 'System',
     action: `STATUS_CHANGE_TO_${newStatus.toUpperCase()}`,
@@ -137,11 +138,11 @@ async function transitionRequestStatus({
     },
     ip_address: ipAddress || '',
     user_agent: userAgent || '',
-  });
+  }], { session });
 
   // Concurrency control: Record audit log for automatic lock release if held prior to action
   if (priorDoc && priorDoc.lock && priorDoc.lock.locked_by) {
-    await AuditLog.create({
+    await AuditLog.create([{
       user_id: actorUser._id,
       actor_name: actorUser.full_name || 'Staff Member',
       action: 'LOCK_RELEASED',
@@ -156,7 +157,7 @@ async function transitionRequestStatus({
       },
       ip_address: ipAddress || '',
       user_agent: userAgent || '',
-    }).catch(() => null);
+    }], { session }).catch(() => null);
   }
 
   // 5. In-app notification to citizen
@@ -170,6 +171,7 @@ async function transitionRequestStatus({
       tracking_number: updatedRequest.tracking_number,
       status: newStatus,
     },
+    session,
   }).catch((err) => {
     console.warn(`[Notification] Failed to send status notification to user ${updatedRequest.citizen_id}:`, err.message);
   });

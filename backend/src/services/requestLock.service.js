@@ -236,8 +236,8 @@ class RequestLockService {
    * @param {Object} [meta={}]
    */
   async assertLockHeld(requestId, user, meta = {}) {
-    const { ipAddress = '', userAgent = '' } = meta;
-    const current = await DocumentRequest.findById(requestId).select('lock tracking_number');
+    const { ipAddress = '', userAgent = '', session = null } = meta;
+    const current = await DocumentRequest.findById(requestId).select('lock tracking_number').session(session || null);
     if (!current) {
       const err = new Error('Document request not found.');
       err.statusCode = 404;
@@ -258,7 +258,7 @@ class RequestLockService {
       const holderExpiresAt = new Date(current.lock.expires_at);
       const formattedTime = holderExpiresAt.toLocaleTimeString();
 
-      await AuditLog.create({
+      await AuditLog.create([{
         user_id: userId,
         actor_name: user.full_name || 'Staff Member',
         action: 'LOCK_DENIED',
@@ -273,7 +273,7 @@ class RequestLockService {
         },
         ip_address: ipAddress,
         user_agent: userAgent,
-      }).catch(() => null);
+      }], { session }).catch(() => null);
 
       const err = new Error(
         `Action blocked: Request is locked by ${holderName} until ${formattedTime}.`

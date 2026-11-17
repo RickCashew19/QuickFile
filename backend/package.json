@@ -13,7 +13,13 @@
     "test:concurrency": "node tests/test_locking_concurrency_real.js",
     "test:google": "node tests/test_google_auth_audit.js",
     "test:phase1": "node tests/test_phase1_real.js",
-    "test:api-keys": "node tests/test_api_key_management.js"
+    "test:api-keys": "node tests/test_api_key_management.js",
+    "atlas:backup": "node scripts/backupAtlas.js",
+    "atlas:provision": "node scripts/provisionAtlas.js",
+    "atlas:provision:apply": "node scripts/provisionAtlas.js --apply",
+    "atlas:normalize": "node scripts/normalizeAtlas.js",
+    "atlas:normalize:apply": "node scripts/normalizeAtlas.js --apply",
+    "atlas:smoke": "node scripts/smokeAtlas.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
