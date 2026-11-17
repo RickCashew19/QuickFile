@@ -14,6 +14,10 @@ QuickFile solves this problem through a multi-tier concurrency control architect
 2. **Safety Net:** Schema-level **Optimistic Concurrency Control (OCC)** using Mongoose's versionKey (`__v`), catching edge cases where locks expire mid-operation or concurrent transactions attempt simultaneous mutations.
 3. **Storage Engine Baseline:** MongoDB **WiredTiger Multi-Version Concurrency Control (MVCC)** for storage-engine atomicity and non-blocking reads.
 
+### 1.1 Runtime context
+
+The `quickfile` database on **MongoDB Atlas** is the single source of truth; every app instance shares the same lock documents, so a lock acquired through one server is immediately visible to all others. The application-level transaction helper (`backend/src/helpers/transaction.js`) uses snapshot reads and majority writes so that certificate issuance, status transitions (status + audit log + notification), and password resets commit atomically. On a standalone local MongoDB the helper degrades gracefully; Atlas and the local test replica set (`--replSet quickfile`) provide real transactions. See [backend/docs/ATLAS.md](../backend/docs/ATLAS.md) for the Atlas runbook.
+
 ---
 
 ## 2. Comparative Analysis of Concurrency Control Approaches
@@ -74,6 +78,13 @@ const documentRequestSchema = new mongoose.Schema(
     status: { type: String, required: true, enum: Object.values(REQUEST_STATUSES), index: true },
     // ...
     lock: {
+      // Fast boolean mirror of the active-lock state. requestLock.service.js
+      // and requestTransition.js keep it in sync on acquire, renew, release
+      // and status transitions; GET /lock also returns it at the top level.
+      is_locked: {
+        type: Boolean,
+        default: false,
+      },
       locked_by: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -110,7 +121,7 @@ documentRequestSchema.index({ 'lock.expires_at': 1 });
 flowchart TD
     A["Staff opens Request Detail Page"] --> B{"Request currently locked?"}
     
-    B -- "No Lock (locked_by == null)" --> C["Atomic findOneAndUpdate: Acquire Lock"]
+    B -- "No Lock (lock.is_locked == false)" --> C["Atomic findOneAndUpdate: Acquire Lock<br/>Set lock.is_locked = true"]
     B -- "Expired (expires_at <= now)" --> C
     B -- "Held by Current User" --> C
     B -- "Held by Another Active User" --> D["HTTP 423 Locked"]
@@ -126,7 +137,7 @@ flowchart TD
     
     E --> K["Staff executes Workflow Action<br/>(Review / Approve / Issue / Release)"]
     K --> L["assertLockHeld Check"]
-    L -- "Lock valid" --> M["Execute State Transition<br/>Increment __v<br/>Automatically Clear Lock Token"]
+    L -- "Lock valid" --> M["Execute State Transition<br/>Increment __v<br/>Clear Lock Token (lock.is_locked = false)"]
     L -- "Held by someone else" --> N["HTTP 423 Locked (Action Blocked)"]
     
     F --> O{"Admin Supervisor Override?"}
@@ -137,7 +148,7 @@ flowchart TD
 
 ## 4. REST API Endpoint Specifications
 
-All locking endpoints are noun-based, adhere to standard REST architectural conventions, operate under `/api/v1/staff/requests/:id/lock`, and are protected by `authenticate`, `authorize('staff', 'admin')`, `requirePermission('can_review_requests')`, and `userApiLimiter`.
+All locking endpoints are noun-based, adhere to standard REST architectural conventions, operate under `/api/v1/staff/requests/:id/lock`, and are protected by `authenticate`, `authorize('staff', 'admin')`, `requirePermission('can_review_requests')`, and `userApiLimiter`. The `Authorization: Bearer` headers in the examples below are for API clients and automated tests; browser clients authenticate with the httpOnly session cookie set at login.
 
 ### 4.1 Endpoint Summary Table
 
@@ -168,6 +179,7 @@ All locking endpoints are noun-based, adhere to standard REST architectural conv
     "success": true,
     "message": "Lock acquired successfully.",
     "data": {
+      "is_locked": true,
       "locked_by": "6737520057db123456789100",
       "locked_by_name": "Staff Maria Santos",
       "locked_at": "2026-11-16T08:30:00.000Z",
@@ -183,6 +195,7 @@ All locking endpoints are noun-based, adhere to standard REST architectural conv
     "message": "Request is currently locked by Staff Juan Dela Cruz until 8:35:00 AM. Please wait or select another request.",
     "data": {
       "lock": {
+        "is_locked": true,
         "locked_by": "6737520057db123456789200",
         "locked_by_name": "Staff Juan Dela Cruz",
         "locked_at": "2026-11-16T08:30:00.000Z",
@@ -241,6 +254,7 @@ All locking endpoints are noun-based, adhere to standard REST architectural conv
       "is_locked": true,
       "is_held_by_current_user": false,
       "lock": {
+        "is_locked": true,
         "locked_by": "6737520057db123456789200",
         "locked_by_name": "Staff Juan Dela Cruz",
         "locked_at": "2026-11-16T08:30:00.000Z",
@@ -310,3 +324,7 @@ Every lock lifecycle event is recorded in the append-only `AuditLog` collection 
 * **Mitigation:**
   1. Mongoose's `optimisticConcurrency: true` is enforced at the schema level.
   2. Any call to `doc.save()` automatically validates the current `__v` against the database record. If an intervening update occurred, the mutation fails with HTTP 409 Conflict regardless of whether pessimistic locks were engaged.
+
+### 6.5 `lock.is_locked` as a derived mirror
+
+`lock.is_locked` is a fast boolean mirror of the active-lock state, not the authority by itself. `getLockStatus()` prefers the stored boolean but also checks that `locked_by` is set and `expires_at` is in the future; for legacy documents that have not been backfilled it falls back entirely to that derived check. This means an expired lock is reported as unlocked even if a stale `true` value remains in the database. Always go through `requestLock.service.js` and `requestTransition.js` rather than writing `lock.*` fields directly so the mirror stays in sync.
