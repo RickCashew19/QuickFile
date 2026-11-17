@@ -9,6 +9,7 @@
     "dev": "node --watch server.js",
     "seed": "node src/helpers/seeder.js",
     "seed:demo": "node src/helpers/demoSeeder.js",
+    "seed:demo:atlas": "node scripts/seedAtlasDemo.js",
     "test": "node tests/test_locking_concurrency_real.js",
     "test:concurrency": "node tests/test_locking_concurrency_real.js",
     "test:google": "node tests/test_google_auth_audit.js",

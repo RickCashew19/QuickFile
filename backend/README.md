@@ -49,6 +49,18 @@ To initialize the database with default document types and initial administrator
 npm run seed
 ```
 
+To populate the configured database with a repeatable demo dataset (requests in
+every workflow status, issued certificates, notifications, audit logs, signatory
+settings and a custom DOCX template). `npm run seed:demo` is restricted to a
+local MongoDB; use the Atlas variant for the configured Atlas database:
+```bash
+npm run seed:demo          # local MongoDB only
+npm run seed:demo:atlas    # Atlas (development only, explicit opt-in)
+```
+
+Both demo commands are idempotent and may be re-run safely. Take a backup first
+with `npm run atlas:backup`.
+
 ### Running the Server
 ```bash
 # Development mode with hot-reloading

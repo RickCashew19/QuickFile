@@ -67,6 +67,25 @@ const DEMO_CASES = [
     documentCode: 'COI',
     targetStatus: REQUEST_STATUSES.ARCHIVED,
   },
+  {
+    key: 'approved-clearance',
+    purpose: `${DEMO_PURPOSE_PREFIX} Approved clearance awaiting preparation`,
+    documentCode: 'BC',
+    targetStatus: REQUEST_STATUSES.APPROVED,
+  },
+  {
+    key: 'cancelled-residency',
+    purpose: `${DEMO_PURPOSE_PREFIX} Residency request cancelled by resident`,
+    documentCode: 'COR',
+    targetStatus: REQUEST_STATUSES.CANCELLED,
+  },
+  {
+    key: 'revoked-indigency',
+    purpose: `${DEMO_PURPOSE_PREFIX} Indigency certificate later revoked`,
+    documentCode: 'COI',
+    targetStatus: REQUEST_STATUSES.RELEASED,
+    revokeCertificate: true,
+  },
 ];
 
 function assertSafeDemoDatabase() {
@@ -83,12 +102,20 @@ function assertSafeDemoDatabase() {
 
   const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
   const databaseName = decodeURIComponent(parsedUri.pathname.replace(/^\//, '').split('/')[0] || '');
-  if (
-    parsedUri.protocol !== 'mongodb:' ||
-    !localHosts.has(parsedUri.hostname.toLowerCase()) ||
-    !['quickfile', 'quickfile_demo'].includes(databaseName.toLowerCase())
-  ) {
-    throw new Error('[DemoSeeder] Only local MongoDB databases named quickfile or quickfile_demo are allowed.');
+  const isLocalMongo =
+    parsedUri.protocol === 'mongodb:' && localHosts.has(parsedUri.hostname.toLowerCase());
+  const isAtlasMongo = parsedUri.protocol === 'mongodb+srv:';
+  const allowedDatabase = ['quickfile', 'quickfile_demo'].includes(databaseName.toLowerCase());
+  const atlasOptIn = process.env.DEMO_SEED_ALLOW_ATLAS === 'true';
+
+  if (!allowedDatabase || (!isLocalMongo && !(isAtlasMongo && atlasOptIn))) {
+    throw new Error(
+      '[DemoSeeder] Only local MongoDB databases named quickfile/quickfile_demo, or an Atlas ' +
+        'database with DEMO_SEED_ALLOW_ATLAS=true, are allowed.'
+    );
+  }
+  if (isAtlasMongo) {
+    console.warn(`[DemoSeeder] WARNING: writing demo data to Atlas database "${databaseName}".`);
   }
 }
 
@@ -203,6 +230,36 @@ async function advanceDemoCase(request, demoCase, staff) {
     return request;
   }
 
+  if (demoCase.targetStatus === REQUEST_STATUSES.APPROVED) {
+    if (request.status === REQUEST_STATUSES.PENDING) {
+      request = await transitionRequestStatus({
+        request,
+        newStatus: REQUEST_STATUSES.UNDER_REVIEW,
+        actorUser: staff,
+      });
+    }
+    if (request.status === REQUEST_STATUSES.UNDER_REVIEW) {
+      request = await transitionRequestStatus({
+        request,
+        newStatus: REQUEST_STATUSES.APPROVED,
+        actorUser: staff,
+      });
+    }
+    return request;
+  }
+
+  if (demoCase.targetStatus === REQUEST_STATUSES.CANCELLED) {
+    if (request.status === REQUEST_STATUSES.PENDING) {
+      request = await transitionRequestStatus({
+        request,
+        newStatus: REQUEST_STATUSES.CANCELLED,
+        actorUser: staff,
+        processingNotes: 'DEMO DATA: Cancelled by resident request.',
+      });
+    }
+    return request;
+  }
+
   request = await ensurePrepared(request, staff);
   if (demoCase.targetStatus === REQUEST_STATUSES.IN_PREPARATION) return request;
 
@@ -220,6 +277,20 @@ async function advanceDemoCase(request, demoCase, staff) {
     if (request.status === REQUEST_STATUSES.RELEASED && demoCase.targetStatus === REQUEST_STATUSES.ARCHIVED) {
       request = await staffService.archiveRequest(request._id, staff);
     }
+  }
+
+  if (demoCase.revokeCertificate) {
+    await IssuedDocument.updateOne(
+      { request_id: request._id },
+      {
+        $set: {
+          validity_status: VALIDITY_STATUSES.REVOKED,
+          revoked_by: staff._id,
+          revoked_at: new Date(),
+          revoked_reason: 'DEMO DATA: Certificate revoked for demonstration purposes.',
+        },
+      }
+    );
   }
 
   return request;

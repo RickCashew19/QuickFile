@@ -9,7 +9,27 @@ import { Icon } from '../../../components/shared/Icon';
 import { formatCurrency } from '../../../utils/formatters';
 import './AdminReportsPage.css';
 
+/**
+ * Reports API requires an explicit ISO date range. Default to the current
+ * month in Asia/Manila, matching the Staff Reports page.
+ */
+function getManilaCurrentMonthRange() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+  });
+  const [year, month] = formatter.format(now).split('-');
+  const lastDay = new Date(Number(year), Number(month), 0).getDate();
+  return {
+    from: `${year}-${month}-01`,
+    to: `${year}-${month}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
 export function AdminReportsPage() {
+  const initialRange = getManilaCurrentMonthRange();
   const [reportData, setReportData] = useState(null);
   const [docTypes, setDocTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,8 +38,8 @@ export function AdminReportsPage() {
   const [truncatedNotice, setTruncatedNotice] = useState(false);
 
   // Filters
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(initialRange.from);
+  const [toDate, setToDate] = useState(initialRange.to);
   const [docTypeId, setDocTypeId] = useState('all');
 
   // Load document types for dropdown
