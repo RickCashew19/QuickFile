@@ -98,7 +98,9 @@ export function StaffRequestDetailPage() {
           },
           keepalive: true,
         }).catch(() => null);
-      } catch (_) {}
+      } catch (_) {
+        // ignore unload error
+      }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);

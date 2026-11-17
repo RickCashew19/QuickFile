@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../../../api/adminService';
 import { Button } from '../../../components/shared/Button';
 import { Input } from '../../../components/shared/Input';
@@ -8,7 +8,7 @@ import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
 import { Pagination } from '../../../components/shared/Pagination';
 import { Icon } from '../../../components/shared/Icon';
-import { formatDate, formatDateTimeMs } from '../../../utils/formatters';
+import { formatDateTimeMs } from '../../../utils/formatters';
 import './AdminAuditLogsPage.css';
 
 export function AdminAuditLogsPage() {

@@ -131,11 +131,11 @@ describe('Admin Settings & API Key Management Suite', () => {
     await waitFor(() => {
       expect(screen.getByText('Super Admin Session Active')).toBeInTheDocument();
       expect(screen.getByText('Google OAuth 2.0 Single Sign-On')).toBeInTheDocument();
-      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+      expect(screen.queryByText('REST API Gateway Security & Key Management')).not.toBeInTheDocument();
     });
   });
 
-  it('Section 2: Feature Toggles tab is removed and unified into API Key Management & Gateways', async () => {
+  it('Section 2: Feature Toggles tab and Core Service overview card are removed with direct switches on service cards', async () => {
     render(
       <MemoryRouter>
         <AdminSettingsPage initialPinVerified={true} />
@@ -154,15 +154,21 @@ describe('Admin Settings & API Key Management Suite', () => {
     );
     expect(hasStandaloneTogglesTab).toBe(false);
 
-    // Assert that the Feature Toggles overview panel is inside API Key Management & Gateways
-    expect(screen.getByText('Core Service & Feature Toggles')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /Toggle REST API Gateway Service/i })).toBeInTheDocument();
+    // Assert that the Core Service & Feature Toggles overview card is removed
+    expect(screen.queryByText('Core Service & Feature Toggles')).not.toBeInTheDocument();
+
+    // Assert that individual service cards have their direct switch toggles
     expect(screen.getByRole('checkbox', { name: /Toggle Google Login Service/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Toggle SMS Notifications Service/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Toggle Email Notifications Service/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Toggle Google reCAPTCHA Service/i })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Toggle REST API Gateway Authentication/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('REST API Gateway Security & Key Management')).not.toBeInTheDocument();
   });
 
-  it('Section 3: Direct Enable/Disable toggle inside REST API Gateway card', async () => {
+  it('Section 3: Direct switch toggle updates integration service status', async () => {
     adminService.updateToggles.mockResolvedValue({
-      enable_rest_api_gateway: true,
+      enable_sms_notifications: true,
     });
 
     render(
@@ -172,12 +178,12 @@ describe('Admin Settings & API Key Management Suite', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+      expect(screen.getByText('PhilSMS Gateway')).toBeInTheDocument();
     });
 
-    // Locate the direct toggle switch in the REST API Gateway card
+    // Locate the direct toggle switch in the PhilSMS Gateway card
     const toggleCheckbox = screen.getByRole('checkbox', {
-      name: /Toggle REST API Gateway Authentication/i,
+      name: /Toggle SMS Notifications Service/i,
     });
     expect(toggleCheckbox).toBeInTheDocument();
     expect(toggleCheckbox.checked).toBe(false);
@@ -188,16 +194,21 @@ describe('Admin Settings & API Key Management Suite', () => {
     await waitFor(() => {
       expect(adminService.updateToggles).toHaveBeenCalledWith(
         expect.objectContaining({
-          enable_rest_api_gateway: true,
+          enable_sms_notifications: true,
         })
       );
       expect(
-        screen.getByText(/REST API Key Authentication enabled and strictly enforced/i)
+        screen.getByText(/SMS NOTIFICATIONS enabled and active/i)
       ).toBeInTheDocument();
     });
   });
 
   it('Section 4: Validates API key with provider and displays feedback', async () => {
+    adminService.validateApiKey.mockResolvedValue({
+      valid: true,
+      message: 'PhilSMS API Token validated successfully.',
+    });
+
     render(
       <MemoryRouter>
         <AdminSettingsPage initialPinVerified={true} />
@@ -205,23 +216,25 @@ describe('Admin Settings & API Key Management Suite', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('REST API Gateway Security & Key Management')).toBeInTheDocument();
+      expect(screen.getByText('PhilSMS Gateway')).toBeInTheDocument();
     });
 
-    const apiKeyInput = screen.getByPlaceholderText(/Enter custom API secret key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'MySecureLongSecretKey2026!' } });
+    const apiKeyInput = screen.getByPlaceholderText(/Custom SMS token/i);
+    fireEvent.change(apiKeyInput, { target: { value: 'philsms_test_token_1234567890' } });
 
-    const validateBtn = screen.getByRole('button', { name: /Validate Key with Provider/i });
+    const validateBtn = screen.getByRole('button', { name: /Validate with PhilSMS/i });
     fireEvent.click(validateBtn);
 
     await waitFor(() => {
-      expect(adminService.validateApiKey).toHaveBeenCalledWith({
-        provider: 'rest_api',
-        credentials: {
-          CUSTOM_REST_API_SECRET_KEY: 'MySecureLongSecretKey2026!',
-        },
-      });
-      expect(screen.getByText(/REST API Secret Key validated successfully/i)).toBeInTheDocument();
+      expect(adminService.validateApiKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'sms',
+          credentials: expect.objectContaining({
+            CUSTOM_SMS_API_TOKEN: 'philsms_test_token_1234567890',
+          }),
+        })
+      );
+      expect(screen.getByText(/PhilSMS API Token validated successfully/i)).toBeInTheDocument();
     });
   });
 

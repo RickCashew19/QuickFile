@@ -10,6 +10,38 @@ import { Icon } from '../../../components/shared/Icon';
 import { cleanPhoneInput } from '../../../utils/phoneUtil';
 import './AdminSettingsPage.css';
 
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+  ariaLabel,
+  labelOn = 'Enabled',
+  labelOff = 'Disabled',
+}) {
+  return (
+    <label
+      className={`qf-switch ${checked ? 'qf-switch--active' : ''} ${
+        disabled ? 'qf-switch--disabled' : ''
+      }`}
+    >
+      <input
+        type="checkbox"
+        className="qf-switch__input"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        aria-label={ariaLabel}
+      />
+      <span className="qf-switch__track">
+        <span className="qf-switch__thumb" />
+      </span>
+      <span className="qf-switch__label">
+        {checked ? labelOn : labelOff}
+      </span>
+    </label>
+  );
+}
+
 export function AdminSettingsPage({ initialPinVerified = false }) {
   const [activeTab, setActiveTab] = useState('integrations'); // 'integrations' | 'general'
   const [settingsData, setSettingsData] = useState(null);
@@ -44,9 +76,6 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
   // Provider Key Validation Feedback State
   const [validationFeedback, setValidationFeedback] = useState({});
   const [validatingProvider, setValidatingProvider] = useState({});
-
-  // Direct Gateway Toggle Saving State
-  const [savingGatewayToggle, setSavingGatewayToggle] = useState(false);
 
   // General settings draft
   const [generalDraft, setGeneralDraft] = useState({
@@ -166,41 +195,8 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
     }
   };
 
-  // Section 4: Direct Enable/Disable Toggle for REST API Key Authentication
-  const handleToggleGatewayDirectly = async (checked) => {
-    const hasKey =
-      Boolean(settingsData?.integrations?.rest_api?.secret_key) ||
-      Boolean(customDrafts.CUSTOM_REST_API_SECRET_KEY);
-
-    if (checked && !hasKey) {
-      setError('Cannot enable REST API Gateway: REST_API_SECRET_KEY is not configured.');
-      return;
-    }
-
-    setSavingGatewayToggle(true);
-    setError(null);
-    try {
-      const newToggles = { ...togglesDraft, enable_rest_api_gateway: checked };
-      await adminService.updateToggles(newToggles);
-      setTogglesDraft(newToggles);
-      setSuccessMsg(
-        checked
-          ? 'REST API Key Authentication enabled and strictly enforced.'
-          : 'REST API Key Authentication disabled. System returned to alternative authentication behavior.'
-      );
-    } catch (err) {
-      setError(err.message || 'Failed to update REST API Gateway toggle.');
-    } finally {
-      setSavingGatewayToggle(false);
-    }
-  };
-
   // Section 4: Unified Feature Toggles inside API Key Management & Gateways
   const handleToggleFeature = async (toggleKey, checked) => {
-    if (toggleKey === 'enable_rest_api_gateway') {
-      return handleToggleGatewayDirectly(checked);
-    }
-
     if (toggleKey === 'enable_google_login' && checked) {
       const hasGoogle =
         Boolean(settingsData?.integrations?.google?.client_id) ||
@@ -562,197 +558,6 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
           ) : activeTab === 'integrations' ? (
             /* Unlocked API Key Management & Gateways Section */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-              {/* Feature Toggles Overview Panel */}
-              <div className="qf-integration-card">
-                <div className="qf-integration-card__header">
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 'var(--font-base)', fontWeight: 'var(--font-semibold)' }}>
-                      Core Service & Feature Toggles
-                    </h3>
-                    <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                      Enable or disable external integrations, authentication providers, and notification gateways in real time.
-                    </span>
-                  </div>
-                  <span className="qf-source-badge qf-source-badge--custom">
-                    5 Feature Flags
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                    gap: 'var(--space-3)',
-                  }}
-                >
-                  {/* REST API Gateway Toggle */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: togglesDraft.enable_rest_api_gateway
-                        ? 'var(--color-primary-light, #eff6ff)'
-                        : 'var(--color-surface-subtle)',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                        REST API Gateway
-                      </div>
-                      <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                        API key authentication enforcement
-                      </div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Toggle REST API Gateway Service"
-                        checked={togglesDraft.enable_rest_api_gateway}
-                        onChange={(e) => handleToggleGatewayDirectly(e.target.checked)}
-                        disabled={savingGatewayToggle}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Google Login Toggle */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: togglesDraft.enable_google_login
-                        ? 'var(--color-primary-light, #eff6ff)'
-                        : 'var(--color-surface-subtle)',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                        Google Login (SSO)
-                      </div>
-                      <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                        One-tap Google sign-in
-                      </div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Toggle Google Login Service"
-                        checked={togglesDraft.enable_google_login}
-                        onChange={(e) => handleToggleFeature('enable_google_login', e.target.checked)}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Google reCAPTCHA Toggle */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: togglesDraft.enable_recaptcha
-                        ? 'var(--color-primary-light, #eff6ff)'
-                        : 'var(--color-surface-subtle)',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                        Google reCAPTCHA
-                      </div>
-                      <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                        Bot protection challenges
-                      </div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Toggle Google reCAPTCHA Service"
-                        checked={togglesDraft.enable_recaptcha}
-                        onChange={(e) => handleToggleFeature('enable_recaptcha', e.target.checked)}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* PhilSMS Gateway Toggle */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: togglesDraft.enable_sms_notifications
-                        ? 'var(--color-primary-light, #eff6ff)'
-                        : 'var(--color-surface-subtle)',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                        SMS Notifications
-                      </div>
-                      <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                        PhilSMS status text alerts
-                      </div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Toggle SMS Notifications Service"
-                        checked={togglesDraft.enable_sms_notifications}
-                        onChange={(e) => handleToggleFeature('enable_sms_notifications', e.target.checked)}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* SMTP Mail Server Toggle */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: togglesDraft.enable_email_notifications
-                        ? 'var(--color-primary-light, #eff6ff)'
-                        : 'var(--color-surface-subtle)',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                        Email Notifications
-                      </div>
-                      <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                        SMTP certificates & mail dispatch
-                      </div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Toggle Email Notifications Service"
-                        checked={togglesDraft.enable_email_notifications}
-                        onChange={(e) => handleToggleFeature('enable_email_notifications', e.target.checked)}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
               {/* 1. Google OAuth */}
               <div className="qf-integration-card">
                 <div className="qf-integration-card__header">
@@ -765,15 +570,13 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--font-xs)' }}>
-                      <input
-                        type="checkbox"
-                        checked={togglesDraft.enable_google_login}
-                        onChange={(e) => handleToggleFeature('enable_google_login', e.target.checked)}
-                        style={{ width: 16, height: 16, cursor: 'pointer' }}
-                      />
-                      <span>{togglesDraft.enable_google_login ? 'Active' : 'Disabled'}</span>
-                    </label>
+                    <ToggleSwitch
+                      checked={togglesDraft.enable_google_login}
+                      onChange={(e) => handleToggleFeature('enable_google_login', e.target.checked)}
+                      ariaLabel="Toggle Google Login Service"
+                      labelOn="Enabled"
+                      labelOff="Disabled"
+                    />
                     <span className={`qf-source-badge qf-source-badge--${integrations.google?.source || 'default'}`}>
                       {integrations.google?.source === 'custom' ? 'Custom' : 'Default'}
                     </span>
@@ -863,15 +666,13 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--font-xs)' }}>
-                      <input
-                        type="checkbox"
-                        checked={togglesDraft.enable_sms_notifications}
-                        onChange={(e) => handleToggleFeature('enable_sms_notifications', e.target.checked)}
-                        style={{ width: 16, height: 16, cursor: 'pointer' }}
-                      />
-                      <span>{togglesDraft.enable_sms_notifications ? 'Active' : 'Disabled'}</span>
-                    </label>
+                    <ToggleSwitch
+                      checked={togglesDraft.enable_sms_notifications}
+                      onChange={(e) => handleToggleFeature('enable_sms_notifications', e.target.checked)}
+                      ariaLabel="Toggle SMS Notifications Service"
+                      labelOn="Enabled"
+                      labelOff="Disabled"
+                    />
                     <span className={`qf-source-badge qf-source-badge--${integrations.sms?.source || 'default'}`}>
                       {integrations.sms?.source === 'custom' ? 'Custom' : 'Default'}
                     </span>
@@ -973,15 +774,13 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--font-xs)' }}>
-                      <input
-                        type="checkbox"
-                        checked={togglesDraft.enable_email_notifications}
-                        onChange={(e) => handleToggleFeature('enable_email_notifications', e.target.checked)}
-                        style={{ width: 16, height: 16, cursor: 'pointer' }}
-                      />
-                      <span>{togglesDraft.enable_email_notifications ? 'Active' : 'Disabled'}</span>
-                    </label>
+                    <ToggleSwitch
+                      checked={togglesDraft.enable_email_notifications}
+                      onChange={(e) => handleToggleFeature('enable_email_notifications', e.target.checked)}
+                      ariaLabel="Toggle Email Notifications Service"
+                      labelOn="Enabled"
+                      labelOff="Disabled"
+                    />
                     <span className={`qf-source-badge qf-source-badge--${integrations.smtp?.source || 'default'}`}>
                       {integrations.smtp?.source === 'custom' ? 'Custom' : 'Default'}
                     </span>
@@ -1117,15 +916,13 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--font-xs)' }}>
-                      <input
-                        type="checkbox"
-                        checked={togglesDraft.enable_recaptcha}
-                        onChange={(e) => handleToggleFeature('enable_recaptcha', e.target.checked)}
-                        style={{ width: 16, height: 16, cursor: 'pointer' }}
-                      />
-                      <span>{togglesDraft.enable_recaptcha ? 'Active' : 'Disabled'}</span>
-                    </label>
+                    <ToggleSwitch
+                      checked={togglesDraft.enable_recaptcha}
+                      onChange={(e) => handleToggleFeature('enable_recaptcha', e.target.checked)}
+                      ariaLabel="Toggle Google reCAPTCHA Service"
+                      labelOn="Enabled"
+                      labelOff="Disabled"
+                    />
                     <span className={`qf-source-badge qf-source-badge--${integrations.recaptcha?.source || 'default'}`}>
                       {integrations.recaptcha?.source === 'custom' ? 'Custom' : 'Default'}
                     </span>
@@ -1196,127 +993,6 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                       })
                     }
                     disabled={!customDrafts.CUSTOM_RECAPTCHA_SITE_KEY && !customDrafts.CUSTOM_RECAPTCHA_SECRET_KEY}
-                    iconLeft={<Icon name="shield" size={14} />}
-                  >
-                    Save & Verify (2FA)
-                  </Button>
-                </div>
-              </div>
-
-              {/* 5. REST API Gateway Security & Key Management */}
-              <div className="qf-integration-card">
-                <div className="qf-integration-card__header">
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 'var(--font-base)', fontWeight: 'var(--font-semibold)' }}>
-                      REST API Gateway Security & Key Management
-                    </h3>
-                    <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                      Shared secret key for external client systems, reporting webhooks, and gateway endpoints.
-                    </span>
-                  </div>
-                  <span className={`qf-source-badge qf-source-badge--${integrations.rest_api?.source || 'default'}`}>
-                    {integrations.rest_api?.source === 'custom' ? 'Custom' : 'Default'}
-                  </span>
-                </div>
-
-                {/* Section 4: Direct Enable/Disable Toggle inside API Key Management */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 'var(--space-3) var(--space-4)',
-                    backgroundColor: 'var(--color-surface-subtle)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--font-sm)' }}>
-                      REST API Key Authentication
-                    </div>
-                    <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                      When enabled, API key authentication is strictly enforced via <code>x-api-key</code>. When disabled, alternative Bearer auth is active.
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <span
-                      className={`qf-source-badge qf-source-badge--${
-                        togglesDraft.enable_rest_api_gateway ? 'custom' : 'default'
-                      }`}
-                    >
-                      {togglesDraft.enable_rest_api_gateway ? 'Active & Enforced' : 'Disabled'}
-                    </span>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={togglesDraft.enable_rest_api_gateway}
-                        onChange={(e) => handleToggleGatewayDirectly(e.target.checked)}
-                        disabled={savingGatewayToggle}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                        aria-label="Toggle REST API Gateway Authentication"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="qf-masked-preview">
-                  <div>Active Secret Key: <code>{integrations.rest_api?.secret_key || 'Not configured'}</code></div>
-                </div>
-
-                <div>
-                  <Input
-                    label="Custom REST API Secret Key"
-                    type="password"
-                    placeholder="Enter custom API secret key (min 16 characters)..."
-                    value={customDrafts.CUSTOM_REST_API_SECRET_KEY || ''}
-                    onChange={(e) => handleDraftChange('CUSTOM_REST_API_SECRET_KEY', e.target.value)}
-                    helperText="Must be at least 16 characters and contain mixed letters, numbers, or symbols."
-                  />
-                </div>
-
-                {validationFeedback['rest_api'] && (
-                  <Alert variant={validationFeedback['rest_api'].valid ? 'success' : 'danger'}>
-                    {validationFeedback['rest_api'].message}
-                  </Alert>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      handleValidateKey('rest_api', {
-                        CUSTOM_REST_API_SECRET_KEY:
-                          customDrafts.CUSTOM_REST_API_SECRET_KEY || integrations.rest_api?.secret_key,
-                      })
-                    }
-                    loading={validatingProvider['rest_api']}
-                    disabled={!customDrafts.CUSTOM_REST_API_SECRET_KEY && !integrations.rest_api?.secret_key}
-                    iconLeft={<Icon name="check-circle" size={14} />}
-                  >
-                    Validate Key with Provider
-                  </Button>
-                  {integrations.rest_api?.source === 'custom' && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() =>
-                        handlePromptReset('REST API Gateway', ['CUSTOM_REST_API_SECRET_KEY'])
-                      }
-                    >
-                      Reset to Default
-                    </Button>
-                  )}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() =>
-                      handlePromptSave('REST API Gateway', 'rest_api', {
-                        CUSTOM_REST_API_SECRET_KEY: customDrafts.CUSTOM_REST_API_SECRET_KEY,
-                      })
-                    }
-                    disabled={!customDrafts.CUSTOM_REST_API_SECRET_KEY}
                     iconLeft={<Icon name="shield" size={14} />}
                   >
                     Save & Verify (2FA)
