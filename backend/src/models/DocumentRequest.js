@@ -195,6 +195,12 @@ const documentRequestSchema = new mongoose.Schema(
     },
     // Concurrency control: Pessimistic locking subdocument
     lock: {
+      // Fast boolean mirror of the active-lock state (kept in sync by
+      // requestLock.service.js and requestTransition.js).
+      is_locked: {
+        type: Boolean,
+        default: false,
+      },
       locked_by: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

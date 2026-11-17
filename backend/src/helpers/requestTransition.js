@@ -61,6 +61,7 @@ async function transitionRequestStatus({
     ...extraUpdates,
     // Concurrency control: Automatically release the lock when an action completes work or reaches a terminal state
     lock: {
+      is_locked: false,
       locked_by: null,
       locked_by_name: null,
       locked_at: null,

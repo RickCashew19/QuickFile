@@ -37,6 +37,10 @@ const VALIDATORS = {
       properties: {
         tracking_number: { bsonType: 'string' },
         status: { bsonType: 'string' },
+        lock: {
+          bsonType: 'object',
+          properties: { is_locked: { bsonType: 'bool' } },
+        },
         citizen_id: { bsonType: 'objectId' },
         document_type_id: { bsonType: 'objectId' },
       },

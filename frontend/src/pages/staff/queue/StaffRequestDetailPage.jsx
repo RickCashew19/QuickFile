@@ -300,6 +300,11 @@ export function StaffRequestDetailPage() {
           <div className="qf-staff-detail-tracking">
             <span className="qf-tracking-chip">{request.tracking_number}</span>
             <StatusBadge status={request.status} />
+            {request.lock?.is_locked && (
+              <span className="qf-lock-chip" title="This request is currently locked by a staff member">
+                &#128274; Locked
+              </span>
+            )}
           </div>
           <h1 className="qf-staff-detail-title">{docType.name || 'Document Request'}</h1>
           <div className="qf-staff-detail-meta">

@@ -32,7 +32,7 @@ Provisioning applies `$jsonSchema` validation (7 core collections), the full ind
 
 ## Concurrency control
 
-- **Pessimistic locks**: `requestLock.service.js` (`lock.locked_by`, `lock.expires_at`), unchanged, now shared by every app instance through Atlas.
+- **Pessimistic locks**: `requestLock.service.js` (`lock.is_locked` boolean + `lock.locked_by`, `lock.expires_at`), shared by every app instance through Atlas. The boolean is a readable mirror kept in sync on acquire, renew, release and status transitions; `GET /staff/requests/:id/lock` also returns top-level `is_locked`.
 - **Optimistic concurrency**: `DocumentRequest` uses `__v` with Mongoose `optimisticConcurrency`; `requestTransition.js` guards on expected status and increments `__v`.
 - **MVCC / transactions**: `helpers/transaction.js` uses snapshot reads + majority writes. `issueRequest` (certificate + status transition), `transitionRequestStatus` (status + audit + notification), and the password-reset flow commit atomically. On a standalone server the helper degrades gracefully (no transactions); Atlas and the local replica set run full transactions.
 

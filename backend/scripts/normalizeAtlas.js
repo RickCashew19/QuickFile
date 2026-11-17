@@ -37,10 +37,15 @@ function normalizedChanges(name, doc) {
     case 'documentrequests':
       if (d.status && asString(d.status).toLowerCase() !== d.status) set.status = asString(d.status).toLowerCase();
       if (!d.lock || typeof d.lock !== 'object') {
-        set.lock = { locked_by: null, locked_by_name: null, locked_at: null, expires_at: null };
+        set.lock = { is_locked: false, locked_by: null, locked_by_name: null, locked_at: null, expires_at: null };
       } else {
         for (const k of ['locked_by', 'locked_by_name', 'locked_at', 'expires_at']) {
           if (!(k in d.lock)) set[`lock.${k}`] = null;
+        }
+        if (typeof d.lock.is_locked !== 'boolean') {
+          set['lock.is_locked'] = Boolean(
+            d.lock.locked_by && d.lock.expires_at && new Date(d.lock.expires_at) > now
+          );
         }
       }
       if (!('rejected_by' in d)) set.rejected_by = null;

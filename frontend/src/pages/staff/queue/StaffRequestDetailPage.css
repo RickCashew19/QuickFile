@@ -70,6 +70,15 @@
   border-radius: var(--radius-sm);
 }
 
+.qf-lock-chip {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--color-warning, #b45309);
+  background: var(--color-warning-bg, #fef3c7);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
 .qf-staff-detail-title {
   font-size: var(--font-xl);
   font-weight: 700;

@@ -219,6 +219,7 @@ async function runTestSuite() {
       assert.strictEqual(lock1.locked_by.toString(), staffUser1._id.toString());
       assert.strictEqual(lock1.locked_by_name, staffUser1.full_name);
       assert(new Date(lock1.expires_at) > new Date());
+      assert.strictEqual(lock1.is_locked, true, 'Acquired lock must set is_locked=true');
 
       // 2. Staff 2 attempts to acquire lock (service layer) -> must throw 423
       let errorThrown = false;
@@ -375,6 +376,7 @@ async function runTestSuite() {
 
       const afterStaffRelease = await DocumentRequest.findById(reqDoc._id);
       assert.strictEqual(afterStaffRelease.lock.locked_by, null);
+      assert.strictEqual(afterStaffRelease.lock.is_locked, false, 'Released lock must set is_locked=false');
     });
 
     // --------------------------------------------------------------------------
@@ -425,6 +427,7 @@ async function runTestSuite() {
       const updatedDoc = await DocumentRequest.findById(reqDoc._id);
       assert.strictEqual(updatedDoc.status, 'under_review');
       assert.strictEqual(updatedDoc.lock.locked_by, null, 'Lock must be released automatically after action');
+      assert.strictEqual(updatedDoc.lock.is_locked, false, 'is_locked must flip to false after transition');
     });
 
     // --------------------------------------------------------------------------

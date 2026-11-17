@@ -56,6 +56,7 @@ class RequestLockService {
       },
       {
         $set: {
+          'lock.is_locked': true,
           'lock.locked_by': userId,
           'lock.locked_by_name': userName,
           'lock.locked_at': now,
@@ -142,6 +143,7 @@ class RequestLockService {
       },
       {
         $set: {
+          'lock.is_locked': true,
           'lock.expires_at': expiresAt,
         },
       },
@@ -198,6 +200,7 @@ class RequestLockService {
       { _id: requestId },
       {
         $set: {
+          'lock.is_locked': false,
           'lock.locked_by': null,
           'lock.locked_by_name': null,
           'lock.locked_at': null,
@@ -303,12 +306,17 @@ class RequestLockService {
     }
 
     const now = new Date();
-    const isLocked = Boolean(
+    // Prefer the stored boolean; fall back to the derived state for legacy
+    // documents that have not been backfilled yet.
+    const derivedLocked = Boolean(
       current.lock &&
       current.lock.locked_by &&
       current.lock.expires_at &&
       new Date(current.lock.expires_at) > now
     );
+    const isLocked = typeof current.lock?.is_locked === 'boolean'
+      ? current.lock.is_locked && derivedLocked
+      : derivedLocked;
 
     const userId = user ? (user._id || user.id).toString() : null;
     const isHeldByMe = Boolean(
@@ -319,7 +327,7 @@ class RequestLockService {
     return {
       is_locked: isLocked,
       is_held_by_current_user: isHeldByMe,
-      lock: isLocked ? current.lock : null,
+      lock: isLocked ? { ...current.lock, is_locked: true } : null,
     };
   }
 }
