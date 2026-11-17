@@ -170,6 +170,10 @@ export function PublicVerifyPage() {
     <div className="qf-landing">
       <main className="qf-verify-container">
         <div className="qf-verify-card">
+          <Link to="/" className="qf-verify-header__back qf-btn qf-btn--secondary qf-btn--sm">
+            <Icon name="chevron-left" size={16} />
+            Back to Home
+          </Link>
           <div className="qf-verify-header">
             <div className="qf-verify-header__icon">
               <Icon name="qr" size={32} />

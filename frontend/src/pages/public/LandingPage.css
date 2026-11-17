@@ -176,6 +176,19 @@
   margin-bottom: var(--space-4);
 }
 
+/* Mobile cards are single-column, so center the icon/title header instead of
+   leaving the icon stranded against the left edge. Keep the description
+   left-aligned for readability. */
+@media (max-width: 767px) {
+  .qf-card__icon {
+    margin: 0 auto var(--space-4);
+  }
+
+  .qf-card__title {
+    text-align: center;
+  }
+}
+
 /* Footer */
 .qf-footer {
   margin-top: auto;
