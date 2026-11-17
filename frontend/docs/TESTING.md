@@ -11,7 +11,7 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 ```text
 +------------------------------------+         +------------------------------------+
 |         DEVICE A: DESKTOP          |         |         DEVICE B: MOBILE           |
-| (Chrome / Firefox / Edge >= 1280px)|         |   (iOS Safari / Chrome @ 360px)    |
+| (Chrome / Firefox / Edge >= 1280px)|         |   (iOS Safari / Chrome @ 320px)    |
 |------------------------------------|         |------------------------------------|
 | Roles:                             |         | Roles:                             |
 |  - System Administrator            |         |  - Public / Guest Visitor          |
@@ -28,8 +28,8 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 
 ### Network & Connection Setup
 1. **Backend Server**: Express API running at `http://<HOST_IP>:5000/api/v1` (or local development address).
-2. **Frontend App**: Vite development server running on `http://<HOST_IP>:3000` (`npm run dev -- --host`).
-3. **Device B (Mobile)** connects to the same local Wi-Fi network and accesses `http://<HOST_IP>:3000`.
+2. **Frontend App**: Vite development server running on `http://<HOST_IP>:5173` (`npm run dev -- --host`).
+3. **Device B (Mobile)** connects to the same local Wi-Fi network and accesses `http://<HOST_IP>:5173`.
 
 ---
 
@@ -37,11 +37,11 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 
 ### Role 1: Public / Guest Visitor (Device B - Mobile)
 
-#### Test 1.1: Mobile Landing Page at 360px
+#### Test 1.1: Mobile Landing Page at 320px
 1. Open browser on Device B and navigate to `/`.
 2. **Verify**:
-   - Page header displays QuickFile logo, Barangay jurisdiction title, and top action buttons ("Track / Verify", "Sign In").
-   - Service cards (Clearance, Indigency, Residency, Business) wrap cleanly to a single column without horizontal page scrolling.
+   - Page header displays the QuickFile logo and a hamburger menu; the mobile drawer carries Home, Verify Certificate, Sign In, and Sign Up (desktop action buttons are hidden).
+   - Service cards (Clearance, Indigency, Residency, Business) wrap to a single column with their icons/titles centered and no horizontal page scrolling.
    - "Request Document" button has a minimum touch target of 44x44px. Clicking it redirects to `/login?redirect=/citizen/requests/new`.
 
 #### Test 1.2: Public QR Certificate Verification (`/verify`)
@@ -63,7 +63,7 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
    - Password: `Password@123` (password meter indicates valid format)
    - Birthdate: Pick a date in the past
 5. Tap "Create Account".
-6. **Expected**: Account is created, JWT is stored in `localStorage`, and resident is routed directly to `/citizen/dashboard`.
+6. **Expected**: Account is created, an httpOnly session cookie is set, and the resident is routed directly to `/citizen/dashboard`.
 
 #### Test 1.4: Password Reset Flow (`/forgot-password`)
 1. On Device B, navigate to `/forgot-password`.
@@ -76,7 +76,7 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 
 #### Test 2.1: Citizen Authentication
 1. On Device B, navigate to `/login`.
-2. Enter credentials (`citizen@quickfile.gov.ph` / `Citizen@123456`).
+2. Enter the seeded citizen credentials (`citizen@quickfile.gov.ph`; password from `DEFAULT_CITIZEN_PASSWORD` in `backend/.env`).
 3. **Verify**: Instant login without token leakage, redirecting to `/citizen/dashboard`.
 
 #### Test 2.2: Citizen Dashboard & Incomplete Profile Notice
@@ -137,7 +137,7 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 
 #### Test 3.1: Staff Authentication & Layout
 1. On Device A, open browser and navigate to `/login`.
-2. Log in with staff credentials (`staff@quickfile.gov.ph` / `Staff@123456`).
+2. Log in with the seeded staff credentials (`staff@quickfile.gov.ph`; password from `DEFAULT_STAFF_PASSWORD` in `backend/.env`).
 3. **Verify**:
    - Left sidebar renders staff navigation items: Dashboard, Review Queue, Walk-In Filing, Historical Records, QR Verification, Reports.
    - Header shows staff member name and "Barangay Staff" role pill.
@@ -218,7 +218,7 @@ To thoroughly validate role-based boundaries, responsive breakpoints, touch targ
 ### Role 4: System Administrator (Device A - Desktop)
 
 #### Test 4.1: Executive Dashboard & Live Polling (`/admin/dashboard`)
-1. Log in with admin credentials (`admin@quickfile.gov.ph` / `Admin@123456`).
+1. Log in with the seeded admin credentials (`admin@quickfile.gov.ph`; password from `DEFAULT_ADMIN_PASSWORD` in `backend/.env`).
 2. Navigate to `/admin/dashboard`.
 3. **Verify**:
    - KPI cards render: Today's Collections (PHP), Active Citizens, Staff Accounts, Queue Backlog.
@@ -422,7 +422,7 @@ server {
 
 ### 3.5 Capacitor Native Mobile Packaging (iOS & Android)
 
-QuickFile is built without cookies, relying entirely on Bearer tokens stored in `localStorage`, making it 100% Capacitor-ready.
+QuickFile uses httpOnly session cookies in the browser, which work in a Capacitor WebView and survive page reloads; an in-memory Bearer token remains available as a fallback for non-browser clients and automated tests, but nothing sensitive is persisted to `localStorage`.
 
 1. **Install Capacitor CLI**:
    ```bash

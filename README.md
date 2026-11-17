@@ -14,7 +14,8 @@ data and are not used by the current application.
 
 - Node.js 18 or newer
 - npm
-- MongoDB, locally or remotely
+- MongoDB Atlas for the running app (configured via `backend/.env`); a local
+  MongoDB 6+ replica set is used only for the backend test suites
 
 ## Setup
 
@@ -27,22 +28,31 @@ Copy-Item .\backend\.env.example .\backend\.env
 Copy-Item .\frontend\.env.example .\frontend\.env
 ```
 
-Configure the backend values in `backend/.env`, including MongoDB connection,
-JWT, Super Admin key, jurisdiction, and seed account settings.
+Configure the backend values in `backend/.env`, including the MongoDB Atlas
+connection, JWT, Super Admin key, jurisdiction, and seed account settings.
+See [backend/docs/ATLAS.md](./backend/docs/ATLAS.md) for the Atlas runbook.
 
 ## Demonstration data
 
-The backend's demo seeder adds clearly labeled request records across the
-processing workflow, including issued certificates for QR verification. It
-only runs against a local `quickfile` or `quickfile_demo` MongoDB database and
-refuses production mode.
+The backend ships two idempotent demo seeders. They add clearly labeled request
+records across every workflow status, issued certificates (including a revoked
+one) for QR verification, in-app notifications, audit logs, signatory settings,
+and an active custom DOCX template.
 
 ```powershell
+# Local MongoDB only (database must be quickfile or quickfile_demo)
 npm --prefix backend run seed:demo
+
+# The configured Atlas database (development only; explicit opt-in)
+npm --prefix backend run seed:demo:atlas
 ```
 
-The seeder is safe to rerun: existing sample records are reused and advanced
-only as needed. It does not send email or alter existing non-demo records.
+Both commands are safe to rerun: existing sample records are reused and only
+advanced as needed; non-demo records are untouched. Back up Atlas first with
+`npm --prefix backend run atlas:backup`. The demo accounts are
+`citizen@quickfile.gov.ph`, `staff@quickfile.gov.ph`, and
+`admin@quickfile.gov.ph` (passwords are the `DEFAULT_*_PASSWORD` values in
+`backend/.env`).
 
 ## Development
 

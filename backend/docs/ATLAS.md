@@ -28,6 +28,33 @@ npm run atlas:provision:prune        # also drop prefix-redundant indexes (no da
 npm run atlas:smoke                  # live transaction commit/rollback check
 ```
 
+## Demo data on Atlas
+
+`npm run seed:demo` is restricted to a local `quickfile` / `quickfile_demo`
+database. To populate the Atlas database used by the running app:
+
+```bash
+npm run atlas:backup       # take a backup first
+npm run seed:demo:atlas    # development only (NODE_ENV != production)
+```
+
+The Atlas variant opts in explicitly (`DEMO_SEED_ALLOW_ATLAS=true` set by the
+wrapper script) and is safe to re-run: every demo record is found by its stable
+purpose prefix and reused rather than duplicated. It seeds:
+
+- 10 labeled requests covering all 9 workflow statuses (including a cancelled
+  one);
+- issued certificates with verification codes and QR links, one of them
+  revoked, so public/staff verification and validity filters have data;
+- in-app notifications and audit logs produced by the real status transitions;
+- Barangay Captain / Secretary signatory settings so certificates can print;
+- a starter custom DOCX template activated for Barangay Clearance, linked to
+  one certificate so the Word download action works.
+
+Demo logins are `citizen@quickfile.gov.ph`, `staff@quickfile.gov.ph`, and
+`admin@quickfile.gov.ph`; their passwords are the `DEFAULT_*_PASSWORD` values
+in `.env`. The seeder never changes existing non-demo records.
+
 Provisioning applies `$jsonSchema` validation (7 core collections), the full index set, and TTL indexes on `passwordresets.expires_at` and `twofactorverifications.expires_at` (expired rows purge themselves). Existing documents are checked against validators before they are applied, so a bad document is reported instead of silently breaking writes.
 
 ## Concurrency control

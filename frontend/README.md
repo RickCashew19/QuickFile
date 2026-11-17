@@ -1,4 +1,4 @@
-c# QuickFile Frontend
+# QuickFile Frontend
 
 Modern, mobile-first, and highly accessible React 18 single-page application (SPA) for the **QuickFile Barangay Document Processing System**. Built with Vite, clean vanilla CSS design tokens, and role-based access control supporting Citizens, Staff members, Administrators, and the Public.
 
@@ -91,28 +91,29 @@ The frontend strictly adheres to modular, maintainable, and decoupled architectu
 
 ```
 src/
+├── api/             # API clients (apiClient, authService, citizenService, staffService, adminService, ...)
 ├── assets/          # Static logos, icons, and illustrations
-├── components/      # Reusable UI widgets (Button, Modal, Input, Badge, Table, etc.)
-├── constants/       # Immutable enums, API endpoints, role permissions, storage keys
-├── context/         # Global state providers (AuthContext)
-├── hooks/           # Reusable custom hooks (useAuth, usePolling, useDebounce)
-├── layouts/         # Role-specific layout shells (Public, Citizen, Staff, Admin)
+├── components/      # Reusable widgets plus layout shells (Public/Citizen/Staff/Admin) in components/layout
+├── config/          # Shared constants, roles and permissions
+├── contexts/        # Global state providers (AuthContext)
+├── hooks/           # Reusable custom hooks (useAuth, useRecaptcha, usePolling, ...)
 ├── pages/           # Routed view orchestration (no direct fetch calls)
-│   ├── admin/       # Admin sub-pages (Dashboard, Staff, Citizens, Types, Records, IssuedDocs, Settings, Logs, Reports)
-│   ├── auth/        # Login, Register, ForgotPassword, ResetPassword, GoogleCallback
-│   ├── citizen/     # Catalog, RequestNew, RequestDetail, CitizenDashboard, Notifications, Profile
-│   ├── public/      # LandingPage, VerifyPage, NotFoundPage
-│   └── staff/       # StaffDashboard, StaffQueue, StaffRequestDetail, StaffWalkIn, StaffRecords, StaffVerify, StaffReports, CertificatePrint
-├── routes/          # Route declarations and ProtectedRoute role gates
-├── services/        # Business API services (apiClient, authService, citizenService, staffService, adminService, printService)
+│   ├── admin/       # Dashboard, Staff, Citizens, DocTypes, Records, Certificates, Audit, Settings, Reports
+│   ├── citizen/     # Dashboard, Catalog, Requests, Profile, Notifications
+│   ├── public/      # LandingPage, Login, Register, Forgot/ResetPassword, VerifyPage, NotFound
+│   └── staff/       # Dashboard, Queue, WalkIn, Records, Verify, Reports, CertificatePrint
+├── routes/          # Route declarations and role/permission guards
 ├── styles/          # Design tokens (tokens.css) and global utility classes (global.css)
-├── tests/           # Vitest unit & component test suites and real API response fixtures
+├── templates/       # Printable document templates
+├── tests/           # Vitest unit & component suites
 │   └── fixtures/    # Sanitized real backend fixtures (fixtures/real/*.json)
-└── utils/           # Pure helpers (actionLogic, formatters, date utils, safe redirects, blob downloads)
+├── themes/          # Theme tokens
+├── validators/      # Form validation helpers
+└── utils/           # Pure helpers (formatters, date utils, safe redirects, blob downloads)
 ```
 
 ### Core Rules:
-1. **Layer Separation**: Components never call `fetch` directly. All network requests flow through `services/` &rarr; `apiClient.js`.
+1. **Layer Separation**: Components never call `fetch` directly. All network requests flow through `api/` &rarr; `apiClient.js`.
 2. **Page Orchestration**: Pages coordinate state and subcomponents; they contain no inline business algorithms.
 3. **Component Sizing**: Files are kept under ~150 lines. Complex interfaces are factored into dedicated subcomponents.
 4. **Descriptive Naming**: PascalCase for components (`DocTypeCard.jsx`), camelCase for hooks and helpers (`usePolling.js`, `getSafeRedirect.js`), snake_case preserved only for incoming backend JSON properties.
@@ -131,7 +132,7 @@ frontend/
 │   └── TESTING.md             # Multi-role 2-device manual test script & prod build notes
 ├── public/                    # Static assets copied verbatim to build
 ├── scripts/
-│   └── smoke.mjs              # Live backend parity validation script (70 assertions, 0 mocks)
+│   └── smoke.mjs              # Live backend parity validation script (0 mocks)
 ├── src/                       # Application source code
 ├── index.html                 # Single-page application root HTML with CSP & Referrer Policy
 ├── package.json               # Pinned dependencies & npm scripts
@@ -151,14 +152,14 @@ frontend/
 Create a `.env` file in `/frontend` (or copy from `.env.example`):
 
 ```bash
-# URL pointing to the QuickFile Express backend
-VITE_API_URL=http://localhost:5000
+# URL pointing to the QuickFile Express backend (include the /api/v1 prefix)
+VITE_API_URL=http://localhost:5000/api/v1
 
 # Base URL for public verification QR codes (defaults to window.location.origin)
 VITE_PUBLIC_URL=http://localhost:5173
 ```
 
-> **Note**: In development, `VITE_API_URL` defaults to `http://localhost:5000` if omitted. When deploying to production, point this to your live API domain (e.g. `https://api.quickfile.ph`).
+> **Note**: In development, `VITE_API_URL` defaults to `http://localhost:5000/api/v1` if omitted. When accessing the dev server from a phone via its network IP, `apiClient.js` automatically rewrites `localhost`/`127.0.0.1` to that hostname so the API remains reachable. In production, point this to your live API domain (e.g. `https://api.quickfile.ph/api/v1`).
 
 ---
 
@@ -197,7 +198,7 @@ npm run preview
 QuickFile employs a multi-tiered verification pipeline:
 
 ### 1. Vitest Unit & Component Tests
-- **23 test suites** covering all critical helpers, custom hooks, and complex component interactions:
+- **28 test suites / 277 tests** covering all critical helpers, custom hooks, and complex component interactions:
   - Request state machine matrix (`getAvailableActions`) covering all 9 statuses &times; 7 permissions &times; Staff/Admin roles.
   - Auth token lifecycle, 401 handling, and Super Admin Key exemption in `apiClient`.
   - Safe redirect sanitization (blocking `//`, `/\`, javascript schemes, control chars).
@@ -229,7 +230,7 @@ QuickFile employs a multi-tiered verification pipeline:
 
 ## Mobile-First & Accessibility Standards
 
-- **360px Minimum Viewport**: Fully responsive down to 360px width. Side-by-side modal inputs automatically collapse to a single column on viewports `< 500px` via `.qf-grid-2col`.
+- **320px Minimum Viewport**: Fully responsive down to 320px width (`body { min-width: 320px }`). Every audited page keeps `document.scrollWidth === window.innerWidth` at both 320px and 390px. Modal padding tightens and footer buttons wrap below 480px; side-by-side modal inputs collapse to one column on narrow screens.
 - **44px Minimum Touch Targets**: Buttons, tabs, and form controls enforce `--touch-target: 44px` to meet mobile accessibility standards.
 - **Accessible Navigation**:
   - `SkipLink` component at the top of all layouts allowing keyboard users to bypass navigation straight to `<main id="main-content">`.
@@ -237,6 +238,10 @@ QuickFile employs a multi-tiered verification pipeline:
   - Accessible keyboard navigation on autocomplete search inputs (`role="listbox"`, `ArrowDown`, `ArrowUp`, `Enter`, `Escape`).
   - Visible keyboard focus rings with `:focus-visible` styling throughout.
   - High-contrast color tokens exceeding WCAG 2.1 AA ratios (4.5:1 text, 3:1 graphical elements).
+- **Compact Mobile Header**: Below 768px the desktop nav actions and role pill are hidden; the drawer carries Home / Verify Certificate / Sign In / Sign Up, and the header shows a compact account icon with an icon-only Log Out. Hamburger buttons use the `menu` icon.
+- **Readable Content Grids**: Dashboard grids use `minmax(0, 1fr)` and panels `min-width: 0`, so wide tables scroll inside their container instead of stretching the page. Landing-page service cards center their icon and title on mobile.
+- **Session Persistence**: Authentication uses an httpOnly session cookie, so a page refresh on mobile restores the user via `GET /auth/me`.
+- **Public Verification**: The `/verify` page includes a "Back to Home" link for guest users arriving from the landing page.
 - **No `dangerouslySetInnerHTML`**: All dynamic data is safely rendered via React JSX escaping.
 
 ---
@@ -244,7 +249,7 @@ QuickFile employs a multi-tiered verification pipeline:
 ## Capacitor Mobile Ready
 
 The frontend is architected to be packaged into an Android (`.apk`) or iOS app using **Capacitor**:
-- **No Cookie Dependencies**: All authentication relies on standard `Authorization: Bearer <token>` headers stored in `localStorage` under `quickfile:auth:token`.
+- **Cookie-Based Sessions**: Browsers authenticate with an httpOnly session cookie (survives reloads and works in a WebView); the in-memory Bearer token is only a fallback for non-browser clients and tests, and is never persisted to `localStorage`.
 - **Relative & Configurable URLs**: API requests use `VITE_API_URL` instead of hardcoded hostnames.
 - **Hardware Back Button Ready**: Standard React Router history navigation works cleanly with native mobile wrappers.
 - **Camera QR Scanning**: Uses HTML5 MediaDevices camera stream inside WebView with zero native plugin overhead.
@@ -254,10 +259,10 @@ The frontend is architected to be packaged into an Android (`.apk`) or iOS app u
 ## Production Deployment & Security
 
 ### Content Security Policy (CSP) & Referrer Policy
-The SPA enforces strict client-side security policies configured in `frontend/index.html` and dynamic route guards:
+Referrer policy is set in the app; CSP is enforced by the hosting layer (see the Nginx example below) rather than a `<meta>` tag in `index.html`:
 - **Default Referrer Policy**: `<meta name="referrer" content="strict-origin-when-cross-origin">` ensures sensitive path parameters are omitted across third-party origins.
 - **Dynamic Referrer Downgrade on Password Reset**: On the `/reset-password` screen, a dynamic `<meta name="referrer" content="no-referrer">` tag is injected on mount and restored on unmount to prevent leaking password reset tokens to external services.
-- **Content Security Policy**:
+- **Content Security Policy** (deployment header, example directives):
   - `default-src 'self'`: Restricts defaults to own origin.
   - `script-src 'self' https://accounts.google.com/gsi/client https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`: Allows only verified scripts for Google Sign-In and reCAPTCHA.
   - `style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style`: Permits design token styles and Google GIS iframe styling.

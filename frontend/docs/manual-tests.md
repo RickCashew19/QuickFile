@@ -4,8 +4,8 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 
 ---
 
-### Test Suite 1: Responsive Layout & Mobile Viewport (360px)
-- [ ] **Step 1.1**: Open DevTools, switch to responsive device mode, and set viewport to **360px &times; 640px**.
+### Test Suite 1: Responsive Layout & Mobile Viewport (320px / 390px)
+- [ ] **Step 1.1**: Open DevTools, switch to responsive device mode, and set viewport to **320px &times; 640px** (repeat at **390px &times; 844px**).
 - [ ] **Step 1.2**: Navigate to `/`, `/login`, `/register`, `/verify`, and `/404`.
 - [ ] **Expected**:
   - No horizontal scrolling occurs on any screen (`document.documentElement.scrollWidth === window.innerWidth`).
@@ -18,9 +18,17 @@ Use this checklist to perform manual verification in a desktop or mobile browser
 - [ ] **Step 2.1**: Start the backend and frontend (`npm --prefix backend run dev` and `npm --prefix frontend run dev` from the repository root), then open `http://localhost:5173/`.
 - [ ] **Step 2.2**: Observe the brand header, hero title, and footer.
 - [ ] **Expected**:
-  - Barangay Name and Jurisdiction match backend settings (`Barangay Central, City Hall, Metro Manila`).
+  - Barangay Name and Jurisdiction match the values configured in System Settings.
   - "Request Document" button directs guest to `/login?redirect=/citizen/requests/new`.
   - "Verify Certificate" button directs user to `/verify`.
+
+---
+
+### Test Suite 2b: Mobile Polish & Verification Back Link
+- [ ] **Step 2b.1**: At 390px, open `/` and confirm each "Popular Document Services" card shows its icon and title centered above the description.
+- [ ] **Step 2b.2**: Open the hamburger drawer and confirm it contains Home, Verify Certificate, Sign In, and Sign Up; the desktop header buttons are hidden.
+- [ ] **Step 2b.3**: Navigate to `/verify` and confirm the "Back to Home" link is visible; click it and confirm it returns to `/`.
+- [ ] **Step 2b.4**: Log in, reload the page, and confirm the session is restored (httpOnly cookie hydration via `/auth/me`).
 
 ---
 

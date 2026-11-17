@@ -179,7 +179,7 @@ This document provides the definitive REST API contract between the QuickFile Re
 
 ## 7. Architecture & Risk Mitigations
 
-1. **Token Invalidation Handling**: The backend issues standard JWT tokens. If `401 Unauthorized` is returned with `TOKEN_EXPIRED`, `TOKEN_INVALID`, or `TOKEN_INVALIDATED`, the frontend `apiClient` immediately executes a clean logout: purges memory + localStorage and redirects to `/login` with an informational message.
+1. **Session & Token Invalidation**: The API sets an httpOnly session cookie alongside the JWT in the login response; browsers authenticate with the cookie, while the in-memory Bearer token is a fallback for non-browser clients/tests. On a reload the app hydrates via `GET /auth/me` even when the in-memory token is gone. If `401 Unauthorized` is returned with `TOKEN_EXPIRED`, `TOKEN_INVALID`, or `TOKEN_INVALIDATED`, `apiClient` performs a clean logout (clears the cached user and in-memory token, calls `/auth/logout`) and redirects to `/login` with an informational message.
 2. **Rate Limit Resilience**: On `429 Too Many Requests`, the `Retry-After` header is inspected. The `apiClient` surfaces a localized countdown alert and pauses polling routines gracefully.
 3. **Optimistic Locking & Conflicts**: On `409 Conflict`, the frontend notifies the user that the resource was modified by another operator and refreshes current view data automatically.
 4. **Zero Secrets in Frontend**: Sensitive server environment keys (`SU_ADMIN_KEY`, `JWT_SECRET`, `RECAPTCHA_SECRET_KEY`) never enter the client build. All public configurations are bootstrapped from `GET /api/v1/public/config`.

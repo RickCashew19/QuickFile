@@ -19,6 +19,8 @@ backend/
 │   ├── routes/          # Express route definitions
 │   ├── services/        # Business logic layer
 │   └── validators/      # Payload and form validation helpers
+├── docs/                # Atlas runbook and architecture notes
+├── scripts/             # Atlas backup/provision/normalize/smoke and demo seeding
 ├── tests/               # Integration and end-to-end test suites
 ├── .env.example         # Environment template
 ├── app.js               # Express application configuration
