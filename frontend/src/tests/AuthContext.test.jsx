@@ -74,6 +74,25 @@ describe('AuthContext and useAuth Suite', () => {
     expect(screen.getByTestId('can-review')).toHaveTextContent('PERMITTED');
   });
 
+  it('restores the session from the cookie after a page reload (no in-memory token)', async () => {
+    vi.spyOn(authService, 'getMe').mockResolvedValue({
+      user: { id: 'citizen_1', email: 'citizen@quickfile.gov.ph', role: ROLES.CITIZEN },
+      profile: null,
+      permissions: null,
+    });
+    // Simulates a fresh page load: only the httpOnly cookie survives.
+    expect(authStorage.getToken()).toBeNull();
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    expect(await screen.findByTestId('auth-status')).toHaveTextContent('LOGGED_IN');
+    expect(screen.getByTestId('user-role')).toHaveTextContent(ROLES.CITIZEN);
+  });
+
   it('correctly evaluates staff granular permissions', async () => {
     vi.spyOn(authService, 'getMe').mockResolvedValue({
       user: { id: 'staff_1', role: ROLES.STAFF },

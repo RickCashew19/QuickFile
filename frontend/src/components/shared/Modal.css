@@ -81,6 +81,25 @@
   background-color: var(--color-surface-hover);
 }
 
+/* Narrow screens: keep modals inside the viewport and let action buttons wrap. */
+@media (max-width: 480px) {
+  .qf-modal-backdrop {
+    padding: var(--space-2);
+  }
+  .qf-modal__header,
+  .qf-modal__body,
+  .qf-modal__footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .qf-modal__footer {
+    flex-wrap: wrap;
+  }
+  .qf-modal__footer .qf-btn {
+    flex: 1 1 auto;
+  }
+}
+
 @keyframes qf-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }

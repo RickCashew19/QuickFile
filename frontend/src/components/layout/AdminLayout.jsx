@@ -75,7 +75,7 @@ export function AdminLayout() {
             aria-label="Open menu"
             aria-expanded={drawerOpen}
           >
-            <Icon name="search" size={20} />
+            <Icon name="menu" size={20} />
           </button>
           <Link to="/admin/dashboard" className="qf-brand" aria-label="Admin Portal Home">
             <div className="qf-brand__logo">

@@ -37,7 +37,7 @@ export function PublicLayout() {
             aria-label="Open navigation menu"
             aria-expanded={drawerOpen}
           >
-            <Icon name="search" size={20} />
+            <Icon name="menu" size={20} />
           </button>
           <Link to="/" className="qf-brand" aria-label="QuickFile Portal Home">
             <div className="qf-brand__logo">

@@ -14,15 +14,9 @@ export function AuthProvider({ children }) {
 
   // Hydrate user session on initial application load
   const refreshUser = useCallback(async () => {
-    const token = authStorage.getToken();
-    if (!token) {
-      setUser(null);
-      setProfile(null);
-      setPermissions(null);
-      setIsLoading(false);
-      return;
-    }
-
+    // Browser sessions are carried by an httpOnly cookie. A page reload (very
+    // common on mobile) wipes the in-memory Bearer token but NOT the cookie,
+    // so always ask the API who we are instead of assuming we are a guest.
     try {
       const data = await authService.getMe();
       if (data && data.user) {

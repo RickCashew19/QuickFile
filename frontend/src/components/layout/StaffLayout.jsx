@@ -106,7 +106,7 @@ export function StaffLayout() {
             aria-label="Open menu"
             aria-expanded={drawerOpen}
           >
-            <Icon name="search" size={20} />
+            <Icon name="menu" size={20} />
           </button>
           <Link to="/staff/dashboard" className="qf-brand" aria-label="Staff Portal Home">
             <div className="qf-brand__logo">

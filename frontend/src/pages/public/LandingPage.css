@@ -52,6 +52,14 @@
   gap: var(--space-3);
 }
 
+/* Mobile: the drawer in PublicLayout carries these links. Imported after
+   Layout.css, so this rule wins at the same specificity. */
+@media (max-width: 767px) {
+  .qf-nav-actions {
+    display: none;
+  }
+}
+
 /* Hero Section */
 .qf-hero {
   background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-bg) 100%);

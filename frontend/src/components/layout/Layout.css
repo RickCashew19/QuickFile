@@ -262,11 +262,39 @@
   .qf-sidebar {
     display: none;
   }
+  /* The drawer already exposes Home / Verify / Sign In / Sign Up on mobile. */
+  .qf-nav-actions {
+    display: none;
+  }
   .qf-shell-header {
     padding: 0 var(--space-4);
   }
   .qf-shell-main {
     padding: var(--space-4) var(--space-3);
+  }
+  /* Compact header: keep the brand, an account icon and an icon-only logout.
+     Full names/roles wrap badly and push the page horizontally on phones. */
+  .qf-shell-header__right {
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .qf-user-badge > span,
+  .qf-user-role-pill {
+    display: none;
+  }
+  .qf-shell-header__right .qf-btn {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .qf-shell-header__right .qf-btn > span:not([class]) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .qf-brand__subtitle {
+    display: none;
   }
 }
 
