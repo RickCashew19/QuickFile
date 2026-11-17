@@ -68,6 +68,13 @@ function validateConfig() {
     if (rawTrustProxy === 'true') {
       throw new Error('[Config] Fatal Error: In production, TRUST_PROXY cannot be "true". A specific hop count (e.g. 1) or "false" is required.');
     }
+    if (
+      rawTrustProxy &&
+      rawTrustProxy !== 'false' &&
+      (!/^\d+$/.test(rawTrustProxy) || parseInt(rawTrustProxy, 10) < 1)
+    ) {
+      throw new Error('[Config] Fatal Error: In production, TRUST_PROXY must be "false" or a positive integer hop count (e.g. 1).');
+    }
 
     const publicUrl = process.env.PUBLIC_APP_URL ? process.env.PUBLIC_APP_URL.trim() : '';
     if (!publicUrl || publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
@@ -89,16 +96,20 @@ function parseTrustProxy(val) {
   return false;
 }
 
+function parseCertificateValidityDays() {
+  const raw = process.env.CERTIFICATE_VALIDITY_DAYS;
+  if (raw === undefined || raw === null || raw === '') return 180;
+  const parsed = parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 180;
+}
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
-  // Item 10: 0 means no expiry (expires_at = null); 180 only when unset/empty
-  certificateValidityDays:
-    process.env.CERTIFICATE_VALIDITY_DAYS !== undefined && process.env.CERTIFICATE_VALIDITY_DAYS !== ''
-      ? parseInt(process.env.CERTIFICATE_VALIDITY_DAYS, 10)
-      : 180,
+  // 0 means no expiry (expires_at = null); invalid/unset values fall back to 180.
+  certificateValidityDays: parseCertificateValidityDays(),
   appTimezoneOffsetMinutes: parseInt(process.env.APP_TIMEZONE_OFFSET_MINUTES, 10) || 480,
   exportDocMaxRows: parseInt(process.env.EXPORT_DOC_MAX_ROWS, 10) || 500,
   exportMaxRows: parseInt(process.env.EXPORT_MAX_ROWS, 10) || 5000,

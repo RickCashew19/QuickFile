@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const net = require('net');
 const nodemailer = require('nodemailer');
 
 /**
@@ -6,6 +7,72 @@ const nodemailer = require('nodemailer');
  * Enforces format, entropy, and live provider validation.
  * Never leaks raw secrets or passwords in error messages or responses.
  */
+
+// Provider probes must never be pointed at internal infrastructure (SSRF).
+const BLOCKED_HOSTNAMES = new Set([
+  'localhost',
+  'localhost.localdomain',
+  'ip6-localhost',
+  'ip6-loopback',
+]);
+
+function isPrivateIPv4(address) {
+  const parts = String(address).split('.').map(Number);
+  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) return true;
+  const [a, b] = parts;
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true; // link-local / cloud metadata (169.254.169.254)
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
+  if (a === 192 && b === 0) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a >= 224) return true; // multicast / reserved
+  return false;
+}
+
+function isPrivateIPv6(address) {
+  const a = String(address).toLowerCase();
+  if (a === '::' || a === '::1') return true;
+  if (/^f[cd][0-9a-f]{2}:/.test(a)) return true; // unique local fc00::/7
+  if (/^fe[89ab][0-9a-f]:/.test(a)) return true; // link-local fe80::/10
+  const mapped = a.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return isPrivateIPv4(mapped[1]);
+  return false;
+}
+
+function isBlockedHost(host) {
+  const raw = String(host || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '');
+  if (!raw) return true;
+  if (BLOCKED_HOSTNAMES.has(raw)) return true;
+  if (raw.endsWith('.localhost') || raw.endsWith('.local') || raw.endsWith('.internal')) return true;
+  if (net.isIPv4(raw)) return isPrivateIPv4(raw);
+  if (net.isIPv6(raw)) return isPrivateIPv6(raw);
+  return false;
+}
+
+function resolvePublicUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl || '').trim());
+  } catch {
+    throw new Error('Gateway URL must be a valid HTTP or HTTPS URL.');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Gateway URL must use http: or https:.');
+  }
+  if (isBlockedHost(parsed.hostname)) {
+    throw new Error(
+      'Gateway URL must point to a public host; private, loopback, and link-local addresses are not allowed.'
+    );
+  }
+  return parsed;
+}
+
 
 /**
  * Validate REST API Gateway Secret Key
@@ -130,17 +197,19 @@ async function validateSmsCredentials({ gatewayUrl, apiToken }) {
   }
 
   const url = gatewayUrl ? gatewayUrl.trim() : 'https://dashboard.philsms.com/api/v3/';
+
+  let baseUrl;
   try {
-    new URL(url);
-  } catch (_) {
-    return { valid: false, message: 'PhilSMS Gateway URL must be a valid HTTP or HTTPS URL.' };
+    baseUrl = resolvePublicUrl(url).href.replace(/\/+$/, '');
+  } catch (err) {
+    return { valid: false, message: `PhilSMS Gateway URL rejected: ${err.message}` };
   }
 
   // Live provider check with 4-second timeout
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
-    const probeUrl = url.endsWith('/') ? `${url}balance` : `${url}/balance`;
+    const probeUrl = `${baseUrl}/balance`;
     const res = await fetch(probeUrl, {
       method: 'GET',
       headers: {
@@ -176,6 +245,13 @@ async function validateSmsCredentials({ gatewayUrl, apiToken }) {
 async function validateSmtpCredentials({ host, port, secure, user, pass }) {
   if (!host || !user || !pass) {
     return { valid: false, message: 'SMTP Host, Username, and Password are all required for validation.' };
+  }
+
+  if (isBlockedHost(host)) {
+    return {
+      valid: false,
+      message: 'SMTP host must be a public host; private, loopback, and link-local addresses are not allowed.',
+    };
   }
 
   const portNum = parseInt(port, 10) || 587;

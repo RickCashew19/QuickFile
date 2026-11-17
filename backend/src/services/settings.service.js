@@ -1,5 +1,4 @@
 const { config } = require('../config');
-const jwt = require('jsonwebtoken');
 const { AppSetting, AuditLog } = require('../models');
 const { verifySuperAdminKey } = require('../helpers/superAdminKeyVerifier');
 const { formatEnvValue, writeCustomEnvVars } = require('../helpers/envWriter');
@@ -265,8 +264,9 @@ async function updateGeneralSettings({ updates, actorUser, ipAddress, userAgent 
 }
 
 /**
- * Verifies the Super Admin PIN for accessing and unlocking API Key Management
- * Grants a signed 15-minute verification token upon success.
+ * Verifies the Super Admin PIN for accessing and unlocking API Key Management.
+ * Sensitive operations re-verify the PIN themselves; no client-side grant token
+ * is issued (a token stored in JS would weaken the step-up check).
  */
 async function verifySuperAdminPin({ pin, user, ipAddress = '', userAgent = '' }) {
   if (!pin || typeof pin !== 'string' || !pin.trim()) {
@@ -284,18 +284,6 @@ async function verifySuperAdminPin({ pin, user, ipAddress = '', userAgent = '' }
     userAgent,
   });
 
-  // Generate a signed, time-limited PIN access grant token (15 minutes)
-  const secret = (config.jwt && config.jwt.getSecret()) || process.env.JWT_SECRET || 'quickfile_secret_key';
-  const grantToken = jwt.sign(
-    {
-      grant_type: 'SUPER_ADMIN_PIN_ACCESS',
-      user_id: user._id.toString(),
-      role: user.role,
-    },
-    secret,
-    { expiresIn: '15m' }
-  );
-
   await AuditLog.create({
     user_id: user._id,
     actor_name: user.full_name,
@@ -309,8 +297,6 @@ async function verifySuperAdminPin({ pin, user, ipAddress = '', userAgent = '' }
 
   return {
     verified: true,
-    grant_token: grantToken,
-    expires_in_seconds: 900,
   };
 }
 

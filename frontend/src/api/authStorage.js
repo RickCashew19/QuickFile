@@ -1,48 +1,27 @@
 /**
- * Secure Token and Session Storage
- * Uses in-memory token caching with localStorage persistence for Capacitor / mobile readiness.
- * Never stores or extracts tokens from URL search parameters.
+ * In-memory access-token cache.
+ *
+ * Browser sessions are carried by an httpOnly cookie issued by the API, so the
+ * JWT is deliberately NOT written to localStorage (XSS token theft). The
+ * in-memory value is kept only so non-browser clients and tests can still use
+ * the Bearer-header path.
  */
 
-const TOKEN_KEY = 'quickfile_token';
 const USER_KEY = 'quickfile_user';
 
 let inMemoryToken = null;
 
 export const authStorage = {
   getToken() {
-    if (inMemoryToken) {
-      return inMemoryToken;
-    }
-    try {
-      const stored = localStorage.getItem(TOKEN_KEY);
-      inMemoryToken = stored || null;
-      return inMemoryToken;
-    } catch {
-      return inMemoryToken;
-    }
+    return inMemoryToken;
   },
 
   setToken(token) {
     inMemoryToken = token || null;
-    try {
-      if (token) {
-        localStorage.setItem(TOKEN_KEY, token);
-      } else {
-        localStorage.removeItem(TOKEN_KEY);
-      }
-    } catch {
-      // In private browsing or storage disabled, in-memory token persists
-    }
   },
 
   clearToken() {
     inMemoryToken = null;
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      // Ignore storage error
-    }
   },
 
   getUser() {

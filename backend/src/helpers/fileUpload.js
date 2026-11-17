@@ -16,7 +16,8 @@ if (!fs.existsSync(ATTACHMENTS_DIR)) {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB per file
+    // Bound memory usage of multer's memory storage (max ~6 MB buffered per request).
+    fileSize: 2 * 1024 * 1024, // 2 MB per file
     files: 3, // Maximum 3 files
   },
 });

@@ -7,18 +7,17 @@ describe('AuthStorage Service Suite', () => {
     authStorage.clearAll();
   });
 
-  it('stores and retrieves token in memory and localStorage', () => {
+  it('keeps the token in memory only (never in localStorage)', () => {
     expect(authStorage.getToken()).toBeNull();
     authStorage.setToken('test_access_token_123');
     expect(authStorage.getToken()).toBe('test_access_token_123');
-    expect(localStorage.getItem('quickfile_token')).toBe('test_access_token_123');
+    expect(localStorage.getItem('quickfile_token')).toBeNull();
   });
 
   it('clears token properly', () => {
     authStorage.setToken('sample_token');
     authStorage.clearToken();
     expect(authStorage.getToken()).toBeNull();
-    expect(localStorage.getItem('quickfile_token')).toBeNull();
   });
 
   it('stores and retrieves user profile object', () => {

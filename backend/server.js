@@ -11,6 +11,13 @@ async function startServer() {
     // Validate environment invariants on startup. Halt if missing.
     validateConfig();
 
+    if (config.isProduction && !process.env.RATE_LIMIT_REDIS_URL) {
+      console.warn(
+        '[Server] Rate limits use the default in-memory store (single process only). ' +
+          'For multi-instance deployments, configure RATE_LIMIT_REDIS_URL and a shared store.'
+      );
+    }
+
     // 1. Connect to MongoDB
     await connectDB();
 

@@ -269,8 +269,7 @@ async function runTestSuite() {
       await SuperAdminLockout.deleteMany({});
     }
 
-    // 1.6: Accepts correct PIN & returns signed grant token
-    let grantToken = null;
+    // 1.6: Accepts correct PIN without issuing a client-side grant token
     {
       const res = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/verify-pin`,
@@ -280,14 +279,12 @@ async function runTestSuite() {
       assert.strictEqual(res.status, 200, 'Expected 200 for correct PIN');
       assert.strictEqual(res.data.success, true);
       assert.strictEqual(res.data.data.verified, true);
-      assert.ok(res.data.data.grant_token, 'Expected grant_token in response');
-      grantToken = res.data.data.grant_token;
-
-      // Verify grantToken is signed with valid claims
-      const decodedGrant = jwt.verify(grantToken, process.env.JWT_SECRET);
-      assert.strictEqual(decodedGrant.grant_type, 'SUPER_ADMIN_PIN_ACCESS');
-      assert.strictEqual(decodedGrant.role, ROLES.ADMIN);
-      console.log('  ✓ 1.6: Successfully verifies correct Super Admin PIN & issues signed grant token (200)');
+      assert.strictEqual(
+        res.data.data.grant_token,
+        undefined,
+        'No client-side grant token should be issued; sensitive actions re-verify the PIN'
+      );
+      console.log('  ✓ 1.6: Successfully verifies correct Super Admin PIN without issuing a grant token (200)');
     }
 
     // =========================================================================
@@ -386,7 +383,21 @@ async function runTestSuite() {
       });
       assert.strictEqual(invalidUrlRes.data.success, false);
       assert.match(invalidUrlRes.data.message, /valid HTTP or HTTPS URL/i);
-      console.log('  ✓ 2.3: Validates PhilSMS token length and Gateway URL format');
+
+      // SSRF guard: private, loopback and link-local probe targets are refused.
+      for (const blockedUrl of ['http://127.0.0.1:8080', 'http://192.168.1.1', 'http://169.254.169.254/latest']) {
+        const ssrfRes = await makeHttpRequest(server, {
+          path: `${API_PREFIX}/admin/settings/validate-key`,
+          method: 'POST',
+          headers: { Authorization: `Bearer ${adminToken}` },
+        }, {
+          provider: 'sms',
+          credentials: { gatewayUrl: blockedUrl, apiToken: 'valid_philsms_api_token_12345678' },
+        });
+        assert.strictEqual(ssrfRes.data.success, false, `Expected ${blockedUrl} to be rejected`);
+        assert.match(ssrfRes.data.message, /public host/i);
+      }
+      console.log('  ✓ 2.3: Validates PhilSMS token length, Gateway URL format and rejects SSRF targets');
     }
 
     // 2.4: reCAPTCHA Validation

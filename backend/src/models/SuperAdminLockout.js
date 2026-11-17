@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
 
-// Requirement 1: SuperAdminLockout tracking only lockout state and verification timestamps
+// Lockout state is tracked per (admin, IP) scope so one actor cannot lock out every administrator.
 const superAdminLockoutSchema = new mongoose.Schema(
   {
+    scope: {
+      type: String,
+      default: null,
+    },
     failed_attempts: {
       type: Number,
       default: 0,
@@ -19,6 +23,12 @@ const superAdminLockoutSchema = new mongoose.Schema(
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
   }
+);
+
+// Only one state document per concrete scope; legacy/null-scope bootstrap rows are ignored.
+superAdminLockoutSchema.index(
+  { scope: 1 },
+  { unique: true, partialFilterExpression: { scope: { $type: 'string' } } }
 );
 
 module.exports = mongoose.model('SuperAdminLockout', superAdminLockoutSchema);

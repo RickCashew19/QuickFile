@@ -6,7 +6,7 @@ const { SUPER_ADMIN_LOCKOUT } = require('../config/constants');
 /**
  * Verifies the Super Admin Key using crypto.timingSafeEqual
  * Section D.2: Resets failed_attempts and locked_until when lockout expires before the check
- * Enforces database lockout after 5 consecutive failures and audits all attempts
+ * Enforces per-admin/per-IP database lockout after 5 consecutive failures and audits all attempts
  * NEVER logs the key itself
  * 
  * @param {Object} params
@@ -25,10 +25,12 @@ async function verifySuperAdminKey({ providedKey, actorId = null, actorName = 'A
     throw err;
   }
 
-  // Find or create the single lockout record
-  let lockout = await SuperAdminLockout.findOne();
+  // Scope lockout state to this administrator + source IP so one actor cannot
+  // deny settings access to every administrator.
+  const scope = `${actorId || 'anonymous'}|${ipAddress || 'unknown'}`;
+  let lockout = await SuperAdminLockout.findOne({ scope });
   if (!lockout) {
-    lockout = await SuperAdminLockout.create({});
+    lockout = await SuperAdminLockout.create({ scope });
   }
 
   // Section D.2: Check lockout expiration and reset before comparison

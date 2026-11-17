@@ -45,7 +45,7 @@ export function ResetPasswordPage() {
     }
 
     if (tokenParam) {
-      // If a token was provided in URL, prefill PIN if it's 4 digits, otherwise keep token
+      // If a token was provided in URL, prefill the PIN (server accepts 6 digits only)
       setPin(tokenParam);
       // Immediately clean the URL to protect against history leakage
       window.history.replaceState({}, document.title, window.location.pathname + (emailParam ? `?email=${encodeURIComponent(emailParam)}` : ''));
@@ -65,12 +65,12 @@ export function ResetPasswordPage() {
     }
 
     if (!cleanPin) {
-      setErrorMessage('Please enter the 4-digit verification PIN sent to your email.');
+      setErrorMessage('Please enter the 6-digit verification PIN sent to your email.');
       return;
     }
 
-    if (!/^\d{4}$/.test(cleanPin) && cleanPin.length < 4) {
-      setErrorMessage('Verification PIN must be exactly 4 digits.');
+    if (!/^\d{6}$/.test(cleanPin)) {
+      setErrorMessage('Verification PIN must be exactly 6 digits.');
       return;
     }
 
@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
           </div>
           <h1 className="qf-auth-header__title">Set New Password</h1>
           <p className="qf-auth-header__subtitle">
-            Enter your email, the 4-digit PIN code received in your email, and your new password
+            Enter your email, the 6-digit PIN code received in your email, and your new password
           </p>
         </div>
 
@@ -151,19 +151,19 @@ export function ResetPasswordPage() {
 
             <div style={{ marginBottom: 'var(--space-4)' }}>
               <Input
-                label="4-Digit Verification PIN"
+                label="6-Digit Verification PIN"
                 type="text"
                 inputMode="numeric"
-                maxLength={4}
+                maxLength={6}
                 value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="e.g. 1234"
                 required
                 disabled={loading}
                 prefix={<Icon name="key" size={18} />}
               />
               <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', display: 'block', marginTop: 'var(--space-1)' }}>
-                Check your email inbox for the 4-digit code (valid for 15 minutes).
+                Check your email inbox for the 6-digit code (valid for 15 minutes).
               </span>
             </div>
 

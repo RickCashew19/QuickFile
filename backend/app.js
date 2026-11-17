@@ -59,6 +59,8 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  // Required so the browser sends the httpOnly session cookie to the API origin.
+  credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
   exposedHeaders: ['Content-Disposition', 'X-Export-Truncated', 'Retry-After'],
 };

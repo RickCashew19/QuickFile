@@ -366,11 +366,13 @@ async function rejectRequest(requestId, rejectionReason, actorUser, ipAddress, u
     newStatus: REQUEST_STATUSES.REJECTED,
     actorUser,
     rejectionReason: trimmed,
+    skipExternalEmail: true,
     ipAddress,
     userAgent,
   });
 
-  // Non-blocking email notification
+  // Send the detailed rejection email here; transitionRequestStatus is told to
+  // skip its generic email so exactly one notification is delivered.
   if (request.citizen_id && request.citizen_id.email) {
     const safeCitizenName = escapeHtml(request.citizen_id.full_name);
     const safeTrackingNumber = escapeHtml(request.tracking_number);
@@ -463,6 +465,7 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
 
   // Idempotency: reuse existing IssuedDocument if already created
   let issuedDoc = await IssuedDocument.findOne({ request_id: request._id });
+  let createdIssuedDoc = false;
 
   let certificateNumber;
   let verificationCode;
@@ -530,6 +533,7 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
       template_version: templateVersion,
       render_data: renderData,
     });
+    createdIssuedDoc = true;
   } else {
     // Backfill snapshot data if missing
     if (!issuedDoc.render_data) {
@@ -551,17 +555,27 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
     }
   }
 
-  // 6. Transition request status to ready_for_pickup atomically (with rollback on error)
-  const updatedRequest = await transitionRequestStatus({
-    requestId: request._id,
-    expectedStatus: REQUEST_STATUSES.IN_PREPARATION,
-    newStatus: REQUEST_STATUSES.READY_FOR_PICKUP,
-    actorUser,
-    ipAddress,
-    userAgent,
-  });
+  // 6. Transition request status to ready_for_pickup atomically. If this fails,
+  // remove a certificate created by this attempt so no orphaned record survives.
+  let updatedRequest;
+  try {
+    updatedRequest = await transitionRequestStatus({
+      requestId: request._id,
+      expectedStatus: REQUEST_STATUSES.IN_PREPARATION,
+      newStatus: REQUEST_STATUSES.READY_FOR_PICKUP,
+      actorUser,
+      skipExternalEmail: true,
+      ipAddress,
+      userAgent,
+    });
+  } catch (err) {
+    if (createdIssuedDoc && issuedDoc && issuedDoc._id) {
+      await IssuedDocument.deleteOne({ _id: issuedDoc._id }).catch(() => null);
+    }
+    throw err;
+  }
 
-  // 7. Non-blocking email notification to citizen
+  // 7. Detailed pickup email (the generic status email is suppressed below).
   if (citizen && citizen.email) {
     const safeCitizenName = escapeHtml(citizen.full_name);
     const safeDocTypeName = escapeHtml(docType.name);

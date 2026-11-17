@@ -8,7 +8,6 @@ const {
   StaffPermission,
   DocumentType,
   AppSetting,
-  SuperAdminLockout,
 } = require('../models');
 const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
 
@@ -47,14 +46,8 @@ async function seedDatabase() {
     }
   }
 
-  // 1. Initialize Super Admin Lockout state
-  let lockout = await SuperAdminLockout.findOne();
-  if (!lockout) {
-    await SuperAdminLockout.create({});
-    console.log('[Seeder] Initialized Super Admin lockout state.');
-  } else {
-    console.log('[Seeder] Super Admin lockout record already exists.');
-  }
+  // Lockout state is created on demand per (admin, IP) scope by the verifier;
+  // no global bootstrap row is needed (and a global row could cause confusion).
 
   // 2. Seed Default Admin Account (Item 3: Only when no user with role admin exists at all)
   const existingAdminCount = await User.countDocuments({ role: ROLES.ADMIN });

@@ -438,7 +438,7 @@ async function runTests() {
     // TEST 14: Recovery After Lockout Window Expires
     // -------------------------------------------------------------------------
     console.log(`[TEST 14] Recovery After Lockout Window Expires`);
-    await SuperAdminLockout.updateOne({}, { locked_until: new Date(Date.now() - 5000) });
+    await SuperAdminLockout.updateMany({}, { locked_until: new Date(Date.now() - 5000) });
 
     const testWrongAfterExpiry = await makeRequest(
       server,

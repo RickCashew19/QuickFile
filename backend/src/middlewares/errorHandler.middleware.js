@@ -72,7 +72,7 @@ function errorHandler(err, req, res, next) {
   if (err.name === 'MulterError') {
     statusCode = 400;
     if (err.code === 'LIMIT_FILE_SIZE') {
-      message = 'Uploaded file exceeds the maximum allowed size (5MB).';
+      message = 'Uploaded file exceeds the maximum allowed size (2MB).';
     } else if (err.code === 'LIMIT_FILE_COUNT') {
       message = 'Uploaded files exceed the maximum allowed count (3 files).';
     } else {

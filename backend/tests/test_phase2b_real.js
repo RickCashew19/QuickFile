@@ -391,8 +391,8 @@ async function runTests() {
 
     // Request password reset and execute it
     const crypto = require('crypto');
-    const testRawToken = 'test_token_invalidation_hex_value_12345';
-    const testTokenHash = crypto.createHash('sha256').update(testRawToken).digest('hex');
+    const testPin = crypto.randomInt(100000, 1000000).toString();
+    const testTokenHash = crypto.createHash('sha256').update(testPin + ':' + citizenUser.email).digest('hex');
 
     await PasswordReset.create({
       user_id: citizenUser._id,
@@ -409,7 +409,7 @@ async function runTests() {
     const resetRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { token: testRawToken, new_password: 'UpdatedCitizenPassword@2026' }
+      { email: citizenUser.email, pin: testPin, new_password: 'UpdatedCitizenPassword@2026' }
     );
     assert(resetRes.status === 200, 'Password reset should succeed');
 

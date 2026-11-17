@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { config } = require('../config');
 const { User } = require('../models');
+const { getTokenFromCookie } = require('../helpers/authCookie');
 
 /**
  * Authentication Middleware: Bearer JWT Only
@@ -9,21 +10,26 @@ const { User } = require('../models');
 async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required. No Bearer token provided in Authorization header.',
-        data: null,
-      });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1].trim();
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'Malformed Authorization header. Missing token.',
+          data: null,
+        });
+      }
+    } else {
+      // Browser clients authenticate with the httpOnly session cookie.
+      token = getTokenFromCookie(req);
     }
-
-    const token = authHeader.split(' ')[1].trim();
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Malformed Authorization header. Missing token.',
+        message: 'Authentication required. Provide a Bearer token or a valid session cookie.',
         data: null,
       });
     }

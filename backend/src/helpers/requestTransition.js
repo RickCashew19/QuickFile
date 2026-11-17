@@ -1,4 +1,4 @@
-const { ALLOWED_STATUS_TRANSITIONS, REQUEST_STATUSES } = require('../config/constants');
+const { ALLOWED_STATUS_TRANSITIONS, REQUEST_STATUSES, ROLES } = require('../config/constants');
 const { DocumentRequest, AuditLog, CitizenProfile, User } = require('../models');
 const { sendNotification } = require('../services/notification.service');
 const { sendSms } = require('./sms');
@@ -21,6 +21,7 @@ async function transitionRequestStatus({
   rejectionReason = '',
   processingNotes = '',
   extraUpdates = {},
+  skipExternalEmail = false,
   ipAddress = '',
   userAgent = '',
 }) {
@@ -34,8 +35,11 @@ async function transitionRequestStatus({
     throw error;
   }
 
-  // 1. Concurrency control: Assert lock held (or unlocked) before executing workflow action
-  await requestLockService.assertLockHeld(reqId, actorUser, { ipAddress, userAgent });
+  // 1. Concurrency control: staff workflow actions honor request locks. A citizen
+  //    cancelling their own pending request must not be blocked by a staff lock.
+  if (actorUser && actorUser.role !== ROLES.CITIZEN) {
+    await requestLockService.assertLockHeld(reqId, actorUser, { ipAddress, userAgent });
+  }
 
   // 2. Validate status transition graph
   const allowedNextStatuses = ALLOWED_STATUS_TRANSITIONS[expectedStatus] || [];
@@ -197,8 +201,9 @@ async function transitionRequestStatus({
         });
       }
 
-      // Send Email if citizen has an email address
-      if (citizenUser?.email) {
+      // Send the generic status email unless the caller sends a richer,
+      // transition-specific email (e.g. rejection reason or certificate number).
+      if (!skipExternalEmail && citizenUser?.email) {
         const emailSubject = `QuickFile: Document Request Update (${updatedRequest.tracking_number}) - ${readableStatus}`;
         const emailText = `Hello ${citizenName},\n\nYour document request (${updatedRequest.tracking_number}) has been updated to "${readableStatus}".\n${rejectionReason ? `\nReason: ${rejectionReason}\n` : ''}\nThank you,\nBarangay Office`;
         const emailHtml = `

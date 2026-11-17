@@ -171,6 +171,16 @@ const documentRequestSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    rejected_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    archived_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     released_at: {
       type: Date,
       default: null,

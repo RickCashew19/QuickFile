@@ -2,6 +2,7 @@ const authService = require('../services/auth.service');
 const { verifyRecaptcha } = require('../helpers/recaptcha');
 const { isValidEmail } = require('../helpers/emailValidator');
 const asyncHandler = require('../helpers/asyncHandler');
+const { setAuthCookie, clearAuthCookie } = require('../helpers/authCookie');
 
 /**
  * Handle citizen registration
@@ -58,6 +59,8 @@ const register = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
+  setAuthCookie(res, result.access_token);
+
   return res.status(201).json({
     success: true,
     message: 'Citizen account registered successfully.',
@@ -90,6 +93,8 @@ const login = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
+  setAuthCookie(res, result.access_token);
+
   return res.status(200).json({
     success: true,
     message: 'User logged in successfully.',
@@ -118,6 +123,8 @@ const googleLogin = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
+  setAuthCookie(res, result.access_token);
+
   return res.status(200).json({
     success: true,
     message: 'Google login successful.',
@@ -143,29 +150,12 @@ const forgotPassword = asyncHandler(async (req, res) => {
   // Verify reCAPTCHA if enabled
   await verifyRecaptcha(recaptcha_token, req.ip);
 
-  // Extract client origin if available from payload, Origin header, or Referer header
-  const originCandidate =
-    req.body?.client_app_url ||
-    req.get('Origin') ||
-    req.get('Referer');
-
-  let clientOrigin = null;
-  if (originCandidate && typeof originCandidate === 'string') {
-    try {
-      const parsed = new URL(originCandidate);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        clientOrigin = parsed.origin;
-      }
-    } catch {
-      clientOrigin = null;
-    }
-  }
-
+  // Do not trust a client-supplied origin; reset notifications are derived from
+  // server configuration only, so there is nothing to bind to a request origin.
   const result = await authService.requestPasswordReset(
     email,
     req.ip,
-    req.get('User-Agent'),
-    clientOrigin
+    req.get('User-Agent')
   );
 
   return res.status(200).json({
@@ -230,6 +220,8 @@ const logout = asyncHandler(async (req, res) => {
     req.ip,
     req.get('User-Agent')
   );
+
+  clearAuthCookie(res);
 
   return res.status(200).json({
     success: true,

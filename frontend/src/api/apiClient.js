@@ -156,6 +156,9 @@ async function request(endpoint, options = {}) {
   const config = {
     ...options,
     headers,
+    // Send the httpOnly session cookie; Bearer headers remain supported for
+    // non-browser clients and tests.
+    credentials: 'include',
   };
 
   // Stringify JSON body if standard object
@@ -208,7 +211,7 @@ async function download(endpoint, options = {}) {
 
   let response;
   try {
-    response = await fetch(url, { ...options, headers });
+    response = await fetch(url, { ...options, headers, credentials: 'include' });
   } catch {
     throw new ApiError('File download failed. Check network connection.', 0, 'NETWORK_ERROR');
   }
