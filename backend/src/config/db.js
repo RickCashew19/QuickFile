@@ -43,7 +43,9 @@ async function connectDB(customUri = null) {
 
     await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 10000,
-      autoIndex: config.nodeEnv !== 'production',
+      // Indexes are managed explicitly by scripts/provisionAtlas.js in dev/prod.
+      // Only tests build them automatically in their isolated databases.
+      autoIndex: config.nodeEnv === 'test',
       dbName,
     });
     return mongoose.connection;

@@ -13,6 +13,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
 const APPLY = process.argv.includes('--apply');
+const PRUNE_REDUNDANT = process.argv.includes('--prune-redundant');
 
 // Minimal, lenient validators: enforce types on critical fields only. Existing
 // documents are checked before application and must all match.
@@ -87,6 +88,78 @@ const VALIDATORS = {
         user_id: { bsonType: 'objectId' },
         title: { bsonType: 'string' },
         message: { bsonType: 'string' },
+      },
+    },
+  },
+  citizenprofiles: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id', 'first_name', 'last_name'],
+      properties: {
+        user_id: { bsonType: 'objectId' },
+        first_name: { bsonType: 'string' },
+        last_name: { bsonType: 'string' },
+      },
+    },
+  },
+  staffdetails: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id'],
+      properties: {
+        user_id: { bsonType: 'objectId' },
+        employee_id: { bsonType: 'string' },
+      },
+    },
+  },
+  staffpermissions: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id'],
+      properties: { user_id: { bsonType: 'objectId' } },
+    },
+  },
+  documenttemplates: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['document_type_id', 'version'],
+      properties: {
+        document_type_id: { bsonType: 'objectId' },
+        version: { bsonType: 'number' },
+      },
+    },
+  },
+  passwordresets: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id', 'email', 'token_hash', 'expires_at'],
+      properties: {
+        user_id: { bsonType: 'objectId' },
+        email: { bsonType: 'string' },
+        token_hash: { bsonType: 'string' },
+        expires_at: { bsonType: 'date' },
+      },
+    },
+  },
+  twofactorverifications: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id', 'email', 'code_hash', 'expires_at'],
+      properties: {
+        user_id: { bsonType: 'objectId' },
+        email: { bsonType: 'string' },
+        code_hash: { bsonType: 'string' },
+        expires_at: { bsonType: 'date' },
+      },
+    },
+  },
+  superadminlockouts: {
+    $jsonSchema: {
+      bsonType: 'object',
+      properties: {
+        scope: { bsonType: ['string', 'null'] },
+        failed_attempts: { bsonType: 'number' },
+        locked_until: { bsonType: ['date', 'null'] },
       },
     },
   },
@@ -206,6 +279,26 @@ async function main() {
           console.log(`  ${name}: ${JSON.stringify(keys)} ${JSON.stringify(opts)} ${APPLY ? 'OK' : '(dry run)'}`);
         } catch (e) {
           console.log(`  ${name}: FAILED ${e.message}`);
+        }
+      }
+    }
+
+    if (PRUNE_REDUNDANT) {
+      console.log('\n--- Redundant indexes (prefix duplicates) ---');
+      for (const name of Object.keys(INDEXES)) {
+        const existing = await db.collection(name).indexes();
+        for (const idx of existing) {
+          if (idx.name === '_id_' || idx.unique || idx.expireAfterSeconds !== undefined) continue;
+          const keys = Object.keys(idx.key);
+          const covered = existing.some((other) => {
+            if (other === idx || other.name === '_id_' || Boolean(other.unique) !== Boolean(idx.unique)) return false;
+            const longer = Object.keys(other.key);
+            if (longer.length <= keys.length) return false;
+            return keys.every((k, n) => k === longer[n] && idx.key[k] === other.key[k]);
+          });
+          if (!covered) continue;
+          if (APPLY) await db.collection(name).dropIndex(idx.name);
+          console.log(`  ${name}: ${idx.name} ${APPLY ? 'dropped' : 'would drop'} (prefix of a compound index)`);
         }
       }
     }

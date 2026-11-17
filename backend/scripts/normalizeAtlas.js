@@ -58,8 +58,8 @@ function normalizedChanges(name, doc) {
       if (!('expires_at' in d)) set.expires_at = null;
       break;
     case 'auditlogs':
-      if (!d.ip_address) set.ip_address = '';
-      if (!d.user_agent) set.user_agent = '';
+      if (d.ip_address === undefined || d.ip_address === null) set.ip_address = '';
+      if (d.user_agent === undefined || d.user_agent === null) set.user_agent = '';
       break;
     case 'notifications':
       if (!d.metadata || typeof d.metadata !== 'object') set.metadata = {};
@@ -68,8 +68,8 @@ function normalizedChanges(name, doc) {
       break;
   }
 
-  if (!d.created_at) set.created_at = now;
-  if (!d.updated_at && !['auditlogs', 'passwordresets', 'twofactorverifications'].includes(name)) set.updated_at = now;
+  if (d.created_at === undefined || d.created_at === null) set.created_at = now;
+  if ((d.updated_at === undefined || d.updated_at === null) && !['auditlogs', 'passwordresets', 'twofactorverifications'].includes(name)) set.updated_at = now;
   return { set, unset };
 }
 

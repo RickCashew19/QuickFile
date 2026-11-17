@@ -24,6 +24,7 @@ npm run atlas:normalize              # report normalization + duplicate changes
 npm run atlas:normalize:apply        # apply them (run backup first)
 npm run atlas:provision              # report validators / indexes / TTL
 npm run atlas:provision:apply        # apply them
+npm run atlas:provision:prune        # also drop prefix-redundant indexes (no data loss)
 npm run atlas:smoke                  # live transaction commit/rollback check
 ```
 
