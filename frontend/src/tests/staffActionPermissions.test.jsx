@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { StaffActionButtons } from '../pages/staff/queue/StaffActionButtons';
 import { StaffRequestDetailPage } from '../pages/staff/queue/StaffRequestDetailPage';
@@ -215,7 +215,7 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
     });
 
     // Mock reviewRequest throwing a 409 Conflict
-    vi.spyOn(staffService, 'reviewRequest').mockRejectedValueOnce(
+    const reviewRequestSpy = vi.spyOn(staffService, 'reviewRequest').mockRejectedValueOnce(
       new ApiError('Status changed or request was modified by another user. Please refresh.', 409, 'CONFLICT')
     );
 
@@ -237,8 +237,14 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
       expect(screen.getByRole('button', { name: /start review/i })).toBeInTheDocument();
     });
 
-    // Click Start Review -> triggers 409 conflict
+    // Click Start Review -> confirmation dialog appears; nothing is submitted yet
     fireEvent.click(screen.getByRole('button', { name: /start review/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: /start review/i })).toBeInTheDocument();
+    expect(reviewRequestSpy).not.toHaveBeenCalled();
+
+    // Confirm the action -> triggers 409 conflict
+    fireEvent.click(within(dialog).getByRole('button', { name: /start review/i }));
 
     // Confirms conflict alert is rendered
     await waitFor(() => {
@@ -295,5 +301,60 @@ describe('StaffRequestDetailPage 409 Conflict Recovery Suite', () => {
     // Confirms releaseLock is invoked on unmount
     unmount();
     expect(releaseSpy).toHaveBeenCalledWith(realStaffRequestDetail.request._id);
+  });
+});
+
+describe('StaffRequestDetailPage action confirmation suite', () => {
+  const renderUnderReviewDetail = () => {
+    vi.spyOn(staffService, 'getRequest').mockResolvedValue({
+      ...realStaffRequestDetail,
+      request: {
+        ...realStaffRequestDetail.request,
+        status: REQUEST_STATUSES.UNDER_REVIEW,
+      },
+    });
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { full_name: 'Staff Maria', role: 'staff' },
+      hasPermission: () => true,
+    });
+
+    return render(
+      <MemoryRouter initialEntries={[`/staff/requests/${realStaffRequestDetail.request._id}`]}>
+        <Routes>
+          <Route path="/staff/requests/:id" element={<StaffRequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('opens a confirmation dialog and submits the action only after it is confirmed', async () => {
+    const approveSpy = vi.spyOn(staffService, 'approveRequest').mockResolvedValue({});
+    renderUnderReviewDetail();
+
+    const approveButton = await screen.findByRole('button', { name: /approve application/i });
+    fireEvent.click(approveButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/approve this request/i)).toBeInTheDocument();
+    expect(approveSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /approve request/i }));
+    await waitFor(() => expect(approveSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it('cancels the confirmation without submitting the action', async () => {
+    const approveSpy = vi.spyOn(staffService, 'approveRequest').mockResolvedValue({});
+    renderUnderReviewDetail();
+
+    const approveButton = await screen.findByRole('button', { name: /approve application/i });
+    fireEvent.click(approveButton);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(approveSpy).not.toHaveBeenCalled();
   });
 });

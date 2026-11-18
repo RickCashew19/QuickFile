@@ -16,9 +16,42 @@ import { AttachmentListCard } from './AttachmentListCard';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { formatDate, formatCurrency } from '../../../utils/formatters';
 import { downloadBlob } from '../../../utils/downloadHelper';
 import './StaffRequestDetailPage.css';
+
+// Copy for the confirmation shown before a workflow action is submitted.
+// Reject and Release are intentionally absent: their own modals already
+// collect required input (reason / payment details) before submission.
+const ACTION_CONFIRMATIONS = {
+  review: {
+    title: 'Start review?',
+    message: 'This moves the request to Under Review and notifies the resident. No document has been issued yet.',
+    confirmText: 'Start Review',
+  },
+  approve: {
+    title: 'Approve this request?',
+    message: 'The request will be approved, the resident will be notified, and it will advance to the next processing step.',
+    confirmText: 'Approve Request',
+  },
+  prepare: {
+    title: 'Start preparation?',
+    message: 'This moves the approved request into preparation so the certificate can be printed.',
+    confirmText: 'Start Preparation',
+  },
+  issue: {
+    title: 'Issue this document?',
+    message: 'An official certificate will be generated with its own verification code, and the request will be marked Ready for Pickup. Check the resident details before continuing.',
+    confirmText: 'Issue Document',
+  },
+  archive: {
+    title: 'Archive this request?',
+    message: 'The record will be moved into historical records and removed from the active queue. It will remain available in Records.',
+    confirmText: 'Archive Request',
+    danger: true,
+  },
+};
 
 export function StaffRequestDetailPage() {
   const { id } = useParams();
@@ -34,6 +67,7 @@ export function StaffRequestDetailPage() {
   const [loadingAction, setLoadingAction] = useState(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState(null);
 
   // Concurrency control: Lock state
   const [lockState, setLockState] = useState({
@@ -143,6 +177,19 @@ export function StaffRequestDetailPage() {
     } finally {
       setLoadingAction(null);
     }
+  };
+
+  // Workflow actions are never submitted directly from a button: open a
+  // confirmation first so an accidental click cannot change a request.
+  const requestConfirmation = (actionName, run) => {
+    if (lockState.isLockedByOther || loadingAction) return;
+    setPendingConfirm({ ...ACTION_CONFIRMATIONS[actionName], run });
+  };
+
+  const confirmPendingAction = () => {
+    const action = pendingConfirm;
+    setPendingConfirm(null);
+    if (action?.run) action.run();
   };
 
   const handleReview = () =>
@@ -322,13 +369,13 @@ export function StaffRequestDetailPage() {
           role={user?.role}
           issuedDocument={issuedDocument}
           disabled={lockState.isLockedByOther}
-          onReview={handleReview}
-          onApprove={handleApprove}
+          onReview={() => requestConfirmation('review', handleReview)}
+          onApprove={() => requestConfirmation('approve', handleApprove)}
           onOpenReject={() => setRejectModalOpen(true)}
-          onPrepare={handlePrepare}
-          onIssue={handleIssue}
+          onPrepare={() => requestConfirmation('prepare', handlePrepare)}
+          onIssue={() => requestConfirmation('issue', handleIssue)}
           onOpenRelease={() => setReleaseModalOpen(true)}
-          onArchive={handleArchive}
+          onArchive={() => requestConfirmation('archive', handleArchive)}
           onDownloadDocx={handleDownloadDocx}
           loadingAction={loadingAction}
         />
@@ -370,6 +417,17 @@ export function StaffRequestDetailPage() {
         onConfirm={handleReleaseConfirm}
         request={request}
         loading={loadingAction === 'release'}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingConfirm)}
+        onClose={() => setPendingConfirm(null)}
+        onConfirm={confirmPendingAction}
+        title={pendingConfirm?.title}
+        message={pendingConfirm?.message}
+        confirmText={pendingConfirm?.confirmText}
+        danger={pendingConfirm?.danger}
+        loading={Boolean(loadingAction)}
       />
     </div>
   );

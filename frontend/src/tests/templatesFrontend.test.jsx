@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TemplateValidationReport } from '../pages/admin/doctypes/templates/TemplateValidationReport';
 import { TemplateUploadSection } from '../pages/admin/doctypes/templates/TemplateUploadSection';
@@ -570,6 +570,9 @@ describe('DOCX Certificate Templates Frontend Component & Integration Suite', ()
 
       const issueBtn = await screen.findByRole('button', { name: /issue & generate certificate/i });
       fireEvent.click(issueBtn);
+
+      // The issue action now requires an explicit confirmation.
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /issue document/i }));
 
       await waitFor(() => {
         expect(staffService.issueRequest).toHaveBeenCalledWith('req123');

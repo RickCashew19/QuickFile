@@ -8,6 +8,7 @@ import { Button } from '../../../components/shared/Button';
 import { Pagination } from '../../../components/shared/Pagination';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { REQUEST_STATUSES } from '../../../config/constants';
 import './StaffRecordsPage.css';
 
@@ -30,6 +31,7 @@ export function StaffRecordsPage() {
   const [documentTypes, setDocumentTypes] = useState([]);
   const [error, setError] = useState(null);
   const [archivingId, setArchivingId] = useState(null);
+  const [pendingArchiveId, setPendingArchiveId] = useState(null);
 
   // Load document types for filter
   useEffect(() => {
@@ -99,6 +101,12 @@ export function StaffRecordsPage() {
     } finally {
       setArchivingId(null);
     }
+  };
+
+  const confirmArchive = () => {
+    const id = pendingArchiveId;
+    setPendingArchiveId(null);
+    if (id) handleArchive(id);
   };
 
   const docTypeOptions = [
@@ -173,7 +181,7 @@ export function StaffRecordsPage() {
         <>
           <StaffRecordsTable
             records={records}
-            onArchiveRecord={handleArchive}
+            onArchiveRecord={(id) => setPendingArchiveId(id)}
             archivingId={archivingId}
           />
           {totalPages > 1 && (
@@ -183,6 +191,17 @@ export function StaffRecordsPage() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingArchiveId)}
+        onClose={() => setPendingArchiveId(null)}
+        onConfirm={confirmArchive}
+        title="Archive this record?"
+        message="The record will be moved into historical records and removed from the active queue. It will remain available in Records."
+        confirmText="Archive Record"
+        danger
+        loading={Boolean(archivingId)}
+      />
     </div>
   );
 }
