@@ -190,6 +190,29 @@ async function registerCitizen(payload, ipAddress, userAgent) {
 }
 
 /**
+ * Records a failed authentication attempt without ever logging the submitted
+ * password. Audit failures must never change the 401/403 response returned to
+ * the client, so a logging error is suppressed here.
+ */
+async function recordFailedLogin({ user = null, email = '', reason = 'invalid_credentials', ipAddress = '', userAgent = '' }) {
+  try {
+    await AuditLog.create({
+      user_id: user ? user._id : null,
+      actor_name: user ? user.full_name : 'Unknown',
+      action: 'LOGIN_FAILED',
+      module: 'AUTH',
+      target_id: user ? user._id.toString() : '',
+      target_type: 'User',
+      details: { email, reason },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+  } catch (auditError) {
+    console.warn('[Audit] Failed to record LOGIN_FAILED entry:', auditError.message);
+  }
+}
+
+/**
  * Business logic for User login (supports Citizen, Staff, Admin)
  */
 async function loginUser(email, password, ipAddress, userAgent) {
@@ -197,6 +220,7 @@ async function loginUser(email, password, ipAddress, userAgent) {
   const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
+    await recordFailedLogin({ email: normalizedEmail, reason: 'unknown_email', ipAddress, userAgent });
     const error = new Error('Invalid email or password.');
     error.statusCode = 401;
     throw error;
@@ -204,12 +228,14 @@ async function loginUser(email, password, ipAddress, userAgent) {
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
+    await recordFailedLogin({ user, email: normalizedEmail, reason: 'invalid_password', ipAddress, userAgent });
     const error = new Error('Invalid email or password.');
     error.statusCode = 401;
     throw error;
   }
 
   if (!user.is_active) {
+    await recordFailedLogin({ user, email: normalizedEmail, reason: 'deactivated_account', ipAddress, userAgent });
     const error = new Error('Your account is deactivated. Please contact the administrator.');
     error.statusCode = 403;
     throw error;
@@ -505,8 +531,8 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
     throw error;
   }
 
-  if (newPassword.length < 6 || newPassword.length > 72) {
-    const error = new Error('Validation error: Password must be between 6 and 72 characters.');
+  if (newPassword.length < 8 || newPassword.length > 72) {
+    const error = new Error('Validation error: Password must be between 8 and 72 characters.');
     error.statusCode = 400;
     throw error;
   }

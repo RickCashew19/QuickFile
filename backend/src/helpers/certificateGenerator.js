@@ -14,7 +14,7 @@ async function generateUniqueCertificateNumber(docCode, year = new Date().getFul
 
   while (attempts < maxAttempts) {
     attempts += 1;
-    const random6 = Math.floor(100000 + Math.random() * 900000).toString();
+    const random6 = crypto.randomInt(100000, 1000000).toString();
     const candidate = `BRGY-${cleanCode}-${year}-${random6}`;
 
     const existing = await IssuedDocument.findOne({ certificate_number: candidate });
