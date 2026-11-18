@@ -275,7 +275,7 @@ async function runTests() {
     const googleFailRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_google_login: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_google_login: true }
     );
     assert.strictEqual(googleFailRes.status, 400);
     process.env.DEFAULT_GOOGLE_CLIENT_ID = origGClientId;
@@ -283,14 +283,14 @@ async function runTests() {
     const googleSuccessRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_google_login: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_google_login: true }
     );
     assert.strictEqual(googleSuccessRes.status, 200);
 
     const googleDisableRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_google_login: false }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_google_login: false }
     );
     assert.strictEqual(googleDisableRes.status, 200);
     console.log('PASS: enable_google_login toggle rejected enabling with 400 when client ID unset, succeeded with 200 when set, and disabled cleanly.');
@@ -302,7 +302,7 @@ async function runTests() {
     const recapFailRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_recaptcha: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_recaptcha: true }
     );
     assert.strictEqual(recapFailRes.status, 400);
     process.env.DEFAULT_RECAPTCHA_SITE_KEY = origRecapSite;
@@ -310,14 +310,14 @@ async function runTests() {
     const recapSuccessRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_recaptcha: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_recaptcha: true }
     );
     assert.strictEqual(recapSuccessRes.status, 200);
 
     const recapDisableRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_recaptcha: false }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_recaptcha: false }
     );
     assert.strictEqual(recapDisableRes.status, 200);
     console.log('PASS: enable_recaptcha toggle rejected enabling with 400 when keys unset, succeeded with 200 when set, and disabled cleanly.');
@@ -329,7 +329,7 @@ async function runTests() {
     const smsFailRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_sms_notifications: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_sms_notifications: true }
     );
     assert.strictEqual(smsFailRes.status, 400);
     process.env.DEFAULT_SMS_API_TOKEN = origSmsToken;
@@ -337,14 +337,14 @@ async function runTests() {
     const smsSuccessRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_sms_notifications: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_sms_notifications: true }
     );
     assert.strictEqual(smsSuccessRes.status, 200);
 
     const smsDisableRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_sms_notifications: false }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_sms_notifications: false }
     );
     assert.strictEqual(smsDisableRes.status, 200);
     console.log('PASS: enable_sms_notifications toggle rejected enabling with 400 when API token unset, succeeded with 200 when set, and disabled cleanly.');
@@ -357,7 +357,7 @@ async function runTests() {
     const emailFailRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_email_notifications: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_email_notifications: true }
     );
     assert.strictEqual(emailFailRes.status, 400);
     process.env.DEFAULT_SMTP_HOST = origSmtpHost;
@@ -365,14 +365,14 @@ async function runTests() {
     const emailSuccessRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_email_notifications: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_email_notifications: true }
     );
     assert.strictEqual(emailSuccessRes.status, 200);
 
     const emailDisableRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_email_notifications: false }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_email_notifications: false }
     );
     assert.strictEqual(emailDisableRes.status, 200);
     console.log('PASS: enable_email_notifications toggle rejected enabling with 400 when SMTP credentials unset, succeeded with 200 when set, and disabled cleanly.');
@@ -384,7 +384,7 @@ async function runTests() {
     const restFailRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_rest_api_gateway: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_rest_api_gateway: true }
     );
     assert.strictEqual(restFailRes.status, 400);
     process.env.DEFAULT_REST_API_SECRET_KEY = origRestSecret;
@@ -392,14 +392,14 @@ async function runTests() {
     const restSuccessRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_rest_api_gateway: true }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_rest_api_gateway: true }
     );
     assert.strictEqual(restSuccessRes.status, 200);
 
     const restDisableRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
-      { enable_rest_api_gateway: false }
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_rest_api_gateway: false }
     );
     assert.strictEqual(restDisableRes.status, 200);
     console.log('PASS: enable_rest_api toggle rejected enabling with 400 when API secret unset, succeeded with 200 when set, and disabled cleanly.');

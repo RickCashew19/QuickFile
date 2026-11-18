@@ -67,6 +67,7 @@ const {
   DocumentType,
 } = require('../src/models');
 const { API_PREFIX, ROLES } = require('../src/config/constants');
+const { suKeyLimiter } = require('../src/middlewares/rateLimiter.middleware');
 const { setMailTransport } = require('../src/helpers/mailer');
 const apiKeyValidator = require('../src/services/apiKeyValidator.service');
 
@@ -714,7 +715,14 @@ async function runTestSuite() {
       console.log('  ✓ 4.1: When DISABLED: rejects API keys (403 GATEWAY_DISABLED) and accepts Bearer JWT fallback');
     }
 
-    // 4.2: Require a fresh Super Admin PIN before changing the gateway toggle
+    // 4.2: Require a fresh Super Admin PIN before changing the gateway toggle.
+    // Earlier sections deliberately exhausted the shared suKeyLimiter bucket for
+    // the loopback IP; reset it here so this section exercises the PIN validation
+    // (400/401) rather than the limiter (429). This mirrors production, where a
+    // real admin's failed PIN attempts are spread across time.
+    for (const key of ['127.0.0.1', '::ffff:127.0.0.1', '::1', 'unknown']) {
+      suKeyLimiter.resetKey(key);
+    }
     {
       const missingPinRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/toggles`,
