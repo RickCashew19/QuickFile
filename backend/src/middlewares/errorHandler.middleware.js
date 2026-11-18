@@ -3,6 +3,8 @@
  * Never includes stack traces in JSON responses.
  * Formats Mongoose, JWT, Multer, and application errors consistently.
  */
+const { redactSensitiveUrl } = require('../helpers/urlRedactor');
+
 function errorHandler(err, req, res, next) {
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
@@ -22,7 +24,7 @@ function errorHandler(err, req, res, next) {
         target_id: req.params?.id || '',
         target_type: 'DocumentRequest',
         details: {
-          path: req.originalUrl,
+          path: redactSensitiveUrl(req.originalUrl),
           method: req.method,
           error: err.message,
         },
@@ -88,10 +90,10 @@ function errorHandler(err, req, res, next) {
 
   // Full stack trace strictly for status 500+; one-line warning for 4xx
   if (statusCode >= 500) {
-    console.error(`[Error] ${req.method} ${req.originalUrl} (${statusCode}):`, err);
+    console.error(`[Error] ${req.method} ${redactSensitiveUrl(req.originalUrl)} (${statusCode}):`, err);
     message = 'Internal Server Error. Please contact the administrator.';
   } else {
-    console.warn(`[Warn] ${req.method} ${req.originalUrl} (${statusCode}): ${message}`);
+    console.warn(`[Warn] ${req.method} ${redactSensitiveUrl(req.originalUrl)} (${statusCode}): ${message}`);
   }
 
   res.status(statusCode).json({

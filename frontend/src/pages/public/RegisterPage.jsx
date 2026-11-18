@@ -99,8 +99,8 @@ export function RegisterPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters in length.');
+    if (formData.password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters in length.');
       return;
     }
 
@@ -206,7 +206,7 @@ export function RegisterPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 required
                 prefix={<Icon name="lock" size={18} />}
               />
