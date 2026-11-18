@@ -35,6 +35,14 @@ key, jurisdiction, frontend/public URLs, and seed account settings. The
 frontend only needs `VITE_API_URL` (include the `/api/v1` prefix). See
 [backend/docs/ATLAS.md](./backend/docs/ATLAS.md) for the Atlas runbook.
 
+### Session model
+Authentication uses short-lived access tokens (default 15 minutes, `JWT_EXPIRES_IN`)
+paired with rotating refresh tokens stored in httpOnly cookies. Refresh sessions
+live 7 days idle / 30 days absolute by default (`REFRESH_TOKEN_IDLE_DAYS` /
+`REFRESH_TOKEN_ABSOLUTE_DAYS` in `backend/.env`). Reuse of a rotated token revokes
+the whole session family. Existing sessions are invalidated on the first deploy
+of this model, so users sign in once again.
+
 Seed the database before first use:
 
 ```powershell
