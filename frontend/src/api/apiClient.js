@@ -131,6 +131,99 @@ function handleCommonErrors(response, body, endpoint, options, tokenSent) {
   }
 }
 
+const REFRESH_ENDPOINT = '/auth/refresh';
+// A single in-flight refresh is shared by all requests that expire together,
+// preventing a thundering herd of rotation requests on a stale access token.
+let refreshInFlight = null;
+
+function isAuthFlowEndpoint(endpoint) {
+  return (
+    endpoint.includes('/auth/login') ||
+    endpoint.includes('/auth/register') ||
+    endpoint.includes('/auth/google') ||
+    endpoint.includes('/auth/forgot-password') ||
+    endpoint.includes('/auth/reset-password') ||
+    endpoint.includes(REFRESH_ENDPOINT)
+  );
+}
+
+/**
+ * Calls the refresh endpoint directly with the httpOnly refresh cookie. Uses
+ * raw fetch (never apiClient.request) so it can never recurse into itself.
+ * Returns the new access token, or throws if the session cannot be refreshed.
+ */
+async function performSilentRefresh() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const response = await fetch(`${API_BASE_URL}${REFRESH_ENDPOINT}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Refresh rejected');
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) throw new Error('Refresh returned no JSON');
+    const body = await response.json();
+    const accessToken = body && body.data && body.data.access_token;
+    if (!accessToken) throw new Error('Refresh returned no access token');
+    authStorage.setToken(accessToken);
+    return accessToken;
+  })();
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+async function parseResponseBody(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return null;
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Performs a fetch and, on an expired access token, silently refreshes the
+ * session and retries the original request exactly once.
+ */
+async function fetchWithRefresh(url, config, endpoint, tokenSent, networkErrorMessage) {
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch {
+    throw new ApiError(networkErrorMessage, 0, 'NETWORK_ERROR');
+  }
+  let body = await parseResponseBody(response);
+
+  const code = body && body.code;
+  const canRefresh =
+    response.status === 401 &&
+    code === 'TOKEN_EXPIRED' &&
+    !endpoint.includes(REFRESH_ENDPOINT) &&
+    !isAuthFlowEndpoint(endpoint);
+
+  if (canRefresh) {
+    try {
+      const newToken = await performSilentRefresh();
+      const retryConfig = {
+        ...config,
+        headers: { ...config.headers, Authorization: `Bearer ${newToken}` },
+      };
+      response = await fetch(url, retryConfig);
+      body = await parseResponseBody(response);
+      tokenSent = true;
+    } catch {
+      // Refresh failed. Fall through so handleCommonErrors clears the session
+      // and dispatches the expired event, as it did before refresh existed.
+    }
+  }
+  return { response, body, tokenSent };
+}
+
 /**
  * Native Fetch HTTP Client
  */
@@ -166,30 +259,17 @@ async function request(endpoint, options = {}) {
     config.body = JSON.stringify(config.body);
   }
 
-  let response;
-  try {
-    response = await fetch(url, config);
-  } catch (err) {
-    throw new ApiError(
-      'Unable to connect to the QuickFile server. Please check your network connection.',
-      0,
-      'NETWORK_ERROR'
-    );
-  }
-
-  // Parse JSON response body if available
-  let body = null;
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    try {
-      body = await response.json();
-    } catch {
-      body = null;
-    }
-  }
+  const initialTokenSent = Boolean(headers['Authorization'] || token);
+  const { response, body, tokenSent } = await fetchWithRefresh(
+    url,
+    config,
+    endpoint,
+    initialTokenSent,
+    'Unable to connect to the QuickFile server. Please check your network connection.'
+  );
 
   // Evaluate error status codes (401, 409, 429, 500, etc.)
-  handleCommonErrors(response, body, endpoint, options, Boolean(headers['Authorization'] || token));
+  handleCommonErrors(response, body, endpoint, options, tokenSent);
 
   // Return standard unwrap
   return body ? body.data : null;
@@ -209,25 +289,19 @@ async function download(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let response;
-  try {
-    response = await fetch(url, { ...options, headers, credentials: 'include' });
-  } catch {
-    throw new ApiError('File download failed. Check network connection.', 0, 'NETWORK_ERROR');
-  }
+  const config = { ...options, headers, credentials: 'include' };
+  const initialTokenSent = Boolean(headers['Authorization'] || token);
+  const { response, body, tokenSent } = await fetchWithRefresh(
+    url,
+    config,
+    endpoint,
+    initialTokenSent,
+    'File download failed. Check network connection.'
+  );
 
   // If response is not ok, attempt to parse JSON body for error details
   if (!response.ok) {
-    let body = null;
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      try {
-        body = await response.json();
-      } catch {
-        body = null;
-      }
-    }
-    handleCommonErrors(response, body, endpoint, options, Boolean(headers['Authorization'] || token));
+    handleCommonErrors(response, body, endpoint, options, tokenSent);
   }
 
   const disposition = response.headers.get('Content-Disposition');

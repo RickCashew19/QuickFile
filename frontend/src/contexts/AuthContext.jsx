@@ -14,11 +14,24 @@ export function AuthProvider({ children }) {
 
   // Hydrate user session on initial application load
   const refreshUser = useCallback(async () => {
-    // Browser sessions are carried by an httpOnly cookie. A page reload (very
-    // common on mobile) wipes the in-memory Bearer token but NOT the cookie,
-    // so always ask the API who we are instead of assuming we are a guest.
+    // Browser sessions are carried by httpOnly cookies. A page reload wipes the
+    // in-memory access token, so ask the API who we are. If the short-lived
+    // access cookie has expired, fall back to the longer-lived refresh cookie.
     try {
-      const data = await authService.getMe();
+      let data = null;
+      try {
+        data = await authService.getMe();
+      } catch {
+        // Access token may be gone; a silent refresh can still restore the
+        // session from the httpOnly refresh cookie (no user interaction).
+        try {
+          data = await authService.refresh();
+          if (data && data.access_token) authStorage.setToken(data.access_token);
+        } catch {
+          data = null;
+        }
+      }
+
       if (data && data.user) {
         setUser(data.user);
         setProfile(data.profile || null);
@@ -27,12 +40,9 @@ export function AuthProvider({ children }) {
       } else {
         authStorage.clearAll();
         setUser(null);
+        setProfile(null);
+        setPermissions(null);
       }
-    } catch {
-      authStorage.clearAll();
-      setUser(null);
-      setProfile(null);
-      setPermissions(null);
     } finally {
       setIsLoading(false);
     }

@@ -46,6 +46,15 @@ export const authService = {
     return apiClient.get('/auth/me');
   },
 
+  /**
+   * Silently rotates the httpOnly refresh cookie and returns a fresh session.
+   * Used on app boot when the in-memory access token was lost (page reload)
+   * but the longer-lived refresh cookie may still be valid.
+   */
+  async refresh() {
+    return apiClient.post('/auth/refresh');
+  },
+
   async logout() {
     try {
       await apiClient.post('/auth/logout');

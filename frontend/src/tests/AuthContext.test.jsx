@@ -93,6 +93,28 @@ describe('AuthContext and useAuth Suite', () => {
     expect(screen.getByTestId('user-role')).toHaveTextContent(ROLES.CITIZEN);
   });
 
+  it('restores the session via silent refresh when the access token has expired', async () => {
+    const getMeSpy = vi.spyOn(authService, 'getMe').mockRejectedValue(new Error('expired'));
+    const refreshSpy = vi.spyOn(authService, 'refresh').mockResolvedValue({
+      access_token: 'refreshed_token',
+      user: { id: 'citizen_2', email: 'citizen@quickfile.gov.ph', role: ROLES.CITIZEN },
+      profile: null,
+      permissions: null,
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    expect(await screen.findByTestId('auth-status')).toHaveTextContent('LOGGED_IN');
+    expect(screen.getByTestId('user-role')).toHaveTextContent(ROLES.CITIZEN);
+    expect(getMeSpy).toHaveBeenCalled();
+    expect(refreshSpy).toHaveBeenCalled();
+    expect(authStorage.getToken()).toBe('refreshed_token');
+  });
+
   it('correctly evaluates staff granular permissions', async () => {
     vi.spyOn(authService, 'getMe').mockResolvedValue({
       user: { id: 'staff_1', role: ROLES.STAFF },
