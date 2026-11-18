@@ -42,10 +42,10 @@ const register = asyncHandler(async (req, res) => {
     });
   }
 
-  if (password.length < 6 || password.length > 72) {
+  if (password.length < 8 || password.length > 72) {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Password must be between 6 and 72 characters.',
+      message: 'Validation error: Password must be between 8 and 72 characters.',
       data: null,
     });
   }

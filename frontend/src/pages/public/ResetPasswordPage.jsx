@@ -74,8 +74,8 @@ export function ResetPasswordPage() {
       return;
     }
 
-    if (!password || password.length < 6) {
-      setErrorMessage('New password must be at least 6 characters in length.');
+    if (!password || password.length < 8) {
+      setErrorMessage('New password must be at least 8 characters in length.');
       return;
     }
 
@@ -172,7 +172,7 @@ export function ResetPasswordPage() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
               required
               disabled={loading}
               prefix={<Icon name="lock" size={18} />}
