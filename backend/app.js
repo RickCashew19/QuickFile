@@ -7,6 +7,7 @@ const { API_PREFIX } = require('./src/config/constants');
 const { notFoundHandler } = require('./src/middlewares/notFound.middleware');
 const { errorHandler } = require('./src/middlewares/errorHandler.middleware');
 const { sanitizeNoSql } = require('./src/middlewares/sanitizeNoSql.middleware');
+const { redactSensitiveUrl } = require('./src/helpers/urlRedactor');
 
 // Route imports
 const authRoutes = require('./src/routes/auth.routes');
@@ -67,6 +68,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 if (config.nodeEnv !== 'test') {
+  // Log the redacted URL so verification codes and tracking numbers are never
+  // written to access logs (morgan's built-in 'url' token uses req.originalUrl).
+  morgan.token('url', (req) => redactSensitiveUrl(req.originalUrl));
   app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 }
 
