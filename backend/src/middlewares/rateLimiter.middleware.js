@@ -7,6 +7,7 @@ const {
   FORGOT_PASSWORD_IP_LIMIT_MAX,
   FORGOT_PASSWORD_EMAIL_LIMIT_MAX,
   RESET_PASSWORD_LIMIT_MAX,
+  REFRESH_LIMIT_MAX,
   SU_KEY_LIMIT_MAX,
   POLLING_LIMIT_MAX,
   USER_API_LIMIT_MAX,
@@ -134,6 +135,19 @@ const resetPasswordLimiter = rateLimit({
 });
 
 /**
+ * Refresh endpoint limiter: 30 attempts per 15 min per IP. Rotation succeeded
+ * requests are skipped so legitimate sliding sessions are never throttled.
+ */
+const refreshLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: REFRESH_LIMIT_MAX,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many session refresh attempts. Please slow down.'),
+});
+
+/**
  * Rate limiter for Super Admin Key verification & settings save
  * 15 failed requests per 15 minutes per IP, skipping successful requests
  */
@@ -233,6 +247,7 @@ module.exports = {
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
   resetPasswordLimiter,
+  refreshLimiter,
   suKeyLimiter,
   publicLimiter,
   pollingLimiter,

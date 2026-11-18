@@ -81,6 +81,14 @@ function validateConfig() {
       throw new Error('[Config] Fatal Error: In production, PUBLIC_APP_URL is required and cannot be a localhost address.');
     }
   }
+
+  // Refresh absolute cap must exceed the idle window, otherwise sessions could
+  // never be slid forward (or would behave inconsistently).
+  const idleDays = parsePositiveDays(process.env.REFRESH_TOKEN_IDLE_DAYS, 7);
+  const absoluteDays = parsePositiveDays(process.env.REFRESH_TOKEN_ABSOLUTE_DAYS, 30);
+  if (absoluteDays <= idleDays) {
+    throw new Error('[Config] Fatal Error: REFRESH_TOKEN_ABSOLUTE_DAYS must be greater than REFRESH_TOKEN_IDLE_DAYS.');
+  }
 }
 
 /**
@@ -103,6 +111,28 @@ function parseCertificateValidityDays() {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 180;
 }
 
+/**
+ * Converts a JWT expiresIn string (e.g. "15m", "7d", "3600") to milliseconds
+ * so the browser cookie lifetime always matches the token lifetime.
+ */
+function parseJwtDurationMs(raw, fallbackMs) {
+  const match = /^(\d+)\s*(s|m|h|d)?$/i.exec(String(raw || '').trim());
+  if (!match) return fallbackMs;
+  const value = parseInt(match[1], 10);
+  if (!Number.isFinite(value) || value <= 0) return fallbackMs;
+  const multiplier = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[(match[2] || 's').toLowerCase()];
+  return value * multiplier;
+}
+
+/**
+ * Parses a positive whole number of days from the environment with a default.
+ */
+function parsePositiveDays(raw, fallback) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -120,7 +150,16 @@ const config = {
   // JWT configuration (no fallback secret)
   jwt: {
     getSecret: () => process.env.JWT_SECRET || '',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    // Short-lived access token. Default lowered from 7d to 15m for the
+    // access/refresh token model (RFC 9700 / OWASP ASVS).
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    expiresInMs: parseJwtDurationMs(process.env.JWT_EXPIRES_IN || '15m', 15 * 60 * 1000),
+  },
+
+  // Refresh session lifetime: sliding idle window + hard absolute cap.
+  session: {
+    refreshIdleDays: parsePositiveDays(process.env.REFRESH_TOKEN_IDLE_DAYS, 7),
+    refreshAbsoluteDays: parsePositiveDays(process.env.REFRESH_TOKEN_ABSOLUTE_DAYS, 30),
   },
 
   // Frontend URL (Solely for CORS allowlist)

@@ -25,6 +25,7 @@ const { getDateRanges, escapeRegex } = require('../helpers/dateUtil');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
 const { isValidEmail } = require('../helpers/emailValidator');
 const staffService = require('./staff.service');
+const { revokeUserSessions } = require('./refreshSession.service');
 
 const ATTACHMENTS_DIR = path.resolve(__dirname, '../../uploads/attachments');
 
@@ -613,6 +614,8 @@ async function resetStaffPassword(id, newPassword, actorUser) {
   user.password_hash = await User.hashPassword(newPassword);
   user.password_changed_at = new Date();
   await user.save();
+  // A password change must kill all existing sessions (access + refresh).
+  await revokeUserSessions(user._id);
 
   await AuditLog.create({
     user_id: actorUser._id,

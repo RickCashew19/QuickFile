@@ -19,6 +19,7 @@ const { buildUserProfileMirror } = require('../helpers/userProfileSync');
 const { isValidEmail } = require('../helpers/emailValidator');
 const { escapeHtml } = require('../helpers/escapeHtml');
 const { withTransaction } = require('../helpers/transaction');
+const { issueSession, revokeFamily, revokeUserSessions } = require('./refreshSession.service');
 
 /**
  * Dependency-injected Google Token Verifier (allows clean test mocking without environment backdoors)
@@ -165,8 +166,9 @@ async function registerCitizen(payload, ipAddress, userAgent) {
     ...profileData,
   });
 
-  // 3. Issue Token
+  // 3. Issue short-lived access token + refresh session
   const token = generateToken(newUser);
+  const refreshToken = await issueSession(newUser, ipAddress, userAgent);
 
   // 4. Append-Only Audit Log
   await AuditLog.create({
@@ -183,6 +185,7 @@ async function registerCitizen(payload, ipAddress, userAgent) {
 
   return {
     access_token: token,
+    refresh_token: refreshToken,
     token_type: 'Bearer',
     user: newUser.toJSON(),
     profile,
@@ -255,6 +258,7 @@ async function loginUser(email, password, ipAddress, userAgent) {
   }
 
   const token = generateToken(user);
+  const refreshToken = await issueSession(user, ipAddress, userAgent);
 
   await AuditLog.create({
     user_id: user._id,
@@ -270,6 +274,7 @@ async function loginUser(email, password, ipAddress, userAgent) {
 
   return {
     access_token: token,
+    refresh_token: refreshToken,
     token_type: 'Bearer',
     user: user.toJSON(),
     profile,
@@ -372,6 +377,7 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
   }
 
   const token = generateToken(user);
+  const refreshToken = await issueSession(user, ipAddress, userAgent);
 
   await AuditLog.create({
     user_id: user._id,
@@ -387,6 +393,7 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
 
   return {
     access_token: token,
+    refresh_token: refreshToken,
     token_type: 'Bearer',
     user: user.toJSON(),
     profile,
@@ -590,6 +597,9 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
 
   // 4-7. Password change, token invalidation and audit log commit atomically.
   const passwordHash = await User.hashPassword(newPassword);
+  // Revoke every refresh session as well - access tokens are invalidated by
+  // password_changed_at, refresh sessions are revoked outright.
+  await revokeUserSessions(user._id);
   await withTransaction(async (session) => {
     await User.updateOne(
       { _id: user._id },
@@ -624,8 +634,10 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
 /**
  * Logs out user and writes to audit log
  */
-async function logoutUser(user, ipAddress, userAgent) {
+async function logoutUser(user, ipAddress, userAgent, rawRefreshToken = null) {
   if (user) {
+    // Revoke the current session family so the refresh cookie cannot be reused.
+    await revokeFamily(rawRefreshToken);
     await AuditLog.create({
       user_id: user._id,
       actor_name: user.full_name,
@@ -667,6 +679,7 @@ async function getUserProfile(user) {
 
 module.exports = {
   setGoogleTokenVerifier,
+  generateToken,
   registerCitizen,
   loginUser,
   loginWithGoogle,

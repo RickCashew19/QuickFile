@@ -9,6 +9,7 @@ const {
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
   resetPasswordLimiter,
+  refreshLimiter,
 } = require('../middlewares/rateLimiter.middleware');
 
 // Public auth routes
@@ -31,6 +32,10 @@ router.post(
 
 // Reset Password: 10 per hour per IP (counts every request)
 router.post('/reset-password', resetPasswordLimiter, authController.resetPassword);
+
+// Refresh: rotate the httpOnly refresh cookie and issue a fresh access token.
+// Authenticated by the refresh cookie only - no Bearer/access token required.
+router.post('/refresh', refreshLimiter, authController.refresh);
 
 // Authenticated auth routes
 router.get('/me', authenticate, authController.getMe);

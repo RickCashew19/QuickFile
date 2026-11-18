@@ -110,6 +110,7 @@ const REGISTER_LIMIT_MAX = 5; // 5 registrations per hour per IP (counts every r
 const FORGOT_PASSWORD_IP_LIMIT_MAX = 5; // 5 forgot password requests per hour per IP
 const FORGOT_PASSWORD_EMAIL_LIMIT_MAX = 3; // 3 forgot password requests per hour per email
 const RESET_PASSWORD_LIMIT_MAX = 10; // 10 reset password requests per hour per IP
+const REFRESH_LIMIT_MAX = 30; // 30 token refresh requests per 15 min per IP
 const SU_KEY_LIMIT_MAX = 15; // 15 Super Admin Key verification attempts per 15 min per IP
 const POLLING_LIMIT_MAX = 600; // Lightweight status polling per user (40 polls/min)
 const USER_API_LIMIT_MAX = 300; // General authenticated requests per user
@@ -157,6 +158,7 @@ module.exports = {
   FORGOT_PASSWORD_IP_LIMIT_MAX,
   FORGOT_PASSWORD_EMAIL_LIMIT_MAX,
   RESET_PASSWORD_LIMIT_MAX,
+  REFRESH_LIMIT_MAX,
   SU_KEY_LIMIT_MAX,
   POLLING_LIMIT_MAX,
   USER_API_LIMIT_MAX,

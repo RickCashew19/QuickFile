@@ -3,6 +3,7 @@ const CitizenProfile = require('./CitizenProfile');
 const StaffDetail = require('./StaffDetail');
 const StaffPermission = require('./StaffPermission');
 const PasswordReset = require('./PasswordReset');
+const RefreshToken = require('./RefreshToken');
 const DocumentType = require('./DocumentType');
 const DocumentTemplate = require('./DocumentTemplate');
 const DocumentRequest = require('./DocumentRequest');
@@ -19,6 +20,7 @@ module.exports = {
   StaffDetail,
   StaffPermission,
   PasswordReset,
+  RefreshToken,
   DocumentType,
   DocumentTemplate,
   DocumentRequest,

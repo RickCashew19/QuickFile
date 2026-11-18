@@ -1,8 +1,32 @@
 const authService = require('../services/auth.service');
+const { rotateSession } = require('../services/refreshSession.service');
 const { verifyRecaptcha } = require('../helpers/recaptcha');
 const { isValidEmail } = require('../helpers/emailValidator');
 const asyncHandler = require('../helpers/asyncHandler');
-const { setAuthCookie, clearAuthCookie } = require('../helpers/authCookie');
+const {
+  setAuthCookie,
+  setRefreshCookie,
+  clearAuthCookie,
+  getRefreshTokenFromCookie,
+} = require('../helpers/authCookie');
+
+/**
+ * Sends the short-lived access token and the opaque refresh token to the client.
+ * The refresh token is written ONLY to an httpOnly cookie - never into the JSON
+ * response body, so page JavaScript cannot read it.
+ */
+function issueSessionCookies(res, tokens) {
+  setAuthCookie(res, tokens.access_token);
+  setRefreshCookie(res, tokens.refresh_token);
+}
+
+/**
+ * Strips internal-only token fields before sending a session result to clients.
+ */
+function publicSession(result) {
+  const { refresh_token, ...rest } = result;
+  return rest;
+}
 
 /**
  * Handle citizen registration
@@ -59,12 +83,12 @@ const register = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
-  setAuthCookie(res, result.access_token);
+  issueSessionCookies(res, result);
 
   return res.status(201).json({
     success: true,
     message: 'Citizen account registered successfully.',
-    data: result,
+    data: publicSession(result),
   });
 });
 
@@ -93,12 +117,12 @@ const login = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
-  setAuthCookie(res, result.access_token);
+  issueSessionCookies(res, result);
 
   return res.status(200).json({
     success: true,
     message: 'User logged in successfully.',
-    data: result,
+    data: publicSession(result),
   });
 });
 
@@ -123,12 +147,12 @@ const googleLogin = asyncHandler(async (req, res) => {
     req.get('User-Agent')
   );
 
-  setAuthCookie(res, result.access_token);
+  issueSessionCookies(res, result);
 
   return res.status(200).json({
     success: true,
     message: 'Google login successful.',
-    data: result,
+    data: publicSession(result),
   });
 });
 
@@ -197,6 +221,37 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Rotate the refresh cookie and issue a fresh short-lived access token.
+ * POST /api/v1/auth/refresh
+ * Authentication is via the httpOnly refresh cookie only (no Bearer token).
+ */
+const refresh = asyncHandler(async (req, res) => {
+  const rawRefreshToken = getRefreshTokenFromCookie(req);
+  const { refreshToken, user } = await rotateSession(
+    rawRefreshToken,
+    req.ip,
+    req.get('User-Agent')
+  );
+
+  // Build the same shape as GET /auth/me so clients can hydrate on boot.
+  const session = await authService.getUserProfile(user);
+  const accessToken = authService.generateToken(user);
+
+  setAuthCookie(res, accessToken);
+  setRefreshCookie(res, refreshToken);
+
+  return res.status(200).json({
+    success: true,
+    message: 'Session refreshed successfully.',
+    data: {
+      access_token: accessToken,
+      token_type: 'Bearer',
+      ...session,
+    },
+  });
+});
+
+/**
  * Handle authenticated profile lookup
  * GET /api/v1/auth/me
  */
@@ -218,7 +273,8 @@ const logout = asyncHandler(async (req, res) => {
   const result = await authService.logoutUser(
     req.user,
     req.ip,
-    req.get('User-Agent')
+    req.get('User-Agent'),
+    getRefreshTokenFromCookie(req)
   );
 
   clearAuthCookie(res);
@@ -233,6 +289,7 @@ const logout = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  refresh,
   googleLogin,
   forgotPassword,
   resetPassword,

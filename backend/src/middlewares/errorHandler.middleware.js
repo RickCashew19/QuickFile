@@ -99,6 +99,9 @@ function errorHandler(err, req, res, next) {
   res.status(statusCode).json({
     success: false,
     message,
+    // Forward stable machine-readable codes (e.g. TOKEN_EXPIRED, REFRESH_REVOKED)
+    // so clients can react differently without string-matching messages.
+    ...(err.code && { code: err.code }),
     ...(errors && { errors }),
     data: err.data !== undefined ? err.data : (err.lock ? { lock: err.lock } : null),
   });
