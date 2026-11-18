@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { staffService } from '../../../api/staffService';
 import { citizenService } from '../../../api/citizenService';
 import { StaffQueueFilters } from './StaffQueueFilters';
@@ -26,6 +26,7 @@ export function StaffQueuePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [documentTypes, setDocumentTypes] = useState([]);
+  const requestSequence = useRef(0);
 
   // Fetch document types for filter dropdown
   useEffect(() => {
@@ -44,6 +45,8 @@ export function StaffQueuePage() {
   }, []);
 
   const loadRequests = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+
     // Validate date range if both dates provided
     if (filters.from && filters.to && filters.from > filters.to) {
       setError("Start date ('From') cannot be after end date ('To').");
@@ -60,14 +63,20 @@ export function StaffQueuePage() {
         ...filters,
         search: (filters.search || '').slice(0, 100),
       });
+      if (requestId !== requestSequence.current) return;
+
       const list = response?.items || response?.requests || [];
       setRequests(list);
       setTotalPages(response?.pagination?.total_pages || 1);
       setTotalItems(response?.pagination?.total ?? response?.pagination?.total_items ?? 0);
     } catch (err) {
-      setError(err.message || 'Failed to retrieve document requests.');
+      if (requestId === requestSequence.current) {
+        setError(err.message || 'Failed to retrieve document requests.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) {
+        setLoading(false);
+      }
     }
   }, [page, limit, filters]);
 

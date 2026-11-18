@@ -41,7 +41,6 @@ export function StaffQueueFilters({
           placeholder="e.g. TRK-2026 or Juan..."
           maxLength={100}
           onChange={(e) => handleInputChange('search', e.target.value)}
-          disabled={loading}
         />
 
         <Select
@@ -50,7 +49,6 @@ export function StaffQueueFilters({
           value={filters.status || 'all'}
           options={statusOptions}
           onChange={(e) => handleInputChange('status', e.target.value)}
-          disabled={loading}
         />
 
         <Select
@@ -59,7 +57,6 @@ export function StaffQueueFilters({
           value={filters.document_type_id || ''}
           options={docTypeOptions}
           onChange={(e) => handleInputChange('document_type_id', e.target.value)}
-          disabled={loading}
         />
 
         <Input
@@ -68,7 +65,6 @@ export function StaffQueueFilters({
           type="date"
           value={filters.from || ''}
           onChange={(e) => handleInputChange('from', e.target.value)}
-          disabled={loading}
         />
 
         <Input
@@ -77,7 +73,6 @@ export function StaffQueueFilters({
           type="date"
           value={filters.to || ''}
           onChange={(e) => handleInputChange('to', e.target.value)}
-          disabled={loading}
         />
       </div>
 

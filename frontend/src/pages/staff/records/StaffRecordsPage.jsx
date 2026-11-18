@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { staffService } from '../../../api/staffService';
 import { citizenService } from '../../../api/citizenService';
 import { StaffRecordsTable } from './StaffRecordsTable';
@@ -32,6 +32,7 @@ export function StaffRecordsPage() {
   const [error, setError] = useState(null);
   const [archivingId, setArchivingId] = useState(null);
   const [pendingArchiveId, setPendingArchiveId] = useState(null);
+  const requestSequence = useRef(0);
 
   // Load document types for filter
   useEffect(() => {
@@ -48,6 +49,8 @@ export function StaffRecordsPage() {
   }, []);
 
   const loadRecords = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+
     // Validate date range if both dates provided
     if (filters.from && filters.to && filters.from > filters.to) {
       setError("Start date ('From') cannot be after end date ('To').");
@@ -64,14 +67,20 @@ export function StaffRecordsPage() {
         ...filters,
         search: (filters.search || '').slice(0, 100),
       });
+      if (requestId !== requestSequence.current) return;
+
       const list = data?.items || data?.requests || [];
       setRecords(list);
       setTotalPages(data?.pagination?.total_pages || 1);
       setTotalItems(data?.pagination?.total ?? data?.pagination?.total_items ?? 0);
     } catch (err) {
-      setError(err.message || 'Failed to load historical records.');
+      if (requestId === requestSequence.current) {
+        setError(err.message || 'Failed to load historical records.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) {
+        setLoading(false);
+      }
     }
   }, [page, limit, filters]);
 
@@ -143,7 +152,6 @@ export function StaffRecordsPage() {
             value={filters.search}
             placeholder="Search keyword..."
             onChange={(e) => handleFilterChange('search', e.target.value)}
-            disabled={loading}
           />
           <Select
             label="Record Status"
@@ -155,7 +163,6 @@ export function StaffRecordsPage() {
               { value: REQUEST_STATUSES.ARCHIVED, label: 'Archived Only' },
             ]}
             onChange={(e) => handleFilterChange('status', e.target.value)}
-            disabled={loading}
           />
           <Select
             label="Document Type"
@@ -163,7 +170,6 @@ export function StaffRecordsPage() {
             value={filters.document_type_id}
             options={docTypeOptions}
             onChange={(e) => handleFilterChange('document_type_id', e.target.value)}
-            disabled={loading}
           />
         </div>
         <div className="qf-records-filter-actions">
