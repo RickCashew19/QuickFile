@@ -42,6 +42,14 @@ function ToggleSwitch({
   );
 }
 
+const TOGGLE_LABELS = {
+  enable_google_login: 'Google Login',
+  enable_recaptcha: 'Google reCAPTCHA',
+  enable_sms_notifications: 'SMS Notifications',
+  enable_email_notifications: 'Email Notifications',
+  enable_rest_api_gateway: 'REST API Gateway',
+};
+
 export function AdminSettingsPage({ initialPinVerified = false }) {
   const [activeTab, setActiveTab] = useState('integrations'); // 'integrations' | 'general'
   const [settingsData, setSettingsData] = useState(null);
@@ -96,6 +104,9 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
     enable_email_notifications: false,
     enable_rest_api_gateway: false,
   });
+  const [toggleFeedback, setToggleFeedback] = useState({});
+  const [pendingToggle, setPendingToggle] = useState(null);
+  const [updatingToggle, setUpdatingToggle] = useState(null);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -196,13 +207,22 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
   };
 
   // Section 4: Unified Feature Toggles inside API Key Management & Gateways
-  const handleToggleFeature = async (toggleKey, checked) => {
+  const handleToggleFeature = (toggleKey, checked) => {
+    setToggleFeedback((prev) => ({ ...prev, [toggleKey]: null }));
+
+    const showToggleError = (message) => {
+      setToggleFeedback((prev) => ({
+        ...prev,
+        [toggleKey]: { variant: 'danger', message },
+      }));
+    };
+
     if (toggleKey === 'enable_google_login' && checked) {
       const hasGoogle =
         Boolean(settingsData?.integrations?.google?.client_id) ||
         Boolean(customDrafts.CUSTOM_GOOGLE_CLIENT_ID);
       if (!hasGoogle) {
-        setError('Cannot enable Google login: GOOGLE_CLIENT_ID is not configured.');
+        showToggleError('Cannot enable Google login: GOOGLE_CLIENT_ID is not configured.');
         return;
       }
     }
@@ -212,7 +232,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
         Boolean(settingsData?.integrations?.recaptcha?.site_key) ||
         Boolean(customDrafts.CUSTOM_RECAPTCHA_SITE_KEY);
       if (!hasRecaptcha) {
-        setError('Cannot enable reCAPTCHA: RECAPTCHA credentials are not configured.');
+        showToggleError('Cannot enable reCAPTCHA: RECAPTCHA credentials are not configured.');
         return;
       }
     }
@@ -222,7 +242,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
         Boolean(settingsData?.integrations?.sms?.api_token) ||
         Boolean(customDrafts.CUSTOM_SMS_API_TOKEN);
       if (!hasSms) {
-        setError('Cannot enable SMS notifications: SMS_API_TOKEN is not configured.');
+        showToggleError('Cannot enable SMS notifications: SMS_API_TOKEN is not configured.');
         return;
       }
     }
@@ -232,28 +252,110 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
         Boolean(settingsData?.integrations?.smtp?.user) ||
         Boolean(customDrafts.CUSTOM_SMTP_USER);
       if (!hasSmtp) {
-        setError('Cannot enable email notifications: SMTP credentials are not configured.');
+        showToggleError('Cannot enable email notifications: SMTP credentials are not configured.');
         return;
       }
     }
 
-    const previous = togglesDraft[toggleKey];
-    const newToggles = { ...togglesDraft, [toggleKey]: checked };
-    setTogglesDraft(newToggles);
-    setError(null);
+    setPendingToggle({ key: toggleKey, enabled: checked, pin: '' });
+  };
 
+  const handleConfirmToggle = async () => {
+    if (!pendingToggle || !pendingToggle.pin.trim() || updatingToggle) return;
+
+    const { key, enabled, pin } = pendingToggle;
+    setUpdatingToggle(key);
+    setPendingToggle({ key, enabled, pin: '' });
+    setToggleFeedback((prev) => ({ ...prev, [key]: null }));
     try {
-      await adminService.updateToggles(newToggles);
-      const label = toggleKey.replace(/^enable_/, '').replace(/_/g, ' ');
-      setSuccessMsg(
-        checked
-          ? `${label.toUpperCase()} enabled and active.`
-          : `${label.toUpperCase()} disabled.`
-      );
+      await adminService.updateToggles({ [key]: enabled, su_admin_key: pin.trim() });
+      setTogglesDraft((prev) => ({ ...prev, [key]: enabled }));
+      setToggleFeedback((prev) => ({
+        ...prev,
+        [key]: {
+          variant: 'success',
+          message: `${TOGGLE_LABELS[key]} ${enabled ? 'enabled and active' : 'disabled'} successfully.`,
+        },
+      }));
+      setPendingToggle(null);
     } catch (err) {
-      setTogglesDraft((prev) => ({ ...prev, [toggleKey]: previous }));
-      setError(err.message || `Failed to update ${toggleKey}.`);
+      setToggleFeedback((prev) => ({
+        ...prev,
+        [key]: {
+          variant: 'danger',
+          message: err.message || `Failed to update ${TOGGLE_LABELS[key]}.`,
+        },
+      }));
+      setPendingToggle({ key, enabled, pin: '' });
+    } finally {
+      setUpdatingToggle(null);
     }
+  };
+
+  const renderToggleFeedback = (toggleKey) => {
+    const feedback = toggleFeedback[toggleKey];
+    if (pendingToggle?.key !== toggleKey && !feedback) return null;
+
+    return (
+      <>
+        {feedback && (
+          <Alert
+            variant={feedback.variant}
+            onClose={() => setToggleFeedback((prev) => ({ ...prev, [toggleKey]: null }))}
+          >
+            {feedback.message}
+          </Alert>
+        )}
+        {pendingToggle?.key === toggleKey && (
+          <form
+            className="qf-toggle-confirmation"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConfirmToggle();
+            }}
+          >
+            <p className="qf-toggle-confirmation__message">
+              Confirm {pendingToggle.enabled ? 'enabling' : 'disabling'} {TOGGLE_LABELS[toggleKey]}.
+              Enter your Super Admin PIN to continue.
+            </p>
+            <Input
+              id={`toggle-pin-${toggleKey}`}
+              label="Super Admin PIN"
+              type="password"
+              value={pendingToggle.pin}
+              onChange={(e) =>
+                setPendingToggle((prev) =>
+                  prev?.key === toggleKey ? { ...prev, pin: e.target.value } : prev
+                )
+              }
+              placeholder="Enter Super Admin PIN"
+              autoComplete="off"
+              required
+              disabled={updatingToggle === toggleKey}
+            />
+            <div className="qf-toggle-confirmation__actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPendingToggle(null)}
+                disabled={Boolean(updatingToggle)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={updatingToggle === toggleKey}
+                disabled={!pendingToggle.pin.trim()}
+              >
+                Confirm {pendingToggle.enabled ? 'Enable' : 'Disable'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </>
+    );
   };
 
   // Section 2: Initiate Save with 2FA
@@ -573,6 +675,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     <ToggleSwitch
                       checked={togglesDraft.enable_google_login}
                       onChange={(e) => handleToggleFeature('enable_google_login', e.target.checked)}
+                      disabled={Boolean(pendingToggle) || Boolean(updatingToggle)}
                       ariaLabel="Toggle Google Login Service"
                       labelOn="Enabled"
                       labelOff="Disabled"
@@ -582,6 +685,8 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                 </div>
+
+                {renderToggleFeedback('enable_google_login')}
 
                 <div className="qf-masked-preview">
                   <div>Active Client ID: <code>{integrations.google?.client_id || 'Not configured'}</code></div>
@@ -669,6 +774,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     <ToggleSwitch
                       checked={togglesDraft.enable_sms_notifications}
                       onChange={(e) => handleToggleFeature('enable_sms_notifications', e.target.checked)}
+                      disabled={Boolean(pendingToggle) || Boolean(updatingToggle)}
                       ariaLabel="Toggle SMS Notifications Service"
                       labelOn="Enabled"
                       labelOff="Disabled"
@@ -678,6 +784,8 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                 </div>
+
+                {renderToggleFeedback('enable_sms_notifications')}
 
                 <div className="qf-masked-preview">
                   <div>Gateway URL: <code>{integrations.sms?.gateway_url || 'https://app.philsms.com/api/v3/sms/send'}</code></div>
@@ -777,6 +885,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     <ToggleSwitch
                       checked={togglesDraft.enable_email_notifications}
                       onChange={(e) => handleToggleFeature('enable_email_notifications', e.target.checked)}
+                      disabled={Boolean(pendingToggle) || Boolean(updatingToggle)}
                       ariaLabel="Toggle Email Notifications Service"
                       labelOn="Enabled"
                       labelOff="Disabled"
@@ -786,6 +895,8 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                 </div>
+
+                {renderToggleFeedback('enable_email_notifications')}
 
                 <div className="qf-masked-preview">
                   <div>Host: <code>{integrations.smtp?.host || 'Not configured'}</code></div>
@@ -919,6 +1030,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     <ToggleSwitch
                       checked={togglesDraft.enable_recaptcha}
                       onChange={(e) => handleToggleFeature('enable_recaptcha', e.target.checked)}
+                      disabled={Boolean(pendingToggle) || Boolean(updatingToggle)}
                       ariaLabel="Toggle Google reCAPTCHA Service"
                       labelOn="Enabled"
                       labelOff="Disabled"
@@ -928,6 +1040,8 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     </span>
                   </div>
                 </div>
+
+                {renderToggleFeedback('enable_recaptcha')}
 
                 <div className="qf-masked-preview">
                   <div>Site Key: <code>{integrations.recaptcha?.site_key || 'Not configured'}</code></div>

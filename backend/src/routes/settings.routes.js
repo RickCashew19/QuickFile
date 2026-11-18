@@ -11,7 +11,7 @@ router.use(authenticate, requireRole([ROLES.ADMIN]), userApiLimiter);
 
 router.get('/', settingsController.getSettings);
 router.patch('/', suKeyLimiter, settingsController.updateSettings);
-router.patch('/toggles', settingsController.updateToggles);
+router.patch('/toggles', suKeyLimiter, settingsController.updateToggles);
 router.patch('/general', settingsController.updateGeneralSettings);
 
 // API Key Management Security Revisions: PIN Verification, Provider Validation & 2FA

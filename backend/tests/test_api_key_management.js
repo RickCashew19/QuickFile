@@ -714,13 +714,35 @@ async function runTestSuite() {
       console.log('  ✓ 4.1: When DISABLED: rejects API keys (403 GATEWAY_DISABLED) and accepts Bearer JWT fallback');
     }
 
-    // 4.2: Enable REST API Gateway directly via Toggle PATCH endpoint
+    // 4.2: Require a fresh Super Admin PIN before changing the gateway toggle
     {
-      const toggleRes = await makeHttpRequest(server, {
+      const missingPinRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/toggles`,
         method: 'PATCH',
         headers: { Authorization: `Bearer ${adminToken}` },
       }, { enable_rest_api_gateway: true });
+      assert.strictEqual(missingPinRes.status, 400);
+      assert.strictEqual(missingPinRes.data.success, false);
+
+      const wrongPinRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/toggles`,
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, { enable_rest_api_gateway: true, su_admin_key: 'incorrect_pin' });
+      assert.strictEqual(wrongPinRes.status, 401);
+      assert.strictEqual(wrongPinRes.data.success, false);
+
+      const unchangedSetting = await AppSetting.findOne({ key: 'enable_rest_api_gateway' });
+      assert.strictEqual(unchangedSetting.value, false, 'A failed PIN check must not change the setting');
+
+      const toggleRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/toggles`,
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        enable_rest_api_gateway: true,
+        su_admin_key: process.env.SU_ADMIN_KEY,
+      });
       assert.strictEqual(toggleRes.status, 200);
       assert.strictEqual(toggleRes.data.success, true);
       assert.strictEqual(toggleRes.data.data.enable_rest_api_gateway, true);
@@ -788,7 +810,10 @@ async function runTestSuite() {
         path: `${API_PREFIX}/admin/settings/toggles`,
         method: 'PATCH',
         headers: { Authorization: `Bearer ${adminToken}` },
-      }, { enable_rest_api_gateway: false });
+      }, {
+        enable_rest_api_gateway: false,
+        su_admin_key: process.env.SU_ADMIN_KEY,
+      });
       assert.strictEqual(toggleOffRes.status, 200);
       assert.strictEqual(toggleOffRes.data.data.enable_rest_api_gateway, false);
 

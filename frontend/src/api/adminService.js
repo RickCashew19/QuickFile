@@ -404,7 +404,7 @@ export const adminService = {
   },
 
   /**
-   * Updates feature toggles (Google login, reCAPTCHA, SMS, email, REST gateway)
+   * Updates feature toggles with fresh Super Admin PIN authorization
    */
   async updateToggles(toggles) {
     return apiClient.patch('/admin/settings/toggles', toggles);

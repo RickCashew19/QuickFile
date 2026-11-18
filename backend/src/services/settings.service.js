@@ -83,7 +83,13 @@ const ALLOWED_GENERAL_KEYS = Object.freeze([
  * Validates and updates system toggles.
  * Rejects enabling any service whose underlying secret key is missing.
  */
-async function updateToggles({ updates, actorUser, ipAddress, userAgent }) {
+async function updateToggles({ suAdminKey, updates, actorUser, ipAddress, userAgent }) {
+  if (typeof suAdminKey !== 'string' || !suAdminKey.trim()) {
+    const err = new Error('Super Admin PIN is required to change integration status.');
+    err.statusCode = 400;
+    throw err;
+  }
+
   if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
     const err = new Error('Validation error: Body must be an object of toggle key-value pairs.');
     err.statusCode = 400;
@@ -110,6 +116,15 @@ async function updateToggles({ updates, actorUser, ipAddress, userAgent }) {
       throw err;
     }
   }
+
+  // Require a fresh Super Admin PIN for every integration status change.
+  await verifySuperAdminKey({
+    providedKey: suAdminKey.trim(),
+    actorId: actorUser._id,
+    actorName: actorUser.full_name,
+    ipAddress,
+    userAgent,
+  });
 
   // 2. Reject enabling when underlying credentials are missing
   if (updates.enable_google_login === true && !config.google.resolveClientId().value) {

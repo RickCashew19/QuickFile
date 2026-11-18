@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminSettingsPage } from '../pages/admin/settings/AdminSettingsPage';
 import { adminService } from '../api/adminService';
@@ -166,7 +166,7 @@ describe('Admin Settings & API Key Management Suite', () => {
     expect(screen.queryByText('REST API Gateway Security & Key Management')).not.toBeInTheDocument();
   });
 
-  it('Section 3: Direct switch toggle updates integration service status', async () => {
+  it('Section 3: Confirms each service toggle with a fresh PIN and shows feedback in its card', async () => {
     adminService.updateToggles.mockResolvedValue({
       enable_sms_notifications: true,
     });
@@ -191,16 +191,58 @@ describe('Admin Settings & API Key Management Suite', () => {
     // Toggle on
     fireEvent.click(toggleCheckbox);
 
+    const smsCard = screen.getByText('PhilSMS Gateway').closest('.qf-integration-card');
+    expect(
+      within(smsCard).getByText(/Confirm enabling SMS Notifications/i)
+    ).toBeInTheDocument();
+    expect(adminService.updateToggles).not.toHaveBeenCalled();
+
+    fireEvent.change(within(smsCard).getByPlaceholderText('Enter Super Admin PIN'), {
+      target: { value: 'FreshSuperAdminPIN' },
+    });
+    fireEvent.click(within(smsCard).getByRole('button', { name: /Confirm Enable/i }));
+
     await waitFor(() => {
       expect(adminService.updateToggles).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enable_sms_notifications: true,
-        })
+        { enable_sms_notifications: true, su_admin_key: 'FreshSuperAdminPIN' }
       );
+      expect(within(smsCard).getByText(/SMS Notifications enabled and active successfully/i)).toBeInTheDocument();
+    });
+    expect(toggleCheckbox.checked).toBe(true);
+  });
+
+  it('keeps a failed toggle unchanged and displays the authorization error in that service card', async () => {
+    adminService.updateToggles.mockRejectedValueOnce(
+      new Error('Invalid Super Admin PIN. 4 attempt(s) remaining before lockout.')
+    );
+
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage initialPinVerified={true} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('PhilSMS Gateway')).toBeInTheDocument();
+    });
+
+    const smsCard = screen.getByText('PhilSMS Gateway').closest('.qf-integration-card');
+    const toggleCheckbox = within(smsCard).getByRole('checkbox', {
+      name: /Toggle SMS Notifications Service/i,
+    });
+    fireEvent.click(toggleCheckbox);
+    fireEvent.change(within(smsCard).getByPlaceholderText('Enter Super Admin PIN'), {
+      target: { value: 'WrongSuperAdminPIN' },
+    });
+    fireEvent.click(within(smsCard).getByRole('button', { name: /Confirm Enable/i }));
+
+    await waitFor(() => {
       expect(
-        screen.getByText(/SMS NOTIFICATIONS enabled and active/i)
+        within(smsCard).getByText(/Invalid Super Admin PIN\. 4 attempt\(s\) remaining/i)
       ).toBeInTheDocument();
     });
+    expect(toggleCheckbox.checked).toBe(false);
+    expect(within(smsCard).getByPlaceholderText('Enter Super Admin PIN')).toHaveValue('');
   });
 
   it('Section 4: Validates API key with provider and displays feedback', async () => {

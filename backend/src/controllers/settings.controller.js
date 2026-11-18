@@ -22,7 +22,7 @@ const getSettings = asyncHandler(async (req, res) => {
 const updateSettings = asyncHandler(async (req, res) => {
   const { su_admin_key, settings, reset_keys } = req.body;
 
-  if (!su_admin_key || typeof su_admin_key !== 'string') {
+  if (typeof su_admin_key !== 'string' || !su_admin_key.trim()) {
     return res.status(400).json({
       success: false,
       message: 'Validation error: su_admin_key must be a non-empty string.',
@@ -59,8 +59,18 @@ const updateSettings = asyncHandler(async (req, res) => {
  * PATCH /api/v1/admin/settings/toggles
  */
 const updateToggles = asyncHandler(async (req, res) => {
+  const { su_admin_key, ...updates } = req.body || {};
+  if (!su_admin_key || typeof su_admin_key !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: su_admin_key must be a non-empty string.',
+      data: null,
+    });
+  }
+
   const result = await settingsService.updateToggles({
-    updates: req.body,
+    suAdminKey: su_admin_key,
+    updates,
     actorUser: req.user,
     ipAddress: req.ip,
     userAgent: req.get('User-Agent'),
