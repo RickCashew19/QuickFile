@@ -25,6 +25,7 @@ const {
 } = require('../helpers/certificateGenerator');
 const { sendMail } = require('../helpers/mailer');
 const { escapeHtml } = require('../helpers/escapeHtml');
+const { buildPickupEvent, buildIcs, buildGoogleCalendarLink } = require('../helpers/calendarInvite');
 const { getDateRanges, escapeRegex } = require('../helpers/dateUtil');
 const { buildRenderData } = require('../helpers/templatePlaceholders');
 const { withTransaction } = require('../helpers/transaction');
@@ -581,17 +582,43 @@ async function issueRequest(requestId, actorUser, ipAddress, userAgent) {
     const safeTrackingNumber = escapeHtml(request.tracking_number);
     const safeCertNumber = escapeHtml(issuedDoc.certificate_number);
 
+    // Calendar reminder: a universal .ics attachment plus a public Google
+    // Calendar link. No API key, OAuth scope or external API call is involved,
+    // and only the tracking number / document type are put in the calendar.
+    const baseUrl = String(config.publicAppUrl || '').replace(/\/$/, '');
+    const pickupEvent = buildPickupEvent({
+      trackingNumber: request.tracking_number,
+      documentName: docType.name,
+      readyAt: updatedRequest.ready_at || new Date(),
+      requestUrl: baseUrl
+        ? `${baseUrl}/citizen/requests/${encodeURIComponent(request.tracking_number)}`
+        : '',
+    });
+    const googleCalendarLink = buildGoogleCalendarLink(pickupEvent);
+    const safeGoogleCalendarLink = escapeHtml(googleCalendarLink);
+    const safeAttachmentName = `pickup-${String(request.tracking_number).replace(/[^A-Za-z0-9_-]/g, '_')}.ics`;
+
     sendMail({
       to: citizen.email,
       subject: `QuickFile: Your Document is Ready for Pickup (${request.tracking_number})`,
-      text: `Dear ${citizen.full_name},\n\nYour requested document ${docType.name} (Tracking #: ${request.tracking_number}) is now ready for pickup at the Barangay Hall.\nCertificate No: ${issuedDoc.certificate_number}\n\nPlease present a valid ID upon claiming.`,
+      text: `Dear ${citizen.full_name},\n\nYour requested document ${docType.name} (Tracking #: ${request.tracking_number}) is now ready for pickup at the Barangay Hall.\nCertificate No: ${issuedDoc.certificate_number}\n\nPlease present a valid ID upon claiming.\n\nAdd to Google Calendar: ${googleCalendarLink}\nOr open the attached .ics file to use Apple Calendar, Outlook, or any calendar app.`,
       html: `
         <h2>Document Ready for Pickup</h2>
         <p>Dear ${safeCitizenName},</p>
         <p>Your requested document <strong>${safeDocTypeName}</strong> (Tracking #: ${safeTrackingNumber}) is now ready for pickup at the Barangay Hall.</p>
         <p><strong>Certificate No:</strong> ${safeCertNumber}</p>
         <p>Please present a valid ID upon claiming.</p>
+        <p style="margin:24px 0;">
+          <a href="${safeGoogleCalendarLink}" style="background-color:#1e40af;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Add to Google Calendar</a>
+        </p>
+        <p style="color:#64748b;font-size:13px;">Or open the attached .ics file to add this reminder in Apple Calendar, Outlook, or any calendar app.</p>
       `,
+      attachments: [{
+        filename: safeAttachmentName,
+        content: buildIcs(pickupEvent),
+        contentType: 'text/calendar; charset=utf-8',
+        method: 'PUBLISH',
+      }],
     }).catch((err) => {
       console.warn('[StaffService] Failed to send ready_for_pickup email:', err.message);
     });

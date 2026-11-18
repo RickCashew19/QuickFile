@@ -41,8 +41,9 @@ function createTransporter() {
  * @param {string} [options.html] - HTML body
  * @param {string} [options.text] - Plaintext body
  * @param {boolean} [options.isTransactional=false] - If true, bypasses the enable_email_notifications setting check (e.g. for password resets)
+ * @param {Array} [options.attachments] - Optional nodemailer attachments (e.g. a calendar .ics file)
  */
-async function sendMail({ to, subject, html, text, isTransactional = false }) {
+async function sendMail({ to, subject, html, text, isTransactional = false, attachments }) {
   if (!to || !subject) {
     return {
       success: false,
@@ -73,13 +74,19 @@ async function sendMail({ to, subject, html, text, isTransactional = false }) {
   const fromEmail = config.smtp.resolveFromEmail().value || 'quickfile.notification@gmail.com';
 
   try {
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       text: text || (html ? html.replace(/<[^>]*>?/gm, '') : ''),
       html,
-    });
+    };
+    // Passed straight through to nodemailer; absent means no change in behavior.
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      mailOptions.attachments = attachments;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     return {
       success: true,

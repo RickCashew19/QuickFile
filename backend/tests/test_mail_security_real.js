@@ -544,6 +544,23 @@ async function runMailSecurityTests() {
     );
     console.log('PASS: ready for pickup email safely HTML-escapes document name and citizen name.');
 
+    // Calendar reminder: the real pickup email must carry a valid .ics file and
+    // a credential-free Google Calendar link, with no citizen PII in the event.
+    assert(Array.isArray(pickupMail.attachments) && pickupMail.attachments.length === 1,
+      'pickup email must carry exactly one calendar attachment');
+    const calendarAttachment = pickupMail.attachments[0];
+    assert(calendarAttachment.filename.endsWith('.ics'));
+    assert.strictEqual(calendarAttachment.contentType, 'text/calendar; charset=utf-8');
+    assert(calendarAttachment.content.startsWith('BEGIN:VCALENDAR\r\n'));
+    assert(calendarAttachment.content.includes('BEGIN:VALARM'));
+    assert(!calendarAttachment.content.includes('<script>'), 'citizen name must not leak into .ics');
+    assert(!/AIza[0-9A-Za-z_-]{20,}/.test(calendarAttachment.content), 'no API key in .ics');
+    assert(pickupMail.html.includes('Add to Google Calendar'), 'HTML button must be present');
+    assert(pickupMail.html.includes('https://calendar.google.com/calendar/render?action=TEMPLATE'),
+      'credential-free Google Calendar link must be present');
+    assert(!/AIza[0-9A-Za-z_-]{20,}/.test(pickupMail.html), 'no API key in email HTML');
+    console.log('PASS: ready for pickup email includes a valid .ics attachment and Google Calendar link.');
+
     console.log('\n=== ALL MAIL SECURITY TESTS PASSED SUCCESSFULLY ===');
   } finally {
     if (server && server.listening) {
