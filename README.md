@@ -92,5 +92,6 @@ npm --prefix frontend run build
 See [frontend/README.md](./frontend/README.md) for frontend details,
 [frontend/docs/api-contract.md](./frontend/docs/api-contract.md) for the API
 contract, [docs/CONCURRENCY_CONTROL.md](./docs/CONCURRENCY_CONTROL.md) for the
-lock/transaction design, and [backend/docs/ATLAS.md](./backend/docs/ATLAS.md)
-for the database runbook.
+lock/transaction design, [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md)
+for the relational schema and normalization analysis, and
+[backend/docs/ATLAS.md](./backend/docs/ATLAS.md) for the database runbook.
