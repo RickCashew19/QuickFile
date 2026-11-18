@@ -129,6 +129,8 @@ frontend/
 │   ├── api-contract.md        # Complete API contract specification
 │   ├── backend-gaps.md        # Documented backend-frontend contract discrepancies
 │   ├── manual-tests.md        # Manual QA test scenarios
+│   ├── SMOKE.md               # Live backend parity smoke-test notes
+│   ├── TEMPLATES.md           # Certificate DOCX template placeholder reference
 │   └── TESTING.md             # Multi-role 2-device manual test script & prod build notes
 ├── public/                    # Static assets copied verbatim to build
 ├── scripts/
@@ -154,11 +156,10 @@ Create a `.env` file in `/frontend` (or copy from `.env.example`):
 ```bash
 # URL pointing to the QuickFile Express backend (include the /api/v1 prefix)
 VITE_API_URL=http://localhost:5000/api/v1
-
-# Base URL for public verification QR codes (defaults to window.location.origin)
-VITE_PUBLIC_URL=http://localhost:5173
 ```
 
+> Public QR verification links and password-reset links use the backend's
+> `PUBLIC_APP_URL` setting, not a frontend variable.
 > **Note**: In development, `VITE_API_URL` defaults to `http://localhost:5000/api/v1` if omitted. When accessing the dev server from a phone via its network IP, `apiClient.js` automatically rewrites `localhost`/`127.0.0.1` to that hostname so the API remains reachable. In production, point this to your live API domain (e.g. `https://api.quickfile.ph/api/v1`).
 
 ---

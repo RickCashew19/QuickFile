@@ -32,7 +32,8 @@ backend/
 
 ### Prerequisites
 - Node.js >= 18.0.0
-- MongoDB 6.0+
+- MongoDB Atlas (runtime `quickfile` database) or a local MongoDB 6.0+ replica
+  set for tests only
 
 ### Installation
 ```bash
@@ -44,6 +45,12 @@ Copy `.env.example` to `.env` and fill in the required environment variables:
 ```bash
 cp .env.example .env
 ```
+
+At minimum set `MONGODB_URI` (or `MONGO_URI`) to the Atlas `quickfile`
+database, `JWT_SECRET` (32+ chars), `SU_ADMIN_KEY`, `FRONTEND_URL`,
+`PUBLIC_APP_URL`, jurisdiction values, and the `DEFAULT_*_PASSWORD` seed
+credentials. `MONGODB_ADMIN_URI` / `MONGODB_APP_URI` are only used by the
+one-off Atlas scripts. See [docs/ATLAS.md](docs/ATLAS.md) for details.
 
 ### Database Seeding
 To initialize the database with default document types and initial administrator:

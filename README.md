@@ -29,8 +29,24 @@ Copy-Item .\frontend\.env.example .\frontend\.env
 ```
 
 Configure the backend values in `backend/.env`, including the MongoDB Atlas
-connection, JWT, Super Admin key, jurisdiction, and seed account settings.
-See [backend/docs/ATLAS.md](./backend/docs/ATLAS.md) for the Atlas runbook.
+connection (`MONGODB_URI` / `MONGO_URI`; `MONGODB_ADMIN_URI` and
+`MONGODB_APP_URI` are only for the one-off Atlas scripts), JWT, Super Admin
+key, jurisdiction, frontend/public URLs, and seed account settings. The
+frontend only needs `VITE_API_URL` (include the `/api/v1` prefix). See
+[backend/docs/ATLAS.md](./backend/docs/ATLAS.md) for the Atlas runbook.
+
+Seed the database before first use:
+
+```powershell
+# Base records only: document types, app settings, and default admin account
+npm --prefix backend run seed
+
+# Or the full demo dataset on Atlas (development only; see below)
+npm --prefix backend run seed:demo:atlas
+```
+
+Backend test suites need a local MongoDB replica set (`--replSet quickfile`);
+see the "Local development" section of [backend/docs/ATLAS.md](./backend/docs/ATLAS.md).
 
 ## Demonstration data
 
