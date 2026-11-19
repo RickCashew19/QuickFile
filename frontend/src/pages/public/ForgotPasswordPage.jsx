@@ -7,7 +7,13 @@ import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
 import { Logo } from '../../components/shared/Logo';
+import { StepIndicator } from '../../components/shared/StepIndicator';
+import { isValidEmail } from '../../validators/validators';
 import './LoginPage.css';
+
+const STEPS = ['Enter Email', 'Verify OTP', 'Reset Password'];
+const GENERIC_MESSAGE =
+  'If an account exists with the provided email address, a verification code will be sent shortly. Please check your inbox.';
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -33,23 +39,22 @@ export function ForgotPasswordPage() {
                 'expired-callback': () => setRecaptchaToken(null),
               });
             } catch {
-              // Ignore
+              // Ignore reCAPTCHA render errors.
             }
           }
         });
       }
-    });
+    }).catch(() => {});
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!email) {
-      setErrorMessage('Please enter your email address.');
+    if (!isValidEmail(email)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
-
     if (config?.integrations?.recaptcha_enabled && !recaptchaToken) {
       setErrorMessage('Please complete the reCAPTCHA verification.');
       return;
@@ -57,10 +62,10 @@ export function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      await authService.forgotPassword(email, recaptchaToken);
+      await authService.forgotPassword(email.trim(), recaptchaToken);
       setSubmitted(true);
     } catch (err) {
-      setErrorMessage(err.message || 'Unable to process request. Please try again later.');
+      setErrorMessage(err.message || 'Unable to process your request. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,27 +84,27 @@ export function ForgotPasswordPage() {
           </div>
           <h1 className="qf-auth-header__title">Reset Password</h1>
           <p className="qf-auth-header__subtitle">
-            Enter your registered email address to receive a 6-digit verification PIN code to reset your password.
+            Enter your registered email address to receive a 6-digit verification code.
           </p>
         </div>
 
+        <StepIndicator steps={STEPS} currentStep={0} />
+
         {submitted ? (
           <div>
-            <Alert variant="success" title="6-Digit PIN Code Sent">
-              A 6-digit verification PIN code has been sent to <strong>{email}</strong> (valid for 15 minutes).
+            <Alert variant="success" title="Check Your Inbox">
+              {GENERIC_MESSAGE}
             </Alert>
             <div style={{ marginTop: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               <Button
                 variant="primary"
                 fullWidth
-                onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email)}`)}
+                onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`)}
               >
-                Verify 6-Digit PIN
+                Enter Verification Code
               </Button>
               <Link to="/login">
-                <Button variant="secondary" fullWidth>
-                  Return to Sign In
-                </Button>
+                <Button variant="secondary" fullWidth>Return to Sign In</Button>
               </Link>
             </div>
           </div>
@@ -128,8 +133,8 @@ export function ForgotPasswordPage() {
               />
             )}
 
-            <Button type="submit" fullWidth loading={loading}>
-              Send 6-Digit Reset PIN
+            <Button type="submit" fullWidth loading={loading} disabled={loading}>
+              Send Verification Code
             </Button>
 
             <div className="qf-auth-footer">

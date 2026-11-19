@@ -1,20 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../../api/authService';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Alert } from '../../components/shared/Alert';
 import { Icon } from '../../components/shared/Icon';
 import { Logo } from '../../components/shared/Logo';
+import { OtpInput } from '../../components/shared/OtpInput';
+import { StepIndicator } from '../../components/shared/StepIndicator';
+import {
+  maskEmail,
+  isValidEmail,
+  PASSWORD_MIN_LENGTH,
+  getPasswordRequirements,
+} from '../../validators/validators';
 import './LoginPage.css';
+
+const STEPS = ['Enter Email', 'Verify OTP', 'Reset Password'];
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function ResetPasswordPage() {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // step 1: verify PIN -> step 2: set new password
-  const [step, setStep] = useState('verify');
+  const [step, setStep] = useState('verify'); // 'verify' | 'password'
   const [email, setEmail] = useState('');
-  const [pin, setPin] = useState('');
+  const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,69 +33,93 @@ export function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
+  const [otpVersion, setOtpVersion] = useState(0);
+  const redirectTimer = useRef(null);
 
   useEffect(() => {
-    // Referrer-Policy: no-referrer protection on reset-password page
     const meta = document.createElement('meta');
     meta.name = 'referrer';
     meta.content = 'no-referrer';
     document.head.appendChild(meta);
-
     return () => {
-      if (meta.parentNode) {
-        meta.parentNode.removeChild(meta);
-      }
+      if (meta.parentNode) meta.parentNode.removeChild(meta);
     };
   }, []);
 
   useEffect(() => {
-    // Extract the registered email from the URL (PIN is delivered out-of-band via email/SMS)
     const params = new URLSearchParams(location.search);
     const emailParam = params.get('email');
-    if (emailParam) {
-      setEmail(emailParam);
-    }
+    if (emailParam) setEmail(emailParam);
   }, [location.search]);
 
-  // STEP 1: verify the 6-digit PIN first; only on success advance to the password form
-  const handleVerifyPin = async (e) => {
-    e.preventDefault();
+  // Resend cooldown countdown.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((prev) => (prev > 0 ? prev - 1 : 0)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  useEffect(() => () => clearTimeout(redirectTimer.current), []);
+
+  // STEP 2: verify the 6-digit OTP.
+  const handleVerify = async (e) => {
+    e?.preventDefault();
     setErrorMessage(null);
-
-    const cleanEmail = email.trim();
-    const cleanPin = pin.trim();
-
-    if (!cleanEmail) {
-      setErrorMessage('Please enter your registered email address.');
+    if (!isValidEmail(email)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
-    if (!/^\d{6}$/.test(cleanPin)) {
-      setErrorMessage('Verification PIN must be exactly 6 digits.');
+    if (!/^\d{6}$/.test(otp)) {
+      setErrorMessage('Please enter the 6-digit verification code.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await authService.verifyResetPin(cleanEmail, cleanPin);
+      const res = await authService.verifyResetOtp(email.trim(), otp);
       const token = res?.data?.reset_token || res?.reset_token;
       if (!token) throw new Error('Verification did not return a reset token. Please try again.');
       setResetToken(token);
-      setPin('');
+      setOtp('');
       setStep('password');
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to verify the PIN. It may be incorrect or expired.');
+      setErrorMessage(err.message || 'Invalid verification code. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // STEP 2: set the new password using the single-use token (no PIN at this step)
-  const handleSetPassword = async (e) => {
+  // Resend a fresh OTP after the cooldown.
+  const handleResend = async () => {
+    if (cooldown > 0 || loading) return;
+    setErrorMessage(null);
+    setLoading(true);
+    try {
+      const res = await authService.resendResetOtp(email.trim());
+      if (res?.data?.retryAfterSeconds) {
+        setCooldown(res.data.retryAfterSeconds);
+      } else {
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      }
+      setOtp('');
+      setOtpVersion((v) => v + 1);
+    } catch (err) {
+      const retry = err?.status === 429 && Number(err?.data?.retryAfterSeconds);
+      if (retry) setCooldown(retry);
+      else setErrorMessage(err.message || 'Unable to resend the code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 3: set the new password using the single-use token.
+  const handleReset = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!password || password.length < 8) {
-      setErrorMessage('New password must be at least 8 characters in length.');
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setErrorMessage(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -92,25 +127,24 @@ export function ResetPasswordPage() {
       return;
     }
     if (!resetToken) {
-      setErrorMessage('Your verification session expired. Please verify your PIN again.');
+      setErrorMessage('Your verification expired. Please verify your code again.');
       setStep('verify');
       return;
     }
 
     setLoading(true);
     try {
-      await authService.resetPassword({
-        email: email.trim(),
-        resetToken,
-        newPassword: password,
-      });
+      await authService.resetPassword({ email: email.trim(), resetToken, newPassword: password });
       setSuccess(true);
+      redirectTimer.current = setTimeout(() => navigate('/login', { replace: true }), 3000);
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to reset password. Please verify your PIN again.');
+      setErrorMessage(err.message || 'Failed to reset your password. Please verify your code again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const requirements = getPasswordRequirements(password);
 
   return (
     <div className="qf-auth-layout">
@@ -124,75 +158,67 @@ export function ResetPasswordPage() {
             <Logo size={52} />
           </div>
           <h1 className="qf-auth-header__title">
-            {step === 'verify' ? 'Verify Reset PIN' : 'Set New Password'}
+            {step === 'verify' ? 'Verify Your Identity' : 'Set New Password'}
           </h1>
           <p className="qf-auth-header__subtitle">
             {step === 'verify'
-              ? 'Enter your registered email and the 6-digit PIN received in your email.'
-              : 'Your identity is verified. Choose a new password below.'}
+              ? `Enter the 6-digit code sent to ${maskEmail(email)}.`
+              : 'Choose a strong new password for your account.'}
           </p>
         </div>
+
+        <StepIndicator steps={STEPS} currentStep={step === 'verify' ? 1 : 2} />
 
         {success ? (
           <div>
             <Alert variant="success" title="Password Reset Complete">
-              Your password has been successfully updated. You can now log in using your new credentials.
+              Your password has been updated. Redirecting you to the sign-in page...
             </Alert>
             <div style={{ marginTop: 'var(--space-6)' }}>
               <Link to="/login">
-                <Button fullWidth>
-                  Proceed to Sign In
-                </Button>
+                <Button fullWidth>Go to Sign In</Button>
               </Link>
             </div>
           </div>
         ) : step === 'verify' ? (
-          <form onSubmit={handleVerifyPin} noValidate>
+          <form onSubmit={handleVerify} noValidate>
             {errorMessage && (
               <Alert variant="danger" onDismiss={() => setErrorMessage(null)}>
                 {errorMessage}
               </Alert>
             )}
 
-            <Input
-              label="Email Address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="resident@example.com"
-              required
-              disabled={loading}
-              prefix={<Icon name="mail" size={18} />}
-            />
-
             <div style={{ marginBottom: 'var(--space-4)' }}>
-              <Input
-                label="6-Digit Verification PIN"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="e.g. 123456"
-                required
-                disabled={loading}
-                prefix={<Icon name="key" size={18} />}
-              />
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', display: 'block', marginTop: 'var(--space-1)' }}>
-                Check your email inbox for the 6-digit code (valid for 15 minutes).
+              <label className="qf-field__label">6-Digit Verification Code</label>
+              <OtpInput key={otpVersion} value={otp} onChange={setOtp} disabled={loading} autoFocus />
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', display: 'block', marginTop: 'var(--space-2)' }}>
+                The code expires in 5 minutes. Check your email (and SMS, if registered).
               </span>
             </div>
 
-            <Button type="submit" fullWidth loading={loading}>
-              Verify PIN
+            <Button type="submit" fullWidth loading={loading} disabled={loading || otp.length !== 6}>
+              Verify Code
             </Button>
 
-            <div className="qf-auth-footer">
-              <Link to="/forgot-password">Resend 6-digit PIN</Link> &nbsp;•&nbsp; <Link to="/login">Back to sign in</Link>
+            <div className="qf-auth-footer" style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={cooldown > 0 || loading}
+                className="qf-btn qf-btn--link"
+                style={{ background: 'none', border: 'none', cursor: cooldown > 0 ? 'not-allowed' : 'pointer', padding: 0 }}
+              >
+                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+              </button>
+              <div style={{ marginTop: 'var(--space-2)' }}>
+                <Link to="/forgot-password">Use a different email</Link>
+                {' • '}
+                <Link to="/login">Back to sign in</Link>
+              </div>
             </div>
           </form>
         ) : (
-          <form onSubmit={handleSetPassword} noValidate>
+          <form onSubmit={handleReset} noValidate>
             {errorMessage && (
               <Alert variant="danger" onDismiss={() => setErrorMessage(null)}>
                 {errorMessage}
@@ -211,7 +237,7 @@ export function ResetPasswordPage() {
               suffix={
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((s) => !s)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
@@ -225,26 +251,38 @@ export function ResetPasswordPage() {
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter password"
+              placeholder="Re-enter your new password"
               required
               disabled={loading}
               prefix={<Icon name="lock" size={18} />}
             />
 
-            <Button type="submit" fullWidth loading={loading}>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 'var(--space-2) 0 var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
+              {requirements.map((r) => (
+                <li key={r.key} style={{ fontSize: '0.78rem', color: r.met ? 'var(--color-success, #15803d)' : 'var(--color-text-muted, #64748b)' }}>
+                  {r.met ? '✓' : '○'} {r.label}
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              type="submit"
+              fullWidth
+              loading={loading}
+              disabled={loading || password.length < PASSWORD_MIN_LENGTH || password !== confirmPassword}
+            >
               Update Password
             </Button>
 
             <div className="qf-auth-footer">
               <button
                 type="button"
-                onClick={() => { setStep('verify'); setResetToken(null); setErrorMessage(null); }}
+                onClick={() => { setStep('verify'); setResetToken(null); setPassword(''); setConfirmPassword(''); setErrorMessage(null); }}
                 className="qf-btn qf-btn--link"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >
-                Verify a different PIN
+                Verify a different code
               </button>
-              &nbsp;•&nbsp; <Link to="/login">Back to sign in</Link>
             </div>
           </form>
         )}

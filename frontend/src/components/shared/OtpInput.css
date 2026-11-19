@@ -1,0 +1,42 @@
+.qf-otp {
+  display: flex;
+  gap: var(--space-2, 8px);
+  justify-content: center;
+  width: 100%;
+}
+
+.qf-otp__box {
+  width: 100%;
+  max-width: 52px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: var(--font-bold, 700);
+  color: var(--color-text, #1e293b);
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qf-otp__box:focus {
+  border-color: var(--color-primary, #1e40af);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
+}
+
+.qf-otp__box:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 360px) {
+  .qf-otp {
+    gap: 4px;
+  }
+
+  .qf-otp__box {
+    height: 48px;
+    font-size: 1.25rem;
+  }
+}

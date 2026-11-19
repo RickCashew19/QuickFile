@@ -11,6 +11,44 @@ export const ALLOWED_ATTACHMENT_TYPES = [
 export const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 export const MAX_ATTACHMENT_COUNT = 3;
 
+// RFC 5322-compatible email regex (mirrors the backend strict validator).
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+/** Validates an email address for login/registration/password-reset forms. */
+export function isValidEmail(value) {
+  if (typeof value !== 'string') return false;
+  const email = value.trim();
+  if (!email || email.length > 254 || email.includes('..')) return false;
+  const at = email.indexOf('@');
+  if (at <= 0 || at === email.length - 1) return false;
+  if (email.slice(0, at).length > 64) return false;
+  return EMAIL_REGEX.test(email);
+}
+
+export const PASSWORD_MIN_LENGTH = 8;
+
+/** Returns a list of unmet password requirements for inline indicators. */
+export function getPasswordRequirements(password = '') {
+  const value = String(password || '');
+  return [
+    { key: 'length', label: `At least ${PASSWORD_MIN_LENGTH} characters`, met: value.length >= PASSWORD_MIN_LENGTH },
+    { key: 'upper', label: 'One uppercase letter', met: /[A-Z]/.test(value) },
+    { key: 'lower', label: 'One lowercase letter', met: /[a-z]/.test(value) },
+    { key: 'number', label: 'One number', met: /\d/.test(value) },
+  ];
+}
+
+/** Masks an email for display (e.g. r****@example.com) without exposing the full address. */
+export function maskEmail(value = '') {
+  const email = String(value || '').trim();
+  const at = email.indexOf('@');
+  if (at <= 0) return email;
+  const name = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const shown = name.length <= 2 ? `${name[0] || ''}*` : `${name[0]}${'*'.repeat(Math.min(name.length - 2, 6))}${name[name.length - 1]}`;
+  return `${shown}@${domain}`;
+}
+
 /**
  * Validates document request creation / edit form
  */

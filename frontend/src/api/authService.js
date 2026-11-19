@@ -25,10 +25,24 @@ export const authService = {
   },
 
   /**
-   * Step 2: verify the 6-digit PIN and receive a short-lived single-use reset token.
+   * Resend a 6-digit verification code (60s cooldown enforced by the server).
    */
+  async resendResetOtp(email, recaptchaToken = null) {
+    const payload = { email };
+    if (recaptchaToken) payload.recaptcha_token = recaptchaToken;
+    return apiClient.post('/auth/resend-reset-otp', payload);
+  },
+
+  /**
+   * Step 2: verify the 6-digit OTP and receive a short-lived single-use reset token.
+   */
+  async verifyResetOtp(email, otp) {
+    return apiClient.post('/auth/verify-reset-otp', { email, otp });
+  },
+
+  /** Backwards-compatible alias for older clients. */
   async verifyResetPin(email, pin) {
-    return apiClient.post('/auth/verify-reset-pin', { email, pin });
+    return this.verifyResetOtp(email, pin);
   },
 
   /**
