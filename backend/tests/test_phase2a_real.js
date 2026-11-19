@@ -81,6 +81,7 @@ const {
 } = require('../src/models');
 const { API_PREFIX, ROLES } = require('../src/config/constants');
 const { verifyRecaptcha } = require('../src/helpers/recaptcha');
+const { writeCustomEnvVars } = require('../src/helpers/envWriter');
 const notificationService = require('../src/services/notification.service');
 const authService = require('../src/services/auth.service');
 
@@ -239,20 +240,13 @@ async function runTests() {
       { key: 'CUSTOM_SMS_API_TOKEN', val: 'complex # "quotes" and \\ and \\n literal' },
     ];
 
+    // API key VALUES can no longer be written via PATCH /admin/settings -- that path is
+    // reset-only; key writes must go through the provider-verified 2FA flow. The env-writer
+    // round-trip behaviour these cases verify is exercised directly on the helper (the
+    // same helper the 2FA confirm step uses to persist keys).
     for (const { key, val } of roundTripCases) {
-      const updateRes = await makeRequest(
-        server,
-        {
-          path: `${API_PREFIX}/admin/settings`,
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${adminToken}` },
-        },
-        {
-          su_admin_key: DYNAMIC_SU_ADMIN_KEY,
-          settings: { [key]: val },
-        }
-      );
-      assert(updateRes.status === 200, `Saving value failed for: ${val}`);
+      const { modifiedKeys } = writeCustomEnvVars({ [key]: val }, [], TEST_ENV_PATH);
+      assert(modifiedKeys.includes(key), `Helper should report modified key: ${key}`);
 
       // Verify file on disk parsed by dotenv equals expected value
       const parsedEnv = dotenv.parse(fs.readFileSync(TEST_ENV_PATH, 'utf8'));
@@ -266,8 +260,18 @@ async function runTests() {
       console.log(`PASS: Round-trip succeeded for value: ${JSON.stringify(val)}`);
     }
 
-    // Edge case: Values with raw unescaped newlines must be rejected with 400
-    const rawNewlineRes = await makeRequest(
+    // Edge case: Values with raw unescaped newlines must be rejected
+    let newlineRejected = false;
+    try {
+      writeCustomEnvVars({ CUSTOM_SMS_API_TOKEN: "line1\nline2" }, [], TEST_ENV_PATH);
+    } catch (e) {
+      newlineRejected = /raw line breaks|Validation error/i.test(e.message);
+    }
+    assert(newlineRejected, 'Raw newline value must be rejected by the env writer');
+    console.log('PASS: Value with raw newline rejected by env writer');
+
+    // PATCH /admin/settings with key values is rejected (legacy bypass closed)
+    const patchBypassRes = await makeRequest(
       server,
       {
         path: `${API_PREFIX}/admin/settings`,
@@ -276,11 +280,11 @@ async function runTests() {
       },
       {
         su_admin_key: DYNAMIC_SU_ADMIN_KEY,
-        settings: { CUSTOM_SMS_API_TOKEN: "line1\nline2" },
+        settings: { CUSTOM_SMS_API_TOKEN: 'bypass_attempt_2026' },
       }
     );
-    assert(rawNewlineRes.status === 400, `Raw newline should be rejected with 400, got ${rawNewlineRes.status}`);
-    console.log(`PASS: Value with raw newline rejected with 400: "${rawNewlineRes.data?.message}"`);
+    assert(patchBypassRes.status === 400, `PATCH key write must be rejected, got ${patchBypassRes.status}`);
+    console.log('PASS: PATCH /admin/settings rejects key writes with 400 (redirected to 2FA flow)');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------

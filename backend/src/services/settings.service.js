@@ -21,9 +21,12 @@ async function getSettings() {
 }
 
 /**
- * Updates allowlisted CUSTOM_* variables in .env and runtime memory
- * Strict round-trip validation with dotenv.parse before and after writing.
- * process.env is updated ONLY after the file write succeeds.
+ * Resets allowlisted CUSTOM_* variables in .env back to defaults (reset_keys only).
+ *
+ * SECURITY: writing/updating API key VALUES is intentionally NOT allowed here.
+ * All key writes must go through POST /admin/settings/initiate-key-update, which
+ * verifies the credentials with their live provider and requires 2FA confirmation
+ * before activation. This endpoint is the legacy reset path used by the frontend.
  */
 async function updateCustomSettings({ suAdminKey, updates = {}, resetKeys = [], actorUser, ipAddress, userAgent }) {
   if (!suAdminKey) {
@@ -32,7 +35,8 @@ async function updateCustomSettings({ suAdminKey, updates = {}, resetKeys = [], 
     throw err;
   }
 
-  // 1. Verify Super Admin Key (timing-safe + lockout protection)
+  // 1. Verify Super Admin Key (timing-safe + lockout protection) -- before the
+  //    reset-only restriction so lockout behaviour is preserved for wrong keys.
   await verifySuperAdminKey({
     providedKey: suAdminKey,
     actorId: actorUser._id,
@@ -41,7 +45,17 @@ async function updateCustomSettings({ suAdminKey, updates = {}, resetKeys = [], 
     userAgent,
   });
 
-  // 2. Perform safe write to .env
+  // 2. Reject key writes through this legacy endpoint (audit finding #2).
+  //    A reset has no new credential to verify, so reset_keys remain allowed.
+  if (updates && Object.keys(updates).length > 0) {
+    const err = new Error(
+      'API key writes are not allowed here. Use POST /admin/settings/initiate-key-update to verify the key with its provider and confirm via 2FA.'
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 3. Perform safe reset write to .env
   const { modifiedKeys } = writeCustomEnvVars(updates, resetKeys);
 
   // 3. Audit settings modification (never log secrets!)

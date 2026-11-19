@@ -302,7 +302,7 @@ async function runTests() {
     // -------------------------------------------------------------------------
     // TEST 9: Settings Save - Correct Super Admin Key
     // -------------------------------------------------------------------------
-    console.log(`[TEST 9] PATCH ${API_PREFIX}/admin/settings (Correct Key)`);
+    console.log(`[TEST 9] PATCH ${API_PREFIX}/admin/settings (key writes rejected, redirects to 2FA flow)`);
     const correctKeyRes = await makeRequest(
       server,
       {
@@ -318,10 +318,13 @@ async function runTests() {
         },
       }
     );
-    assert.strictEqual(correctKeyRes.status, 200);
-    assert(correctKeyRes.data?.data?.modified_keys.includes('CUSTOM_SMS_API_TOKEN'));
-    assert(correctKeyRes.data?.data?.modified_keys.includes('CUSTOM_GOOGLE_CLIENT_ID'));
-    console.log('PASS: PATCH /api/v1/admin/settings with correct Super Admin Key returned 200 and modified 2 keys.');
+    assert.strictEqual(correctKeyRes.status, 400);
+    assert.match(correctKeyRes.data?.message || '', /initiate-key-update|2FA/i,
+      'Must direct callers to the verified 2FA key-update flow');
+    // Keys must NOT have been written to disk via this bypass path
+    const afterBypassEnv = fs.readFileSync(TEST_ENV_PATH, 'utf8');
+    assert.ok(!afterBypassEnv.includes('valid_custom_sms_token_2026'), 'Key must not be written via PATCH bypass');
+    console.log('PASS: PATCH /api/v1/admin/settings rejects key writes with 400 and redirects to 2FA flow.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
@@ -463,11 +466,11 @@ async function runTests() {
       },
       {
         su_admin_key: DYNAMIC_SU_ADMIN_KEY,
-        settings: { CUSTOM_SMS_API_TOKEN: 'recovered_custom_token' },
+        reset_keys: ['CUSTOM_SMS_API_TOKEN'],
       }
     );
     assert.strictEqual(testCorrectAfterExpiry.status, 200);
-    console.log('PASS: after simulated lockout expiration, correct key returned status 200.');
+    console.log('PASS: after simulated lockout expiration, correct key returned status 200 for a reset.');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------
