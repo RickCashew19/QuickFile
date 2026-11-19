@@ -79,14 +79,14 @@ export function ForgotPasswordPage() {
           </div>
           <h1 className="qf-auth-header__title">Reset Password</h1>
           <p className="qf-auth-header__subtitle">
-            Enter your registered email address to receive a 4-digit verification PIN code to reset your password.
+            Enter your registered email address to receive a 6-digit verification PIN code to reset your password.
           </p>
         </div>
 
         {submitted ? (
           <div>
-            <Alert variant="success" title="4-Digit PIN Code Sent">
-              If <strong>{email}</strong> is registered, a 4-digit verification PIN code has been sent to your email address (valid for 15 minutes).
+            <Alert variant="success" title="6-Digit PIN Code Sent">
+              A 6-digit verification PIN code has been sent to <strong>{email}</strong> (valid for 15 minutes).
             </Alert>
             <div style={{ marginTop: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               <Button
@@ -94,7 +94,7 @@ export function ForgotPasswordPage() {
                 fullWidth
                 onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email)}`)}
               >
-                Enter 4-Digit PIN & Set New Password
+                Verify 6-Digit PIN
               </Button>
               <Link to="/login">
                 <Button variant="secondary" fullWidth>
@@ -129,7 +129,7 @@ export function ForgotPasswordPage() {
             )}
 
             <Button type="submit" fullWidth loading={loading}>
-              Send 4-Digit Reset PIN
+              Send 6-Digit Reset PIN
             </Button>
 
             <div className="qf-auth-footer">

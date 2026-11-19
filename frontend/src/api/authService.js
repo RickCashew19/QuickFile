@@ -24,20 +24,29 @@ export const authService = {
     return apiClient.post('/auth/forgot-password', payload);
   },
 
+  /**
+   * Step 2: verify the 6-digit PIN and receive a short-lived single-use reset token.
+   */
+  async verifyResetPin(email, pin) {
+    return apiClient.post('/auth/verify-reset-pin', { email, pin });
+  },
+
+  /**
+   * Step 3: set a new password with the single-use token from verifyResetPin.
+   * Accepts { email, resetToken, newPassword }.
+   */
   async resetPassword(tokenOrData, newPasswordArg, emailArg) {
     if (typeof tokenOrData === 'object' && tokenOrData !== null) {
-      const { email, pin, token, newPassword, new_password } = tokenOrData;
+      const { email, resetToken, reset_token, newPassword, new_password } = tokenOrData;
       return apiClient.post('/auth/reset-password', {
         email: email || undefined,
-        pin: pin || token,
-        token: token || pin,
+        reset_token: resetToken || reset_token,
         new_password: newPassword || new_password,
       });
     }
     return apiClient.post('/auth/reset-password', {
       email: emailArg || undefined,
-      token: tokenOrData,
-      pin: typeof tokenOrData === 'string' && /^\d{4}$/.test(tokenOrData.trim()) ? tokenOrData.trim() : undefined,
+      reset_token: tokenOrData,
       new_password: newPasswordArg,
     });
   },

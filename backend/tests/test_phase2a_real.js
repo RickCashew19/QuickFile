@@ -451,14 +451,15 @@ async function runTests() {
     // -------------------------------------------------------------------------
     console.log('[TEST 7] Password Reset Flow (Token Hash, Single-use, Expiry)');
 
-    // 7a: Forgot password (non-existent email receives same generic message to prevent enumeration)
+    // 7a: Forgot password explicitly rejects an unregistered email
     const forgotNonExistent = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
       { email: 'nonexistent@example.com' }
     );
-    assert(forgotNonExistent.status === 200, 'Forgot password must return 200 generic message');
-    console.log(`PASS: Generic enumeration-safe response for non-existent email.`);
+    assert(forgotNonExistent.status === 400, 'Unregistered email must be rejected with 400');
+    assert(/not.*found|not.*registered|no active account/i.test(forgotNonExistent.data?.message || ''));
+    console.log(`PASS: Unregistered email explicitly rejected: "${forgotNonExistent.data?.message}"`);
 
     // 7b: Forgot password for existing citizen
     const forgotExisting = await makeRequest(
@@ -487,48 +488,69 @@ async function runTests() {
       used: false,
     });
 
-    // 7c: Reset password with too short password (< 6 chars)
-    const resetShortRes = await makeRequest(
-      server,
-      { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: 'new.citizen@pasig.gov.ph', pin: testPin, new_password: '123' }
-    );
-    assert(resetShortRes.status === 400, 'Short password should be rejected with 400');
-    console.log(`PASS: Short password rejected: "${resetShortRes.data?.message}"`);
-
-    // 7c-2: legacy 4-digit PIN format is no longer accepted
+    // 7c-2: legacy 4-digit PIN format is rejected at the verify step
     const shortPinRes = await makeRequest(
       server,
-      { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: 'new.citizen@pasig.gov.ph', pin: '1234', new_password: 'NewlyUpdatedPassword@2026' }
+      { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
+      { email: 'new.citizen@pasig.gov.ph', pin: '1234' }
     );
     assert(shortPinRes.status === 400, '4-digit PIN should be rejected with 400');
     assert(/6 digits/i.test(shortPinRes.data?.message || ''), 'Should explain the 6-digit PIN requirement');
-    console.log('PASS: Legacy 4-digit PIN format rejected.');
+    console.log('PASS: Legacy 4-digit PIN format rejected at verification step.');
 
-    // 7c-3: a valid PIN cannot reset a different account
-    const crossAccountRes = await makeRequest(
-      server,
-      { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: 'someone.else@pasig.gov.ph', pin: testPin, new_password: 'NewlyUpdatedPassword@2026' }
-    );
-    assert(crossAccountRes.status === 400, 'PIN must be bound to its own email');
-    console.log('PASS: PIN cannot be used against a different account.');
-
-    // 7d: Reset password with valid password
-    const resetSuccessRes = await makeRequest(
+    // 7c-3: reset-password rejects a raw PIN (PIN and password never accepted together)
+    const pinAtResetRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
       { email: 'new.citizen@pasig.gov.ph', pin: testPin, new_password: 'NewlyUpdatedPassword@2026' }
     );
-    assert(resetSuccessRes.status === 200, `Reset password should succeed, got ${resetSuccessRes.status}`);
-    console.log('PASS: Password reset succeeded with valid raw token.');
+    assert(pinAtResetRes.status === 400, 'Reset must reject a raw PIN without a verification token');
+    assert(/verify|token/i.test(pinAtResetRes.data?.message || ''));
+    console.log('PASS: Raw PIN cannot be used at the password-change step.');
 
-    // 7e: Single-use check: reused token must fail
+    // 7c-4: a valid PIN cannot be verified for a different account
+    const crossAccountRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
+      { email: 'someone.else@pasig.gov.ph', pin: testPin }
+    );
+    assert(crossAccountRes.status === 400, 'PIN must be bound to its own email');
+    console.log('PASS: PIN cannot be verified against a different account.');
+
+    // 7d: STEP 2 -- verify PIN first, receive a single-use token
+    const verifyRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
+      { email: 'new.citizen@pasig.gov.ph', pin: testPin }
+    );
+    assert(verifyRes.status === 200, `PIN verification should succeed, got ${verifyRes.status}: ${verifyRes.data?.message}`);
+    const resetToken = verifyRes.data?.data?.reset_token;
+    assert(resetToken && resetToken.length >= 32, 'A single-use reset token must be returned');
+    console.log('PASS: PIN verified; single-use reset token issued.');
+
+    // Short password is rejected at the final step
+    const resetShortRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
+      { email: 'new.citizen@pasig.gov.ph', reset_token: resetToken, new_password: '123' }
+    );
+    assert(resetShortRes.status === 400, 'Short password should be rejected with 400');
+    console.log(`PASS: Short password rejected: "${resetShortRes.data?.message}"`);
+
+    // 7e: STEP 3 -- set new password with the token
+    const resetSuccessRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
+      { email: 'new.citizen@pasig.gov.ph', reset_token: resetToken, new_password: 'NewlyUpdatedPassword@2026' }
+    );
+    assert(resetSuccessRes.status === 200, `Reset password should succeed, got ${resetSuccessRes.status}`);
+    console.log('PASS: Password reset succeeded with verified single-use token.');
+
+    // 7f: Single-use check: reused token must fail
     const resetReuseRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: 'new.citizen@pasig.gov.ph', pin: testPin, new_password: 'AnotherPassword@2026' }
+      { email: 'new.citizen@pasig.gov.ph', reset_token: resetToken, new_password: 'AnotherPassword@2026' }
     );
     assert(resetReuseRes.status === 400, 'Reused reset token must fail with 400');
     console.log(`PASS: Single-use enforced (reused token rejected): "${resetReuseRes.data?.message}"`);

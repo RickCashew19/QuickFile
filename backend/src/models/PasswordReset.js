@@ -24,6 +24,18 @@ const passwordResetSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Set after the 6-digit PIN is verified in the first step of the two-step
+    // reset flow. The hash of a short-lived single-use token is stored here;
+    // the raw token is returned to the client and required to set a new password.
+    verification_token_hash: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    verification_expires_at: {
+      type: Date,
+      default: null,
+    },
     expires_at: {
       type: Date,
       required: true,

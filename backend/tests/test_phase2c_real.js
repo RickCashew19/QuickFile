@@ -900,8 +900,10 @@ async function runTests() {
     registerLimiter.resetKey('::ffff:127.0.0.1');
     registerLimiter.resetKey('::1');
 
-    // 10b: Forgot-password rate limits (3 per hour per email, 5 per hour per IP)
-    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    // 10b: Forgot-password rate limits (3 per hour per email, 5 per hour per IP).
+    // Use a REGISTERED email because the service now rejects unknown addresses.
+    const forgotTestEmail = 'citizen@quickfile.gov.ph';
+    forgotPasswordEmailLimiter.resetKey(forgotTestEmail);
     forgotPasswordIpLimiter.resetKey('127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::1');
@@ -911,7 +913,7 @@ async function runTests() {
       const fpRes = await makeRequest(
         server,
         { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
-        { email: 'targeted.email@quickfile.gov.ph' }
+        { email: forgotTestEmail }
       );
       assert.strictEqual(fpRes.status, 200);
       forgotBodies.push(fpRes.data?.message);
@@ -922,33 +924,34 @@ async function runTests() {
     const fpEmailBlockedRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
-      { email: 'targeted.email@quickfile.gov.ph' }
+      { email: forgotTestEmail }
     );
     assert.strictEqual(fpEmailBlockedRes.status, 429);
     console.log('PASS: 4th forgot-password request for same email returned 429 with identical 200 bodies for attempts 1-3.');
 
-    // Reset keys for clean IP limit test
-    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    // Reset keys for clean IP limit test: reset the per-email limiter each iteration
+    // so only the per-IP limiter accumulates toward its 5-request cap.
     forgotPasswordIpLimiter.resetKey('127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::1');
-
     for (let i = 1; i <= 5; i++) {
+      forgotPasswordEmailLimiter.resetKey(forgotTestEmail);
       const res = await makeRequest(
         server,
         { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
-        { email: `ip.unique.email.${i}@quickfile.gov.ph` }
+        { email: forgotTestEmail }
       );
       assert.strictEqual(res.status, 200);
     }
+    forgotPasswordEmailLimiter.resetKey(forgotTestEmail);
     const fpIpBlockedRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
-      { email: 'ip.unique.email.6@quickfile.gov.ph' }
+      { email: forgotTestEmail }
     );
     assert.strictEqual(fpIpBlockedRes.status, 429);
     console.log('PASS: 6th forgot-password request from same IP returned 429 after 5 successful 200 requests.');
-    forgotPasswordEmailLimiter.resetKey('targeted.email@quickfile.gov.ph');
+    forgotPasswordEmailLimiter.resetKey(forgotTestEmail);
     forgotPasswordIpLimiter.resetKey('127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
     forgotPasswordIpLimiter.resetKey('::1');
@@ -1560,7 +1563,11 @@ async function runTests() {
     assert(hugeFileRes.status === 400, `File over 5 MB must return 400, got ${hugeFileRes.status}`);
     console.log('PASS: request submission with 6 MB file returned status 400 exceeding 5 MB limit.');
 
-    // 20c: forgot-password identical response for known and unknown emails
+    // 20c: forgot-password verifies the email is a registered account
+    forgotPasswordEmailLimiter.resetKey('citizen@quickfile.gov.ph');
+    forgotPasswordIpLimiter.resetKey('127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::ffff:127.0.0.1');
+    forgotPasswordIpLimiter.resetKey('::1');
     const forgotKnownRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
@@ -1571,10 +1578,10 @@ async function runTests() {
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
       { email: 'nonexistent.user.9999@quickfile.gov.ph' }
     );
-    assert(forgotKnownRes.status === 200, 'Known email returns 200');
-    assert(forgotUnknownRes.status === 200, 'Unknown email returns 200');
-    assert(forgotKnownRes.data?.message === forgotUnknownRes.data?.message, 'Messages must be identical for user enumeration safety');
-    console.log('PASS: forgot-password returned status 200 with identical message for both registered and unregistered email addresses.');
+    assert(forgotKnownRes.status === 200, 'Registered email returns 200');
+    assert(forgotUnknownRes.status === 400, 'Unregistered email returns 400');
+    assert(/not.*found|not.*registered|no active account/i.test(forgotUnknownRes.data?.message || ''));
+    console.log('PASS: forgot-password accepted registered email and rejected unregistered email.');
 
     // 20d: Regex-special search characters
     const regexSearchRes = await makeRequest(server, {

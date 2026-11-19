@@ -11,8 +11,11 @@ import './LoginPage.css';
 export function ResetPasswordPage() {
   const location = useLocation();
 
+  // step 1: verify PIN -> step 2: set new password
+  const [step, setStep] = useState('verify');
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
+  const [resetToken, setResetToken] = useState(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,24 +38,16 @@ export function ResetPasswordPage() {
   }, []);
 
   useEffect(() => {
-    // Extract query parameters from URL
+    // Extract the registered email from the URL (PIN is delivered out-of-band via email/SMS)
     const params = new URLSearchParams(location.search);
     const emailParam = params.get('email');
-    const tokenParam = params.get('token');
-
     if (emailParam) {
       setEmail(emailParam);
     }
-
-    if (tokenParam) {
-      // If a token was provided in URL, prefill the PIN (server accepts 6 digits only)
-      setPin(tokenParam);
-      // Immediately clean the URL to protect against history leakage
-      window.history.replaceState({}, document.title, window.location.pathname + (emailParam ? `?email=${encodeURIComponent(emailParam)}` : ''));
-    }
   }, [location.search]);
 
-  const handleSubmit = async (e) => {
+  // STEP 1: verify the 6-digit PIN first; only on success advance to the password form
+  const handleVerifyPin = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -63,38 +58,55 @@ export function ResetPasswordPage() {
       setErrorMessage('Please enter your registered email address.');
       return;
     }
-
-    if (!cleanPin) {
-      setErrorMessage('Please enter the 6-digit verification PIN sent to your email.');
-      return;
-    }
-
     if (!/^\d{6}$/.test(cleanPin)) {
       setErrorMessage('Verification PIN must be exactly 6 digits.');
       return;
     }
 
+    setLoading(true);
+    try {
+      const res = await authService.verifyResetPin(cleanEmail, cleanPin);
+      const token = res?.data?.reset_token || res?.reset_token;
+      if (!token) throw new Error('Verification did not return a reset token. Please try again.');
+      setResetToken(token);
+      setPin('');
+      setStep('password');
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to verify the PIN. It may be incorrect or expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 2: set the new password using the single-use token (no PIN at this step)
+  const handleSetPassword = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
     if (!password || password.length < 8) {
       setErrorMessage('New password must be at least 8 characters in length.');
       return;
     }
-
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match.');
+      return;
+    }
+    if (!resetToken) {
+      setErrorMessage('Your verification session expired. Please verify your PIN again.');
+      setStep('verify');
       return;
     }
 
     setLoading(true);
     try {
       await authService.resetPassword({
-        email: cleanEmail,
-        pin: cleanPin,
-        token: cleanPin,
+        email: email.trim(),
+        resetToken,
         newPassword: password,
       });
       setSuccess(true);
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to reset password. The PIN code may have expired or is incorrect.');
+      setErrorMessage(err.message || 'Failed to reset password. Please verify your PIN again.');
     } finally {
       setLoading(false);
     }
@@ -111,9 +123,13 @@ export function ResetPasswordPage() {
           <div className="qf-auth-header__logo" aria-hidden="true">
             <Logo size={52} />
           </div>
-          <h1 className="qf-auth-header__title">Set New Password</h1>
+          <h1 className="qf-auth-header__title">
+            {step === 'verify' ? 'Verify Reset PIN' : 'Set New Password'}
+          </h1>
           <p className="qf-auth-header__subtitle">
-            Enter your email, the 6-digit PIN code received in your email, and your new password
+            {step === 'verify'
+              ? 'Enter your registered email and the 6-digit PIN received in your email.'
+              : 'Your identity is verified. Choose a new password below.'}
           </p>
         </div>
 
@@ -130,8 +146,8 @@ export function ResetPasswordPage() {
               </Link>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} noValidate>
+        ) : step === 'verify' ? (
+          <form onSubmit={handleVerifyPin} noValidate>
             {errorMessage && (
               <Alert variant="danger" onDismiss={() => setErrorMessage(null)}>
                 {errorMessage}
@@ -157,7 +173,7 @@ export function ResetPasswordPage() {
                 maxLength={6}
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="e.g. 1234"
+                placeholder="e.g. 123456"
                 required
                 disabled={loading}
                 prefix={<Icon name="key" size={18} />}
@@ -166,6 +182,22 @@ export function ResetPasswordPage() {
                 Check your email inbox for the 6-digit code (valid for 15 minutes).
               </span>
             </div>
+
+            <Button type="submit" fullWidth loading={loading}>
+              Verify PIN
+            </Button>
+
+            <div className="qf-auth-footer">
+              <Link to="/forgot-password">Resend 6-digit PIN</Link> &nbsp;•&nbsp; <Link to="/login">Back to sign in</Link>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSetPassword} noValidate>
+            {errorMessage && (
+              <Alert variant="danger" onDismiss={() => setErrorMessage(null)}>
+                {errorMessage}
+              </Alert>
+            )}
 
             <Input
               label="New Password"
@@ -204,7 +236,15 @@ export function ResetPasswordPage() {
             </Button>
 
             <div className="qf-auth-footer">
-              <Link to="/forgot-password">Resend 4-digit PIN</Link> &nbsp;•&nbsp; <Link to="/login">Back to sign in</Link>
+              <button
+                type="button"
+                onClick={() => { setStep('verify'); setResetToken(null); setErrorMessage(null); }}
+                className="qf-btn qf-btn--link"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                Verify a different PIN
+              </button>
+              &nbsp;•&nbsp; <Link to="/login">Back to sign in</Link>
             </div>
           </form>
         )}

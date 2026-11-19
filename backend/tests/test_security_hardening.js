@@ -186,17 +186,23 @@ async function runTests() {
     await PasswordReset.create({
       email: user.email,
       user_id: user._id,
-      pin_hash: crypto.createHash('sha256').update(pin).digest('hex'),
-      pin: crypto.createHash('sha256').update(pin).digest('hex'),
-      token_hash: crypto.createHash('sha256').update(pin).digest('hex'),
+      token_hash: crypto.createHash('sha256').update(pin + ':' + user.email).digest('hex'),
       expires_at: new Date(Date.now() + 15 * 60 * 1000),
       used: false,
       attempts: 0,
     });
+    // Verify the PIN first to obtain a single-use token
+    const verifyRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
+      { email: user.email, pin }
+    );
+    assert.strictEqual(verifyRes.status, 200, 'PIN verification should succeed');
+    const resetToken = verifyRes.data?.data?.reset_token;
     const shortResetRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: user.email, pin, new_password: 'Short1!' }
+      { email: user.email, reset_token: resetToken, new_password: 'Short1!' }
     );
     assert.strictEqual(shortResetRes.status, 400);
     assert(/8 and 72/.test(shortResetRes.data?.message || ''), 'reset rejection should mention 8 characters');

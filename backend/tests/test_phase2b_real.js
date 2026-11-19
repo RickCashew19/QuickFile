@@ -405,11 +405,20 @@ async function runTests() {
     // Short delay to ensure timestamp separation
     await new Promise((r) => setTimeout(r, 1100));
 
-    // Reset password
+    // STEP 2: verify the PIN first, receive a single-use token
+    const verifyRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
+      { email: citizenUser.email, pin: testPin }
+    );
+    assert(verifyRes.status === 200, 'PIN verification should succeed');
+    const resetToken = verifyRes.data?.data?.reset_token;
+
+    // STEP 3: set the new password with the single-use token
     const resetRes = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/reset-password`, method: 'POST' },
-      { email: citizenUser.email, pin: testPin, new_password: 'UpdatedCitizenPassword@2026' }
+      { email: citizenUser.email, reset_token: resetToken, new_password: 'UpdatedCitizenPassword@2026' }
     );
     assert(resetRes.status === 200, 'Password reset should succeed');
 

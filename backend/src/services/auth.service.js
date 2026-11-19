@@ -401,153 +401,133 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
 }
 
 /**
- * Sends a password reset email with a 6-digit PIN code
- * Prevents timing attacks and account enumeration by not awaiting the email send
+ * Sends a password reset email with a 6-digit PIN code.
+ * Verifies the email belongs to a real active account first; callers surface
+ * an explicit "email not registered" error when it does not (per product requirement).
  */
 async function requestPasswordReset(email, ipAddress, userAgent) {
   const normalizedEmail = (email || '').toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
 
-  if (user && user.is_active) {
-    // 1. Invalidate previous unused reset tokens for this user
-    await PasswordReset.updateMany({ user_id: user._id, used: false }, { used: true });
-
-    // 2. Generate a 6-digit numeric verification PIN code (1,000,000 possibilities)
-    const pin = crypto.randomInt(100000, 1000000).toString();
-    const tokenHash = crypto.createHash('sha256').update(pin + ':' + user.email).digest('hex');
-
-    // 3. Store hash with 15-minute expiration and 0 initial attempts
-    await PasswordReset.create({
-      user_id: user._id,
-      email: user.email,
-      token_hash: tokenHash,
-      attempts: 0,
-      expires_at: new Date(Date.now() + 15 * 60 * 1000),
-      used: false,
-    });
-
-    const safeFullName = escapeHtml(user.full_name);
-    const resetPageUrl = `${config.publicAppUrl.replace(/\/$/, '')}/reset-password?email=${encodeURIComponent(user.email)}`;
-    const safeResetPageUrl = escapeHtml(resetPageUrl);
-
-    // 4. Send email with 6-digit PIN code via SMTP (isTransactional: true guarantees send even if general notifications are toggled off)
-    sendMail({
-      to: user.email,
-      subject: `QuickFile - Password Reset PIN Code (${pin})`,
-      text: `Hello ${user.full_name},\n\nYou requested a password reset for your QuickFile Barangay Portal account.\n\nYour 6-digit verification PIN code is: ${pin}\n\nThis code will expire in 15 minutes. Enter this code on the password reset page along with your new password.\n\nReset page: ${resetPageUrl}\n\nIf you did not request this, please ignore this email.`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
-          <h2 style="color: #1e40af; margin-top: 0; font-size: 20px;">Password Reset Verification</h2>
-          <p style="color: #334155; font-size: 15px;">Hello <strong>${safeFullName}</strong>,</p>
-          <p style="color: #334155; font-size: 15px;">You requested to reset your password for the QuickFile Barangay Portal.</p>
-          <p style="color: #334155; font-size: 15px; margin-bottom: 8px;">Your 6-digit verification PIN code is:</p>
-          <div style="background: #eff6ff; border: 2px dashed #3b82f6; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
-            <span style="font-size: 38px; font-weight: 800; letter-spacing: 12px; color: #1d4ed8; font-family: monospace;">${pin}</span>
-          </div>
-          <p style="color: #64748b; font-size: 13px;">This code will expire in <strong>15 minutes</strong>. Enter this 6-digit code on the reset page along with your new password.</p>
-          <p style="color: #64748b; font-size: 13px;"><a href="${safeResetPageUrl}">Open the password reset page</a></p>
-          <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">QuickFile Barangay Document Request & Management System</p>
-        </div>
-      `,
-      isTransactional: true,
-    }).catch((err) => {
-      console.warn(`[Mailer] Warning: Failed to send password reset email to ${user.email}:`, err.message);
-    });
-
-    // 5. Also send 6-digit PIN via SMS if citizen has registered mobile number
-    (async () => {
-      try {
-        const citizenProfile = await CitizenProfile.findOne({ user_id: user._id });
-        if (citizenProfile && citizenProfile.contact_number) {
-          await sendSms({
-            recipient: citizenProfile.contact_number,
-            message: `QuickFile: Your password reset PIN code is ${pin}. Valid for 15 minutes. Do not share this code.`,
-            isTransactional: true,
-          });
-        }
-      } catch (smsErr) {
-        console.warn(`[SMS] Failed to send reset SMS to ${user.email}:`, smsErr.message);
-      }
-    })();
-
-    await AuditLog.create({
-      user_id: user._id,
-      actor_name: user.full_name,
-      action: 'PASSWORD_RESET_REQUEST',
-      module: 'AUTH',
-      target_id: user._id.toString(),
-      target_type: 'User',
-      details: { email: user.email },
-      ip_address: ipAddress || '',
-      user_agent: userAgent || '',
-    });
+  if (!user || !user.is_active) {
+    const err = new Error('No active account found for this email address.');
+    err.statusCode = 400;
+    err.code = 'EMAIL_NOT_REGISTERED';
+    throw err;
   }
 
-  // Generic message prevents account enumeration
+  // 1. Invalidate previous unused reset tokens for this user
+  await PasswordReset.updateMany({ user_id: user._id, used: false }, { used: true });
+
+  // 2. Generate a 6-digit numeric verification PIN code (1,000,000 possibilities)
+  const pin = crypto.randomInt(100000, 1000000).toString();
+  const tokenHash = crypto.createHash('sha256').update(pin + ':' + user.email).digest('hex');
+
+  // 3. Store hash with 15-minute expiration and 0 initial attempts
+  await PasswordReset.create({
+    user_id: user._id,
+    email: user.email,
+    token_hash: tokenHash,
+    attempts: 0,
+    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+    used: false,
+  });
+
+  const safeFullName = escapeHtml(user.full_name);
+  const resetPageUrl = `${config.publicAppUrl.replace(/\/$/, '')}/reset-password?email=${encodeURIComponent(user.email)}`;
+  const safeResetPageUrl = escapeHtml(resetPageUrl);
+
+  // 4. Send email with 6-digit PIN code via SMTP (isTransactional: true guarantees send even if general notifications are toggled off)
+  sendMail({
+    to: user.email,
+    subject: `QuickFile - Password Reset PIN Code (${pin})`,
+    text: `Hello ${user.full_name},\n\nYou requested a password reset for your QuickFile Barangay Portal account.\n\nYour 6-digit verification PIN code is: ${pin}\n\nThis code will expire in 15 minutes. First enter this PIN on the password reset page to verify your identity, then you will be able to set a new password.\n\nReset page: ${resetPageUrl}\n\nIf you did not request this, please ignore this email.`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+        <h2 style="color: #1e40af; margin-top: 0; font-size: 20px;">Password Reset Verification</h2>
+        <p style="color: #334155; font-size: 15px;">Hello <strong>${safeFullName}</strong>,</p>
+        <p style="color: #334155; font-size: 15px;">You requested to reset your password for the QuickFile Barangay Portal.</p>
+        <p style="color: #334155; font-size: 15px; margin-bottom: 8px;">Your 6-digit verification PIN code is:</p>
+        <div style="background: #eff6ff; border: 2px dashed #3b82f6; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
+          <span style="font-size: 38px; font-weight: 800; letter-spacing: 12px; color: #1d4ed8; font-family: monospace;">${pin}</span>
+        </div>
+        <p style="color: #64748b; font-size: 13px;">This code will expire in <strong>15 minutes</strong>. Enter this 6-digit code on the reset page first to verify your identity, then you will be asked to set a new password.</p>
+        <p style="color: #64748b; font-size: 13px;"><a href="${safeResetPageUrl}">Open the password reset page</a></p>
+        <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">QuickFile Barangay Document Request & Management System</p>
+      </div>
+    `,
+    isTransactional: true,
+  }).catch((err) => {
+    console.warn(`[Mailer] Warning: Failed to send password reset email to ${user.email}:`, err.message);
+  });
+
+  // 5. Also send 6-digit PIN via SMS if citizen has registered mobile number
+  (async () => {
+    try {
+      const citizenProfile = await CitizenProfile.findOne({ user_id: user._id });
+      if (citizenProfile && citizenProfile.contact_number) {
+        await sendSms({
+          recipient: citizenProfile.contact_number,
+          message: `QuickFile: Your password reset PIN code is ${pin}. Valid for 15 minutes. Do not share this code.`,
+          isTransactional: true,
+        });
+      }
+    } catch (smsErr) {
+      console.warn(`[SMS] Failed to send reset SMS to ${user.email}:`, smsErr.message);
+    }
+  })();
+
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'PASSWORD_RESET_REQUEST',
+    module: 'AUTH',
+    target_id: user._id.toString(),
+    target_type: 'User',
+    details: { email: user.email },
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+  });
+
   return {
-    message: 'If the email address is registered, instructions and your 6-digit verification PIN code have been sent.',
+    message: 'A 6-digit verification PIN has been sent to your email address.',
   };
 }
 
 /**
- * Resets user password using a verified 6-digit PIN bound to the account email
+ * STEP 2 of the two-step reset flow: verify the 6-digit PIN bound to the account email.
+ * On success returns a short-lived (10 min) single-use reset token. The PIN and the
+ * new password are NEVER accepted in the same request.
  */
-async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, userAgentArg) {
-  let email = '';
-  let code = '';
-  let newPassword = '';
-  let ipAddress = '';
-  let userAgent = '';
+async function verifyResetPin(resetData, ipAddress = '', userAgent = '') {
+  const email = String(resetData?.email || '').toLowerCase().trim();
+  const code = String(resetData?.pin || resetData?.token || '').trim();
 
-  if (typeof resetData === 'object' && resetData !== null) {
-    email = resetData.email || '';
-    code = resetData.pin || resetData.token || '';
-    newPassword = resetData.new_password || resetData.password || newPasswordArg || '';
-    ipAddress = ipAddressArg || resetData.ip || '';
-    userAgent = userAgentArg || resetData.userAgent || '';
-  } else {
-    code = resetData || '';
-    newPassword = newPasswordArg || '';
-    ipAddress = ipAddressArg || '';
-    userAgent = userAgentArg || '';
+  if (!email) {
+    const err = new Error('Your registered email address is required.');
+    err.statusCode = 400;
+    throw err;
   }
-
-  code = String(code || '').trim();
-  newPassword = String(newPassword || '');
-  const normalizedEmail = String(email || '').toLowerCase().trim();
-
-  if (!normalizedEmail) {
-    const error = new Error('Your registered email address is required to reset your password.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Only account-bound 6-digit PINs are accepted. Unsalted/raw token lookups were
-  // removed because they allowed cross-account resets and bypassed attempt tracking.
   if (!/^\d{6}$/.test(code)) {
-    const error = new Error('Verification PIN must be exactly 6 digits.');
-    error.statusCode = 400;
-    throw error;
+    const err = new Error('Verification PIN must be exactly 6 digits.');
+    err.statusCode = 400;
+    throw err;
   }
 
-  if (!newPassword) {
-    const error = new Error('A new password is required.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (newPassword.length < 8 || newPassword.length > 72) {
-    const error = new Error('Validation error: Password must be between 8 and 72 characters.');
-    error.statusCode = 400;
-    throw error;
+  const user = await User.findOne({ email });
+  if (!user || !user.is_active) {
+    const err = new Error('No active account found for this email address.');
+    err.statusCode = 400;
+    err.code = 'EMAIL_NOT_REGISTERED';
+    throw err;
   }
 
   const now = new Date();
-  const saltedHash = crypto.createHash('sha256').update(code + ':' + normalizedEmail).digest('hex');
+  const saltedHash = crypto.createHash('sha256').update(code + ':' + email).digest('hex');
   const resetRecord = await PasswordReset.findOne({
-    email: normalizedEmail,
+    email,
     token_hash: saltedHash,
     used: false,
     expires_at: { $gt: now },
@@ -556,7 +536,7 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
   if (!resetRecord) {
     // Track failed attempts on the latest still-valid PIN for this email.
     const pendingRecord = await PasswordReset.findOne({
-      email: normalizedEmail,
+      email,
       used: false,
       expires_at: { $gt: now },
     }).sort({ created_at: -1 });
@@ -577,12 +557,111 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
       throw err;
     }
 
-    const error = new Error('Invalid or expired password reset PIN code.');
+    const err = new Error('Invalid or expired password reset PIN code.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // PIN verified -> issue a single-use reset token (hash stored, raw returned).
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  resetRecord.verification_token_hash = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+  resetRecord.verification_expires_at = new Date(Date.now() + 10 * 60 * 1000);
+  await resetRecord.save();
+
+  await AuditLog.create({
+    user_id: user._id,
+    actor_name: user.full_name,
+    action: 'PASSWORD_RESET_PIN_VERIFIED',
+    module: 'AUTH',
+    target_id: user._id.toString(),
+    target_type: 'User',
+    details: { email: user.email },
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+  });
+
+  return {
+    reset_token: resetToken,
+    email: user.email,
+    expires_in: 600,
+  };
+}
+
+/**
+ * Resets user password using the short-lived single-use token returned by verifyResetPin.
+ * PINs are intentionally NOT accepted here -- verification must happen as its own step.
+ */
+async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, userAgentArg) {
+  let email = '';
+  let code = '';
+  let newPassword = '';
+  let ipAddress = '';
+  let userAgent = '';
+
+  if (typeof resetData === 'object' && resetData !== null) {
+    email = resetData.email || '';
+    code = resetData.reset_token || resetData.resetToken || '';
+    newPassword = resetData.new_password || resetData.password || newPasswordArg || '';
+    ipAddress = ipAddressArg || resetData.ip || '';
+    userAgent = userAgentArg || resetData.userAgent || '';
+  } else {
+    // Legacy string form treated as the single-use token only (never a PIN).
+    code = resetData || '';
+    newPassword = newPasswordArg || '';
+    ipAddress = ipAddressArg || '';
+    userAgent = userAgentArg || '';
+  }
+
+  code = String(code || '').trim();
+  newPassword = String(newPassword || '');
+  const normalizedEmail = String(email || '').toLowerCase().trim();
+
+  if (!normalizedEmail) {
+    const error = new Error('Your registered email address is required to reset your password.');
     error.statusCode = 400;
     throw error;
   }
 
-  // Locate user and confirm the token still belongs to this account.
+  if (!code || code.length < 32) {
+    const error = new Error(
+      'A valid verification token is required. Verify your 6-digit PIN first.'
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!newPassword) {
+    const error = new Error('A new password is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 8 || newPassword.length > 72) {
+    const error = new Error('Validation error: Password must be between 8 and 72 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const now = new Date();
+  const tokenHash = crypto.createHash('sha256').update(code).digest('hex');
+  const resetRecord = await PasswordReset.findOne({
+    email: normalizedEmail,
+    verification_token_hash: tokenHash,
+    verification_expires_at: { $gt: now },
+    expires_at: { $gt: now },
+    used: false,
+  });
+
+  if (!resetRecord) {
+    const error = new Error('Invalid or expired verification token. Please verify your PIN again.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Locate user and confirm the record still belongs to this account.
   const user = await User.findById(resetRecord.user_id);
   if (!user || !user.is_active) {
     const error = new Error('User account not found or deactivated.');
@@ -590,12 +669,12 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
     throw error;
   }
   if (user.email.toLowerCase().trim() !== normalizedEmail) {
-    const error = new Error('Invalid or expired password reset PIN code.');
+    const error = new Error('Invalid or expired verification token.');
     error.statusCode = 400;
     throw error;
   }
 
-  // 4-7. Password change, token invalidation and audit log commit atomically.
+  // Password change, token invalidation and audit log commit atomically.
   const passwordHash = await User.hashPassword(newPassword);
   // Revoke every refresh session as well - access tokens are invalidated by
   // password_changed_at, refresh sessions are revoked outright.
@@ -684,6 +763,7 @@ module.exports = {
   loginUser,
   loginWithGoogle,
   requestPasswordReset,
+  verifyResetPin,
   resetPasswordWithToken,
   logoutUser,
   getUserProfile,

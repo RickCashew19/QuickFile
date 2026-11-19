@@ -30,7 +30,12 @@ router.post(
   authController.forgotPassword
 );
 
-// Reset Password: 10 per hour per IP (counts every request)
+// Verify reset PIN: step 2 -- validates the 6-digit PIN and issues a short-lived
+// single-use reset token. 10 per hour per IP (counts every request).
+router.post('/verify-reset-pin', resetPasswordLimiter, authController.verifyResetPin);
+
+// Reset Password: step 3 -- sets a new password using the single-use token.
+// The 6-digit PIN is never accepted here. 10 per hour per IP (counts every request).
 router.post('/reset-password', resetPasswordLimiter, authController.resetPassword);
 
 // Refresh: rotate the httpOnly refresh cookie and issue a fresh access token.

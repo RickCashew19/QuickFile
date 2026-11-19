@@ -190,25 +190,54 @@ const forgotPassword = asyncHandler(async (req, res) => {
 });
 
 /**
- * Handle password reset execution
+ * STEP 2: Verify the 6-digit PIN first and receive a short-lived single-use reset token.
+ * POST /api/v1/auth/verify-reset-pin
+ */
+const verifyResetPin = asyncHandler(async (req, res) => {
+  const { email, pin } = req.body;
+  const code = pin || req.body.token;
+
+  if (!email || typeof email !== 'string' || !code || typeof code !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Email and 6-digit PIN must be valid strings.',
+      data: null,
+    });
+  }
+
+  const result = await authService.verifyResetPin(
+    { email, pin: code },
+    req.ip,
+    req.get('User-Agent')
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: 'PIN verified. You may now set a new password.',
+    data: result,
+  });
+});
+
+/**
+ * STEP 3: Set a new password using the single-use token from verify-reset-pin.
+ * The PIN is intentionally never accepted at this step.
  * POST /api/v1/auth/reset-password
  */
 const resetPassword = asyncHandler(async (req, res) => {
-  const { email, pin } = req.body;
-  const token = req.body.token;
-  const code = pin || token;
+  const { email } = req.body;
+  const resetToken = req.body.reset_token || req.body.resetToken;
   const newPassword = req.body.new_password || req.body.password;
 
-  if (!code || !newPassword || typeof code !== 'string' || typeof newPassword !== 'string') {
+  if (!resetToken || !newPassword || typeof resetToken !== 'string' || typeof newPassword !== 'string') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Verification PIN/token and new password must be valid strings.',
+      message: 'Validation error: A verification token and new password must be valid strings. Verify your 6-digit PIN first.',
       data: null,
     });
   }
 
   const result = await authService.resetPasswordWithToken(
-    { email, pin: code, token: code, new_password: newPassword },
+    { email, reset_token: resetToken, new_password: newPassword },
     req.ip,
     req.get('User-Agent')
   );
@@ -292,6 +321,7 @@ module.exports = {
   refresh,
   googleLogin,
   forgotPassword,
+  verifyResetPin,
   resetPassword,
   getMe,
   logout,
