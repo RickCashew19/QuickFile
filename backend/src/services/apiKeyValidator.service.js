@@ -1,6 +1,32 @@
 const crypto = require('crypto');
 const net = require('net');
 const nodemailer = require('nodemailer');
+const { config } = require('../config');
+
+// Pluggable provider HTTP client for testing / dependency injection without NODE_ENV branching.
+// Mirrors the setMailTransport pattern in helpers/mailer.js.
+let customProviderFetch = null;
+
+function setProviderFetch(providerFetch) {
+  customProviderFetch = providerFetch;
+}
+
+/**
+ * Performs an outbound provider probe with a hard 4s timeout.
+ * Fails closed: callers treat any thrown error as an unverifiable credential.
+ */
+async function providerFetch(url, options = {}) {
+  if (customProviderFetch) {
+    return customProviderFetch(url, options);
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 /**
  * Validates API keys and integration credentials against their respective providers.
@@ -160,31 +186,65 @@ async function validateGoogleCredentials({ clientId, clientSecret }) {
     }
   }
 
-  // Live provider probe: Check Google OpenID configuration
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch('https://accounts.google.com/.well-known/openid-configuration', {
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+  // A client secret is required to authenticate the client with Google's token endpoint.
+  // Fall back to the currently configured secret so re-validating an unchanged stored ID works.
+  const resolvedSecret =
+    clientSecret !== undefined && clientSecret !== null && String(clientSecret).trim()
+      ? String(clientSecret).trim()
+      : config.google.resolveClientSecret().value;
+  if (!resolvedSecret) {
+    return { valid: false, message: 'Google Client Secret is required to verify credentials with Google.' };
+  }
 
-    if (!res.ok) {
-      return {
-        valid: false,
-        message: `Google Identity endpoints returned HTTP ${res.status}. Could not verify provider reachability.`,
-      };
-    }
+  // Live verification with Google's token endpoint (RFC 6749 §3.2 / §5.2).
+  // We authenticate the CLIENT using the submitted credentials with a deliberately
+  // invalid refresh token. Google authenticates the client before evaluating the grant:
+  //   - invalid_client (401)     -> client_id / client_secret are WRONG   -> reject
+  //   - invalid_grant (400)      -> client authenticated OK, dummy token rejected -> credentials real
+  //   - unauthorized_client (400)-> client authenticated OK but disallowed grant        -> credentials real
+  // Network unreachable / any other response -> fail closed (cannot verify).
+  let status = 0;
+  let errorCode = '';
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: 'quickfile-credential-probe-invalid-token',
+      client_id: trimmedId,
+      client_secret: resolvedSecret,
+    });
+    const res = await providerFetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    status = res.status;
+    const data = await res.json();
+    errorCode = typeof data?.error === 'string' ? data.error : '';
   } catch (err) {
-    // If external internet is unreachable in test/airgapped environment, pass if format is valid
-    if (err.name !== 'AbortError' && !err.message.includes('fetch')) {
-      return { valid: false, message: 'Failed to connect to Google OAuth service: ' + err.message };
-    }
+    return {
+      valid: false,
+      message: 'Could not reach Google to verify the OAuth credentials. Please try again.',
+    };
+  }
+
+  const clientAuthenticated = status === 200 || errorCode === 'invalid_grant' || errorCode === 'unauthorized_client';
+  if (clientAuthenticated) {
+    return {
+      valid: true,
+      message: 'Google Client ID and Secret verified with Google token endpoint.',
+    };
+  }
+
+  if (errorCode === 'invalid_client' || status === 401) {
+    return {
+      valid: false,
+      message: 'Google rejected the Client ID/Secret (invalid_client). Please verify both values.',
+    };
   }
 
   return {
-    valid: true,
-    message: 'Google OAuth Client ID & Secret successfully validated with Google Identity standards.',
+    valid: false,
+    message: `Could not verify Google OAuth credentials with Google (HTTP ${status || 'unreachable'}).`,
   };
 }
 
@@ -205,20 +265,17 @@ async function validateSmsCredentials({ gatewayUrl, apiToken }) {
     return { valid: false, message: `PhilSMS Gateway URL rejected: ${err.message}` };
   }
 
-  // Live provider check with 4-second timeout
+  // Live provider check with 4-second timeout. Fail closed: only an explicit
+  // successful provider response proves the token works.
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
     const probeUrl = `${baseUrl}/balance`;
-    const res = await fetch(probeUrl, {
+    const res = await providerFetch(probeUrl, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${apiToken.trim()}`,
         Accept: 'application/json',
       },
-      signal: controller.signal,
     });
-    clearTimeout(timeout);
 
     if (res.status === 401 || res.status === 403) {
       return {
@@ -226,16 +283,22 @@ async function validateSmsCredentials({ gatewayUrl, apiToken }) {
         message: 'PhilSMS provider rejected API token: Unauthorized (401/403). Please verify your token.',
       };
     }
-  } catch (err) {
-    // Graceful handling of network timeouts or offline environments
-    if (err.name === 'AbortError') {
-      return { valid: false, message: 'PhilSMS gateway probe timed out. Please verify Gateway URL.' };
+    if (!res.ok) {
+      return {
+        valid: false,
+        message: `PhilSMS gateway probe returned an unexpected HTTP ${res.status}. Cannot verify token.`,
+      };
     }
+  } catch (err) {
+    return {
+      valid: false,
+      message: 'Could not reach the PhilSMS gateway to verify the API token. Please try again.',
+    };
   }
 
   return {
     valid: true,
-    message: 'PhilSMS Gateway credentials successfully validated.',
+    message: 'PhilSMS Gateway credentials successfully validated with the provider.',
   };
 }
 
@@ -295,22 +358,25 @@ async function validateRecaptchaCredentials({ secretKey, siteKey }) {
     return { valid: false, message: 'reCAPTCHA Secret Key must be at least 20 characters long.' };
   }
 
-  // Live provider probe: send a dummy probe to Google verify endpoint
+  // Live provider probe: send a dummy probe to Google verify endpoint.
+  // Fail closed: only an explicit provider response (without invalid-input-secret) proves the key works.
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
     const body = new URLSearchParams({
       secret: trimmed,
       response: 'test_probe_token',
     });
 
-    const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    const res = await providerFetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
-      signal: controller.signal,
     });
-    clearTimeout(timeout);
+    if (!res.ok) {
+      return {
+        valid: false,
+        message: `Google reCAPTCHA verification returned an unexpected HTTP ${res.status}. Cannot verify secret.`,
+      };
+    }
 
     const data = await res.json();
     // If the secret key itself is invalid, Google returns error code 'invalid-input-secret'
@@ -321,9 +387,10 @@ async function validateRecaptchaCredentials({ secretKey, siteKey }) {
       };
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
-      return { valid: false, message: 'Google reCAPTCHA verification service timed out.' };
-    }
+    return {
+      valid: false,
+      message: 'Could not reach Google reCAPTCHA verification to validate the secret key. Please try again.',
+    };
   }
 
   return {
@@ -374,6 +441,7 @@ async function validateProviderKey(provider, credentials = {}) {
 }
 
 module.exports = {
+  setProviderFetch,
   validateProviderKey,
   validateRestApiKey,
   validateGoogleCredentials,

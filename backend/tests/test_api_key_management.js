@@ -70,6 +70,7 @@ const { API_PREFIX, ROLES } = require('../src/config/constants');
 const { suKeyLimiter } = require('../src/middlewares/rateLimiter.middleware');
 const { setMailTransport } = require('../src/helpers/mailer');
 const apiKeyValidator = require('../src/services/apiKeyValidator.service');
+const { setProviderFetch } = apiKeyValidator;
 
 // Capture outgoing emails sent via mailer
 const sentEmails = [];
@@ -78,6 +79,40 @@ setMailTransport({
     sentEmails.push(options);
     return { messageId: 'mock-mail-' + Date.now() };
   },
+});
+
+// Mock Google's token endpoint so validation exercises the real credential-verification
+// logic without depending on outbound network. Only the designated valid pair is accepted;
+// everything else behaves like Google's real `invalid_client` response.
+const VALID_GOOGLE_ID = '123456789012-abc123def456.apps.googleusercontent.com';
+const VALID_GOOGLE_SECRET = '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_20_chars';
+let googleProbeMode = 'realistic'; // 'realistic' | 'unreachable' | 'unexpected'
+let lastGoogleProbe = null;
+
+setProviderFetch(async (url, options = {}) => {
+  if (String(url).includes('oauth2.googleapis.com/token')) {
+    lastGoogleProbe = { url, options };
+    if (googleProbeMode === 'unreachable') throw new Error('fetch failed');
+    if (googleProbeMode === 'unexpected') return { status: 500, ok: false, json: async () => ({}) };
+    const params = new URLSearchParams(options.body || '');
+    const id = params.get('client_id');
+    const secret = params.get('client_secret');
+    if (id === VALID_GOOGLE_ID && secret === VALID_GOOGLE_SECRET) {
+      return { status: 400, ok: false, json: async () => ({ error: 'invalid_grant' }) };
+    }
+    return {
+      status: 401,
+      ok: false,
+      json: async () => ({ error: 'invalid_client', error_description: 'The OAuth client was not found.' }),
+    };
+  }
+  if (String(url).includes('/balance')) {
+    return { status: 200, ok: true, json: async () => ({}) };
+  }
+  if (String(url).includes('recaptcha/api/siteverify')) {
+    return { status: 200, ok: true, json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] }) };
+  }
+  throw new Error('Unexpected provider probe URL in mock: ' + url);
 });
 
 function makeHttpRequest(server, options, body = null) {
@@ -335,9 +370,9 @@ async function runTestSuite() {
       console.log('  ✓ 2.1: Validates REST API Key length, complexity, and entropy checks');
     }
 
-    // 2.2: Google OAuth Validation
+    // 2.2: Google OAuth Validation -- must verify credentials WITH Google (not local format only)
     {
-      // Malformed Google Client ID
+      // Malformed Google Client ID is still rejected locally (fast, clear error)
       const malformedRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/validate-key`,
         method: 'POST',
@@ -346,20 +381,68 @@ async function runTestSuite() {
       assert.strictEqual(malformedRes.data.success, false);
       assert.match(malformedRes.data.message, /\.apps\.googleusercontent\.com/i);
 
-      // Valid Google Client ID format
+      // Valid format + valid secret -> Google authenticates the client (invalid_grant on dummy token)
+      lastGoogleProbe = null;
+      googleProbeMode = 'realistic';
       const validGoogleRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/validate-key`,
         method: 'POST',
         headers: { Authorization: `Bearer ${adminToken}` },
       }, {
         provider: 'google',
+        credentials: { clientId: VALID_GOOGLE_ID, clientSecret: VALID_GOOGLE_SECRET },
+      });
+      assert.strictEqual(validGoogleRes.data.success, true, validGoogleRes.data.message);
+      assert(lastGoogleProbe, 'Google token endpoint must actually be called (no local-only validation)');
+      assert.match(lastGoogleProbe.url, /oauth2\.googleapis\.com\/token/);
+      const probeParams = new URLSearchParams(lastGoogleProbe.options.body);
+      assert.strictEqual(probeParams.get('client_id'), VALID_GOOGLE_ID);
+      assert.strictEqual(probeParams.get('client_secret'), VALID_GOOGLE_SECRET);
+      assert.strictEqual(probeParams.get('grant_type'), 'refresh_token');
+
+      // Well-formed but WRONG credentials -> Google returns invalid_client -> must be rejected
+      const badGoogleRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'google',
         credentials: {
-          clientId: '123456789012-abc123def456.apps.googleusercontent.com',
-          clientSecret: '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_20_chars',
+          clientId: '999999999999-wrongclientid.apps.googleusercontent.com',
+          clientSecret: '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enough',
         },
       });
-      assert.strictEqual(validGoogleRes.data.success, true);
-      console.log('  ✓ 2.2: Validates Google OAuth Client ID domain format & secret length');
+      assert.strictEqual(badGoogleRes.data.success, false, 'Google must reject wrong credentials');
+      assert.match(badGoogleRes.data.message, /invalid_client|Google rejected/i);
+
+      // Network unreachable -> fail closed (must NOT accept a syntactically valid key)
+      googleProbeMode = 'unreachable';
+      const unreachableRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'google',
+        credentials: { clientId: VALID_GOOGLE_ID, clientSecret: VALID_GOOGLE_SECRET },
+      });
+      assert.strictEqual(unreachableRes.data.success, false, 'Unreachable Google must fail closed');
+      assert.match(unreachableRes.data.message, /Could not reach Google/i);
+
+      // Unexpected provider response -> fail closed
+      googleProbeMode = 'unexpected';
+      const unexpectedRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'google',
+        credentials: { clientId: VALID_GOOGLE_ID, clientSecret: VALID_GOOGLE_SECRET },
+      });
+      assert.strictEqual(unexpectedRes.data.success, false, 'Unexpected Google response must fail closed');
+      assert.match(unexpectedRes.data.message, /Could not verify Google/i);
+
+      googleProbeMode = 'realistic';
+      console.log('  ✓ 2.2: Google credentials verified live with token endpoint; wrong/unverifiable keys rejected');
     }
 
     // 2.3: PhilSMS Gateway Validation
@@ -398,6 +481,19 @@ async function runTestSuite() {
         assert.strictEqual(ssrfRes.data.success, false, `Expected ${blockedUrl} to be rejected`);
         assert.match(ssrfRes.data.message, /public host/i);
       }
+      // Valid token + public gateway URL -> provider accepts
+      const validSmsRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'sms',
+        credentials: {
+          gatewayUrl: 'https://dashboard.philsms.com/api/v3/',
+          apiToken: 'valid_philsms_api_token_12345678',
+        },
+      });
+      assert.strictEqual(validSmsRes.data.success, true, validSmsRes.data.message);
       console.log('  ✓ 2.3: Validates PhilSMS token length, Gateway URL format and rejects SSRF targets');
     }
 
@@ -410,7 +506,40 @@ async function runTestSuite() {
       }, { provider: 'recaptcha', credentials: { secretKey: 'short_rc_key' } });
       assert.strictEqual(shortSecretRes.data.success, false);
       assert.match(shortSecretRes.data.message, /at least 20 characters/i);
-      console.log('  ✓ 2.4: Validates reCAPTCHA Secret Key length requirements');
+
+      // Valid format secret -> Google verifies (mock returns invalid-input-response, not invalid-input-secret)
+      const validRcRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, { provider: 'recaptcha', credentials: { secretKey: '6Ld_valid_recaptcha_secret_key_1234567890' } });
+      assert.strictEqual(validRcRes.data.success, true, validRcRes.data.message);
+
+      // Network unreachable -> fail closed
+      setProviderFetch(async (url) => { throw new Error('fetch failed'); });
+      const unreachableRcRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, { provider: 'recaptcha', credentials: { secretKey: '6Ld_valid_recaptcha_secret_key_1234567890' } });
+      assert.strictEqual(unreachableRcRes.data.success, false, 'Unreachable reCAPTCHA must fail closed');
+      assert.match(unreachableRcRes.data.message, /Could not reach Google reCAPTCHA/i);
+      console.log('  ✓ 2.4: Validates reCAPTCHA Secret Key length and fails closed when Google unreachable');
+      // Restore the standard mock for the remainder of the suite
+      setProviderFetch(async (url, options = {}) => {
+        if (String(url).includes('oauth2.googleapis.com/token')) {
+          const params = new URLSearchParams(options.body || '');
+          if (params.get('client_id') === VALID_GOOGLE_ID && params.get('client_secret') === VALID_GOOGLE_SECRET) {
+            return { status: 400, ok: false, json: async () => ({ error: 'invalid_grant' }) };
+          }
+          return { status: 401, ok: false, json: async () => ({ error: 'invalid_client' }) };
+        }
+        if (String(url).includes('/balance')) return { status: 200, ok: true, json: async () => ({}) };
+        if (String(url).includes('recaptcha/api/siteverify')) {
+          return { status: 200, ok: true, json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] }) };
+        }
+        throw new Error('Unexpected provider probe URL in mock: ' + url);
+      });
     }
 
     // 2.5: Never leaks raw secrets in API responses or logs
