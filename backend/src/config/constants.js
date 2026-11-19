@@ -118,6 +118,19 @@ const EXPORT_LIMIT_MAX = 10; // Report export operations per user
 const PUBLIC_LIMIT_MAX = 60; // Unauthenticated public requests per IP
 const TEMPLATE_UPLOAD_LIMIT_MAX = 10; // Template upload operations per user per hour
 const CERTIFICATE_DOWNLOAD_LIMIT_MAX = 30; // Certificate downloads per user per 15 min
+const RESEND_OTP_LIMIT_MAX = 5; // Password-reset OTP resends per hour per email
+
+// Password reset (email OTP) security parameters
+const PASSWORD_RESET = Object.freeze({
+  OTP_TTL_MS: 5 * 60 * 1000, // OTP expires after 5 minutes
+  RESET_TOKEN_TTL_MS: 10 * 60 * 1000, // post-verification authorization token lifetime
+  RESEND_COOLDOWN_MS: 60 * 1000, // minimum wait between OTP sends
+  MAX_OTP_ATTEMPTS: 5, // failed OTP attempts before invalidation
+  GENERIC_RESPONSE:
+    'If an account exists with the provided email address, a verification code will be sent shortly. Please check your inbox.',
+  INVALID_OTP_MESSAGE: 'Invalid verification code. Please try again.',
+  EXPIRED_OTP_MESSAGE: 'Your verification code has expired. Please request a new one.',
+});
 
 // Strictly allowlisted CUSTOM_* variables writable to .env
 const ALLOWED_CUSTOM_ENV_KEYS = Object.freeze([
@@ -166,4 +179,6 @@ module.exports = {
   PUBLIC_LIMIT_MAX,
   TEMPLATE_UPLOAD_LIMIT_MAX,
   CERTIFICATE_DOWNLOAD_LIMIT_MAX,
+  RESEND_OTP_LIMIT_MAX,
+  PASSWORD_RESET,
 };

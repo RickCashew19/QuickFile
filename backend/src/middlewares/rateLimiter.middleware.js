@@ -15,6 +15,7 @@ const {
   PUBLIC_LIMIT_MAX,
   TEMPLATE_UPLOAD_LIMIT_MAX,
   CERTIFICATE_DOWNLOAD_LIMIT_MAX,
+  RESEND_OTP_LIMIT_MAX,
 } = require('../config/constants');
 
 /**
@@ -121,6 +122,19 @@ const forgotPasswordEmailLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many password reset requests for this email address. Please try again after an hour.'),
+});
+
+/**
+ * OTP resend limiter: 5 resends per hour per email (counts every request).
+ * A separate 60-second cooldown is enforced in the service layer.
+ */
+const resendOtpLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: RESEND_OTP_LIMIT_MAX,
+  keyGenerator: emailKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many verification code requests for this email. Please try again after an hour.'),
 });
 
 /**
@@ -246,6 +260,7 @@ module.exports = {
   registerLimiter,
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
+  resendOtpLimiter,
   resetPasswordLimiter,
   refreshLimiter,
   suKeyLimiter,

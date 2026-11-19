@@ -163,10 +163,10 @@ const googleLogin = asyncHandler(async (req, res) => {
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email, recaptcha_token } = req.body;
 
-  if (!email || typeof email !== 'string') {
+  if (!isValidEmail(email)) {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Email must be a valid string.',
+      message: 'Validation error: Please provide a valid email address.',
       data: null,
     });
   }
@@ -190,30 +190,52 @@ const forgotPassword = asyncHandler(async (req, res) => {
 });
 
 /**
- * STEP 2: Verify the 6-digit PIN first and receive a short-lived single-use reset token.
- * POST /api/v1/auth/verify-reset-pin
+ * Resend a 6-digit verification code (60s cooldown + hourly limit enforced in
+ * the service/middleware). Always returns the generic anti-enumeration response.
+ * POST /api/v1/auth/resend-reset-otp
  */
-const verifyResetPin = asyncHandler(async (req, res) => {
-  const { email, pin } = req.body;
-  const code = pin || req.body.token;
+const resendResetOtp = asyncHandler(async (req, res) => {
+  const { email, recaptcha_token } = req.body;
 
-  if (!email || typeof email !== 'string' || !code || typeof code !== 'string') {
+  if (!isValidEmail(email)) {
     return res.status(400).json({
       success: false,
-      message: 'Validation error: Email and 6-digit PIN must be valid strings.',
+      message: 'Validation error: Please provide a valid email address.',
       data: null,
     });
   }
 
-  const result = await authService.verifyResetPin(
-    { email, pin: code },
+  await verifyRecaptcha(recaptcha_token, req.ip);
+
+  const result = await authService.resendResetOtp(email, req.ip, req.get('User-Agent'));
+  return res.status(200).json({ success: true, message: result.message, data: null });
+});
+
+/**
+ * STEP 2: Verify the 6-digit OTP first and receive a short-lived single-use reset token.
+ * POST /api/v1/auth/verify-reset-otp
+ */
+const verifyResetOtp = asyncHandler(async (req, res) => {
+  const { email, otp, pin } = req.body;
+  const code = otp || pin || req.body.token;
+
+  if (!isValidEmail(email) || typeof code !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Email and 6-digit verification code are required.',
+      data: null,
+    });
+  }
+
+  const result = await authService.verifyResetOtp(
+    { email, otp: code },
     req.ip,
     req.get('User-Agent')
   );
 
   return res.status(200).json({
     success: true,
-    message: 'PIN verified. You may now set a new password.',
+    message: 'Verification code confirmed. You may now set a new password.',
     data: result,
   });
 });
@@ -321,7 +343,10 @@ module.exports = {
   refresh,
   googleLogin,
   forgotPassword,
-  verifyResetPin,
+  resendResetOtp,
+  verifyResetOtp,
+  // Backwards-compatible alias for older clients that used the "PIN" naming.
+  verifyResetPin: verifyResetOtp,
   resetPassword,
   getMe,
   logout,

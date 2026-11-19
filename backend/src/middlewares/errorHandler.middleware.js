@@ -96,6 +96,11 @@ function errorHandler(err, req, res, next) {
     console.warn(`[Warn] ${req.method} ${redactSensitiveUrl(req.originalUrl)} (${statusCode}): ${message}`);
   }
 
+  // Forward cooldown/retry hints to clients (e.g. OTP resend cooldown).
+  if (err.retryAfterSeconds) {
+    res.setHeader('Retry-After', String(err.retryAfterSeconds));
+  }
+
   res.status(statusCode).json({
     success: false,
     message,

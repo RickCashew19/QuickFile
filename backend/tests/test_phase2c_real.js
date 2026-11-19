@@ -1579,9 +1579,10 @@ async function runTests() {
       { email: 'nonexistent.user.9999@quickfile.gov.ph' }
     );
     assert(forgotKnownRes.status === 200, 'Registered email returns 200');
-    assert(forgotUnknownRes.status === 400, 'Unregistered email returns 400');
-    assert(/not.*found|not.*registered|no active account/i.test(forgotUnknownRes.data?.message || ''));
-    console.log('PASS: forgot-password accepted registered email and rejected unregistered email.');
+    assert(forgotUnknownRes.status === 200, 'Unregistered email returns generic 200');
+    assert(forgotKnownRes.data?.message === forgotUnknownRes.data?.message, 'Responses must be identical');
+    assert(/If an account exists/i.test(forgotUnknownRes.data?.message || ''), 'Generic anti-enumeration message');
+    console.log('PASS: forgot-password returns identical generic response for registered and unregistered emails.');
 
     // 20d: Regex-special search characters
     const regexSearchRes = await makeRequest(server, {

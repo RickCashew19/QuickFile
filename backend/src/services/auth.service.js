@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { config } = require('../config');
-const { ROLES } = require('../config/constants');
+const { ROLES, PASSWORD_RESET } = require('../config/constants');
+const { validatePasswordPolicy } = require('../validators/passwordValidator');
 const {
   User,
   CitizenProfile,
@@ -401,180 +402,206 @@ async function loginWithGoogle(idToken, ipAddress, userAgent) {
 }
 
 /**
- * Sends a password reset email with a 6-digit PIN code.
- * Verifies the email belongs to a real active account first; callers surface
- * an explicit "email not registered" error when it does not (per product requirement).
+ * Creates a cryptographically secure 6-digit OTP, stores only its hash, and
+ * delivers it to the account's registered email (no OTP is ever logged or returned).
+ * Each call invalidates any previous unused OTP for that account.
+ * @returns {Promise<{user, sentAt: Date}>} the account and time the OTP was issued
  */
-async function requestPasswordReset(email, ipAddress, userAgent) {
-  const normalizedEmail = (email || '').toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
-
-  if (!user || !user.is_active) {
-    const err = new Error('No active account found for this email address.');
-    err.statusCode = 400;
-    err.code = 'EMAIL_NOT_REGISTERED';
-    throw err;
-  }
-
-  // 1. Invalidate previous unused reset tokens for this user
+async function issuePasswordResetOtp(user) {
+  // Invalidate any previous unused OTP/reset authorization for this account (one-time use).
   await PasswordReset.updateMany({ user_id: user._id, used: false }, { used: true });
 
-  // 2. Generate a 6-digit numeric verification PIN code (1,000,000 possibilities)
-  const pin = crypto.randomInt(100000, 1000000).toString();
-  const tokenHash = crypto.createHash('sha256').update(pin + ':' + user.email).digest('hex');
+  // crypto.randomInt is a cryptographically secure generator; 1,000,000 possibilities.
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  // Email-salted SHA-256: the raw OTP is never stored, logged, or returned.
+  const otpHash = crypto.createHash('sha256').update(otp + ':' + user.email).digest('hex');
+  const sentAt = new Date();
 
-  // 3. Store hash with 15-minute expiration and 0 initial attempts
   await PasswordReset.create({
     user_id: user._id,
     email: user.email,
-    token_hash: tokenHash,
+    token_hash: otpHash,
     attempts: 0,
-    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+    expires_at: new Date(sentAt.getTime() + PASSWORD_RESET.OTP_TTL_MS),
     used: false,
   });
 
   const safeFullName = escapeHtml(user.full_name);
   const resetPageUrl = `${config.publicAppUrl.replace(/\/$/, '')}/reset-password?email=${encodeURIComponent(user.email)}`;
   const safeResetPageUrl = escapeHtml(resetPageUrl);
+  const ttlMinutes = Math.round(PASSWORD_RESET.OTP_TTL_MS / 60000);
 
-  // 4. Send email with 6-digit PIN code via SMTP (isTransactional: true guarantees send even if general notifications are toggled off)
+  // Transactional mail bypasses the marketing notification toggle.
   sendMail({
     to: user.email,
-    subject: `QuickFile - Password Reset PIN Code (${pin})`,
-    text: `Hello ${user.full_name},\n\nYou requested a password reset for your QuickFile Barangay Portal account.\n\nYour 6-digit verification PIN code is: ${pin}\n\nThis code will expire in 15 minutes. First enter this PIN on the password reset page to verify your identity, then you will be able to set a new password.\n\nReset page: ${resetPageUrl}\n\nIf you did not request this, please ignore this email.`,
+    subject: `QuickFile - Password Reset Verification Code (${otp})`,
+    text: `Hello ${user.full_name},\n\nYou requested a password reset for your QuickFile Barangay Portal account.\n\nYour 6-digit verification code is: ${otp}\n\nThis code will expire in ${ttlMinutes} minutes. Enter it on the password reset page to verify your identity, then you will be able to set a new password.\n\nReset page: ${resetPageUrl}\n\nIf you did not request this, please ignore this email.`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
         <h2 style="color: #1e40af; margin-top: 0; font-size: 20px;">Password Reset Verification</h2>
         <p style="color: #334155; font-size: 15px;">Hello <strong>${safeFullName}</strong>,</p>
         <p style="color: #334155; font-size: 15px;">You requested to reset your password for the QuickFile Barangay Portal.</p>
-        <p style="color: #334155; font-size: 15px; margin-bottom: 8px;">Your 6-digit verification PIN code is:</p>
+        <p style="color: #334155; font-size: 15px; margin-bottom: 8px;">Your 6-digit verification code is:</p>
         <div style="background: #eff6ff; border: 2px dashed #3b82f6; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
-          <span style="font-size: 38px; font-weight: 800; letter-spacing: 12px; color: #1d4ed8; font-family: monospace;">${pin}</span>
+          <span style="font-size: 38px; font-weight: 800; letter-spacing: 12px; color: #1d4ed8; font-family: monospace;">${otp}</span>
         </div>
-        <p style="color: #64748b; font-size: 13px;">This code will expire in <strong>15 minutes</strong>. Enter this 6-digit code on the reset page first to verify your identity, then you will be asked to set a new password.</p>
+        <p style="color: #64748b; font-size: 13px;">This code will expire in <strong>${ttlMinutes} minutes</strong>. Enter it on the reset page to verify your identity first, then you will be asked to set a new password.</p>
         <p style="color: #64748b; font-size: 13px;"><a href="${safeResetPageUrl}">Open the password reset page</a></p>
         <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email.</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">QuickFile Barangay Document Request & Management System</p>
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">QuickFile Barangay Document Request &amp; Management System</p>
       </div>
     `,
     isTransactional: true,
-  }).catch((err) => {
-    console.warn(`[Mailer] Warning: Failed to send password reset email to ${user.email}:`, err.message);
+  }).catch(() => {
+    // Never log the OTP -- only a generic transport warning.
+    console.warn('[Mailer] Warning: Failed to send password reset email.');
   });
 
-  // 5. Also send 6-digit PIN via SMS if citizen has registered mobile number
+  // Also send via SMS when the citizen has a registered mobile number.
   (async () => {
     try {
       const citizenProfile = await CitizenProfile.findOne({ user_id: user._id });
       if (citizenProfile && citizenProfile.contact_number) {
         await sendSms({
           recipient: citizenProfile.contact_number,
-          message: `QuickFile: Your password reset PIN code is ${pin}. Valid for 15 minutes. Do not share this code.`,
+          message: `QuickFile: Your password reset verification code is ${otp}. Valid for ${ttlMinutes} minutes. Do not share this code.`,
           isTransactional: true,
         });
       }
-    } catch (smsErr) {
-      console.warn(`[SMS] Failed to send reset SMS to ${user.email}:`, smsErr.message);
+    } catch {
+      // Never log the OTP. SMS is best-effort; email is authoritative.
     }
   })();
 
-  await AuditLog.create({
-    user_id: user._id,
-    actor_name: user.full_name,
-    action: 'PASSWORD_RESET_REQUEST',
-    module: 'AUTH',
-    target_id: user._id.toString(),
-    target_type: 'User',
-    details: { email: user.email },
-    ip_address: ipAddress || '',
-    user_agent: userAgent || '',
-  });
-
-  return {
-    message: 'A 6-digit verification PIN has been sent to your email address.',
-  };
+  return { user, sentAt };
 }
 
 /**
- * STEP 2 of the two-step reset flow: verify the 6-digit PIN bound to the account email.
- * On success returns a short-lived (10 min) single-use reset token. The PIN and the
- * new password are NEVER accepted in the same request.
+ * Sends a 6-digit OTP when the email belongs to a real active account.
+ * ALWAYS returns the same generic response to prevent account enumeration; when
+ * no account exists a dummy hash keeps response times comparable (no OTP is sent).
  */
-async function verifyResetPin(resetData, ipAddress = '', userAgent = '') {
+async function requestPasswordReset(email, ipAddress, userAgent) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+  const eligible = Boolean(user && user.is_active);
+
+  if (eligible) {
+    const { user: account } = await issuePasswordResetOtp(user);
+    await AuditLog.create({
+      user_id: account._id,
+      actor_name: account.full_name,
+      action: 'PASSWORD_RESET_REQUEST',
+      module: 'AUTH',
+      target_id: account._id.toString(),
+      target_type: 'User',
+      details: { email: account.email },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+  } else {
+    // Timing equalization: equivalent CPU work so an unknown email does not
+    // return noticeably faster than a known one.
+    await User.hashPassword(crypto.randomBytes(16).toString('hex'));
+  }
+
+  return { message: PASSWORD_RESET.GENERIC_RESPONSE };
+}
+
+
+/**
+ * STEP 2: verify the 6-digit OTP bound to the account email.
+ * On success returns a short-lived, single-use reset token. The OTP and the new
+ * password are NEVER accepted in the same request. Errors are generic and never
+ * reveal whether an account exists; expired codes get the dedicated expiry message.
+ */
+async function verifyResetOtp(resetData, ipAddress = '', userAgent = '') {
   const email = String(resetData?.email || '').toLowerCase().trim();
-  const code = String(resetData?.pin || resetData?.token || '').trim();
+  const code = String(resetData?.otp || resetData?.pin || resetData?.token || '').trim();
 
-  if (!email) {
-    const err = new Error('Your registered email address is required.');
+  if (!email || !/^\d{6}$/.test(code)) {
+    const err = new Error(PASSWORD_RESET.INVALID_OTP_MESSAGE);
     err.statusCode = 400;
-    throw err;
-  }
-  if (!/^\d{6}$/.test(code)) {
-    const err = new Error('Verification PIN must be exactly 6 digits.');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const user = await User.findOne({ email });
-  if (!user || !user.is_active) {
-    const err = new Error('No active account found for this email address.');
-    err.statusCode = 400;
-    err.code = 'EMAIL_NOT_REGISTERED';
     throw err;
   }
 
   const now = new Date();
-  const saltedHash = crypto.createHash('sha256').update(code + ':' + email).digest('hex');
-  const resetRecord = await PasswordReset.findOne({
+  const otpHash = crypto.createHash('sha256').update(code + ':' + email).digest('hex');
+
+  // Distinguish an expired-but-correct code from an incorrect one without
+  // revealing account existence: an expired matching record gets the expiry message.
+  const expiredMatch = await PasswordReset.findOne({
     email,
-    token_hash: saltedHash,
+    token_hash: otpHash,
     used: false,
-    expires_at: { $gt: now },
+    expires_at: { $lte: now },
   });
-
-  if (!resetRecord) {
-    // Track failed attempts on the latest still-valid PIN for this email.
-    const pendingRecord = await PasswordReset.findOne({
-      email,
-      used: false,
-      expires_at: { $gt: now },
-    }).sort({ created_at: -1 });
-
-    if (pendingRecord) {
-      pendingRecord.attempts = (pendingRecord.attempts || 0) + 1;
-      if (pendingRecord.attempts >= 5) {
-        pendingRecord.used = true;
-        await pendingRecord.save();
-        const err = new Error('Too many failed attempts. This PIN code has been invalidated. Please request a new code.');
-        err.statusCode = 400;
-        throw err;
-      }
-      await pendingRecord.save();
-      const remaining = 5 - pendingRecord.attempts;
-      const err = new Error(`Invalid 6-digit PIN code. ${remaining} attempt(s) remaining.`);
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const err = new Error('Invalid or expired password reset PIN code.');
+  if (expiredMatch) {
+    const err = new Error(PASSWORD_RESET.EXPIRED_OTP_MESSAGE);
     err.statusCode = 400;
     throw err;
   }
 
-  // PIN verified -> issue a single-use reset token (hash stored, raw returned).
+  // The active OTP is the latest unused, unexpired record for this email.
+  const active = await PasswordReset.findOne({
+    email,
+    used: false,
+    expires_at: { $gt: now },
+  }).sort({ created_at: -1 });
+
+  if (!active || (active.attempts || 0) >= PASSWORD_RESET.MAX_OTP_ATTEMPTS) {
+    const err = new Error(PASSWORD_RESET.INVALID_OTP_MESSAGE);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (active.token_hash !== otpHash) {
+    // Atomic attempt increment; invalidate the OTP at the 5th failed attempt.
+    const nextAttempts = (active.attempts || 0) + 1;
+    await PasswordReset.updateOne(
+      { _id: active._id, used: false },
+      nextAttempts >= PASSWORD_RESET.MAX_OTP_ATTEMPTS
+        ? { $set: { attempts: nextAttempts, used: true } }
+        : { $set: { attempts: nextAttempts } }
+    );
+    const err = new Error(PASSWORD_RESET.INVALID_OTP_MESSAGE);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findById(active.user_id);
+  if (!user || !user.is_active || user.email.toLowerCase().trim() !== email) {
+    const err = new Error(PASSWORD_RESET.INVALID_OTP_MESSAGE);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // OTP verified atomically -> issue a single-use reset token (hash stored only).
+  // The OTP record stays unused until password reset consumes it; re-verifying is
+  // harmless because the issued token is single-use.
   const resetToken = crypto.randomBytes(32).toString('hex');
-  resetRecord.verification_token_hash = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
-  resetRecord.verification_expires_at = new Date(Date.now() + 10 * 60 * 1000);
-  await resetRecord.save();
+  const verificationTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const updated = await PasswordReset.findOneAndUpdate(
+    { _id: active._id, used: false },
+    {
+      $set: {
+        verification_token_hash: verificationTokenHash,
+        verification_expires_at: new Date(now.getTime() + PASSWORD_RESET.RESET_TOKEN_TTL_MS),
+      },
+    },
+    { new: true }
+  );
+  if (!updated) {
+    const err = new Error(PASSWORD_RESET.INVALID_OTP_MESSAGE);
+    err.statusCode = 400;
+    throw err;
+  }
 
   await AuditLog.create({
     user_id: user._id,
     actor_name: user.full_name,
-    action: 'PASSWORD_RESET_PIN_VERIFIED',
+    action: 'PASSWORD_RESET_OTP_VERIFIED',
     module: 'AUTH',
     target_id: user._id.toString(),
     target_type: 'User',
@@ -586,8 +613,49 @@ async function verifyResetPin(resetData, ipAddress = '', userAgent = '') {
   return {
     reset_token: resetToken,
     email: user.email,
-    expires_in: 600,
+    expires_in: Math.round(PASSWORD_RESET.RESET_TOKEN_TTL_MS / 1000),
   };
+}
+
+/**
+ * Resend endpoint: enforces a 60-second cooldown (service layer) plus the
+ * per-email hourly limiter (middleware), then issues a fresh OTP that
+ * invalidates the previous one. Always returns the generic anti-enumeration response.
+ */
+async function resendResetOtp(email, ipAddress, userAgent) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+  const eligible = Boolean(user && user.is_active);
+
+  if (eligible) {
+    // Cooldown is measured from the most recent send for this account regardless
+    // of whether that OTP was consumed, so verification cannot bypass the cooldown.
+    const latest = await PasswordReset.findOne({ user_id: user._id }).sort({ created_at: -1 });
+    if (latest && Date.now() - latest.created_at.getTime() < PASSWORD_RESET.RESEND_COOLDOWN_MS) {
+      const err = new Error('Please wait a moment before requesting another verification code.');
+      err.statusCode = 429;
+      err.retryAfterSeconds = Math.ceil(
+        (PASSWORD_RESET.RESEND_COOLDOWN_MS - (Date.now() - latest.created_at.getTime())) / 1000
+      );
+      throw err;
+    }
+    const { user: account } = await issuePasswordResetOtp(user);
+    await AuditLog.create({
+      user_id: account._id,
+      actor_name: account.full_name,
+      action: 'PASSWORD_RESET_OTP_RESENT',
+      module: 'AUTH',
+      target_id: account._id.toString(),
+      target_type: 'User',
+      details: { email: account.email },
+      ip_address: ipAddress || '',
+      user_agent: userAgent || '',
+    });
+  } else {
+    await User.hashPassword(crypto.randomBytes(16).toString('hex'));
+  }
+
+  return { message: PASSWORD_RESET.GENERIC_RESPONSE };
 }
 
 /**
@@ -626,21 +694,15 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
   }
 
   if (!code || code.length < 32) {
-    const error = new Error(
-      'A valid verification token is required. Verify your 6-digit PIN first.'
-    );
+    const error = new Error('A valid verification token is required. Verify your 6-digit code first.');
     error.statusCode = 400;
     throw error;
   }
 
-  if (!newPassword) {
-    const error = new Error('A new password is required.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (newPassword.length < 8 || newPassword.length > 72) {
-    const error = new Error('Validation error: Password must be between 8 and 72 characters.');
+  // Shared password policy: 8-72 characters plus a practical compromised-password denylist.
+  const policy = validatePasswordPolicy(newPassword);
+  if (!policy.valid) {
+    const error = new Error(policy.message);
     error.statusCode = 400;
     throw error;
   }
@@ -656,7 +718,7 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
   });
 
   if (!resetRecord) {
-    const error = new Error('Invalid or expired verification token. Please verify your PIN again.');
+    const error = new Error('Invalid or expired verification token. Please verify your code again.');
     error.statusCode = 400;
     throw error;
   }
@@ -686,9 +748,11 @@ async function resetPasswordWithToken(resetData, newPasswordArg, ipAddressArg, u
       { session }
     );
 
+    // Consume every outstanding reset record for this account and clear the
+    // verification token hash so the token can never be replayed.
     await PasswordReset.updateMany(
       { user_id: user._id, used: false },
-      { $set: { used: true } },
+      { $set: { used: true, verification_token_hash: null } },
       { session }
     );
 
@@ -763,7 +827,10 @@ module.exports = {
   loginUser,
   loginWithGoogle,
   requestPasswordReset,
-  verifyResetPin,
+  verifyResetOtp,
+  // Backwards-compatible alias for older clients that used the "PIN" naming.
+  verifyResetPin: verifyResetOtp,
+  resendResetOtp,
   resetPasswordWithToken,
   logoutUser,
   getUserProfile,

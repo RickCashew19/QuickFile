@@ -451,15 +451,15 @@ async function runTests() {
     // -------------------------------------------------------------------------
     console.log('[TEST 7] Password Reset Flow (Token Hash, Single-use, Expiry)');
 
-    // 7a: Forgot password explicitly rejects an unregistered email
+    // 7a: Forgot password returns the SAME generic response for unknown emails
     const forgotNonExistent = await makeRequest(
       server,
       { path: `${API_PREFIX}/auth/forgot-password`, method: 'POST' },
       { email: 'nonexistent@example.com' }
     );
-    assert(forgotNonExistent.status === 400, 'Unregistered email must be rejected with 400');
-    assert(/not.*found|not.*registered|no active account/i.test(forgotNonExistent.data?.message || ''));
-    console.log(`PASS: Unregistered email explicitly rejected: "${forgotNonExistent.data?.message}"`);
+    assert(forgotNonExistent.status === 200, 'Unregistered email returns generic 200');
+    assert(/If an account exists/i.test(forgotNonExistent.data?.message || ''), 'Generic anti-enumeration message');
+    console.log(`PASS: Unregistered email returns generic anti-enumeration response.`);
 
     // 7b: Forgot password for existing citizen
     const forgotExisting = await makeRequest(
@@ -494,8 +494,8 @@ async function runTests() {
       { path: `${API_PREFIX}/auth/verify-reset-pin`, method: 'POST' },
       { email: 'new.citizen@pasig.gov.ph', pin: '1234' }
     );
-    assert(shortPinRes.status === 400, '4-digit PIN should be rejected with 400');
-    assert(/6 digits/i.test(shortPinRes.data?.message || ''), 'Should explain the 6-digit PIN requirement');
+    assert(shortPinRes.status === 400, '4-digit code should be rejected with 400');
+    assert(/Invalid verification code/i.test(shortPinRes.data?.message || ''), 'Should reject invalid code');
     console.log('PASS: Legacy 4-digit PIN format rejected at verification step.');
 
     // 7c-3: reset-password rejects a raw PIN (PIN and password never accepted together)

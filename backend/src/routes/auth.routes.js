@@ -8,6 +8,7 @@ const {
   registerLimiter,
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
+  resendOtpLimiter,
   resetPasswordLimiter,
   refreshLimiter,
 } = require('../middlewares/rateLimiter.middleware');
@@ -22,7 +23,7 @@ router.post('/login', authLimiter, loginEmailLimiter, authController.login);
 // Google OAuth: 15 failed per 15 min per IP
 router.post('/google', authLimiter, authController.googleLogin);
 
-// Forgot Password: 5 per hour per IP AND 3 per hour per email (counts every request)
+// STEP 1: request a 6-digit OTP (5/hour per IP + 3/hour per email).
 router.post(
   '/forgot-password',
   forgotPasswordIpLimiter,
@@ -30,12 +31,19 @@ router.post(
   authController.forgotPassword
 );
 
-// Verify reset PIN: step 2 -- validates the 6-digit PIN and issues a short-lived
-// single-use reset token. 10 per hour per IP (counts every request).
-router.post('/verify-reset-pin', resetPasswordLimiter, authController.verifyResetPin);
+// Resend OTP: 60s cooldown (service) + 5/hour per email (middleware).
+router.post(
+  '/resend-reset-otp',
+  resendOtpLimiter,
+  authController.resendResetOtp
+);
 
-// Reset Password: step 3 -- sets a new password using the single-use token.
-// The 6-digit PIN is never accepted here. 10 per hour per IP (counts every request).
+// STEP 2: verify the OTP and receive a short-lived single-use reset token.
+router.post('/verify-reset-otp', resetPasswordLimiter, authController.verifyResetOtp);
+// Backwards-compatible alias for older clients using the "PIN" naming.
+router.post('/verify-reset-pin', resetPasswordLimiter, authController.verifyResetOtp);
+
+// STEP 3: set a new password using the single-use token (OTP never accepted here).
 router.post('/reset-password', resetPasswordLimiter, authController.resetPassword);
 
 // Refresh: rotate the httpOnly refresh cookie and issue a fresh access token.
