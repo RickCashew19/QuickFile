@@ -164,11 +164,17 @@ async function validateRestApiKey(secretKey) {
  * Validate Google OAuth Client ID & Secret
  */
 async function validateGoogleCredentials({ clientId, clientSecret }) {
-  if (!clientId || typeof clientId !== 'string') {
+  // Fall back to the currently configured value when only one half of the pair is being
+  // changed (e.g. updating just the secret while keeping the stored client ID).
+  const resolvedId =
+    clientId !== undefined && clientId !== null && String(clientId).trim()
+      ? String(clientId).trim()
+      : config.google.resolveClientId().value;
+  if (!resolvedId || typeof resolvedId !== 'string') {
     return { valid: false, message: 'Google Client ID is required.' };
   }
 
-  const trimmedId = clientId.trim();
+  const trimmedId = resolvedId;
   if (!trimmedId.endsWith('.apps.googleusercontent.com') && !trimmedId.includes('.googleusercontent.')) {
     return {
       valid: false,

@@ -89,10 +89,10 @@ const VALID_GOOGLE_SECRET = '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_20_chars';
 let googleProbeMode = 'realistic'; // 'realistic' | 'unreachable' | 'unexpected'
 let lastGoogleProbe = null;
 
-setProviderFetch(async (url, options = {}) => {
+async function providerFetchMock(url, options = {}) {
+  if (googleProbeMode === 'unreachable') throw new Error('fetch failed');
   if (String(url).includes('oauth2.googleapis.com/token')) {
     lastGoogleProbe = { url, options };
-    if (googleProbeMode === 'unreachable') throw new Error('fetch failed');
     if (googleProbeMode === 'unexpected') return { status: 500, ok: false, json: async () => ({}) };
     const params = new URLSearchParams(options.body || '');
     const id = params.get('client_id');
@@ -113,7 +113,9 @@ setProviderFetch(async (url, options = {}) => {
     return { status: 200, ok: true, json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] }) };
   }
   throw new Error('Unexpected provider probe URL in mock: ' + url);
-});
+}
+
+setProviderFetch(providerFetchMock);
 
 function makeHttpRequest(server, options, body = null) {
   return new Promise((resolve, reject) => {
@@ -515,8 +517,8 @@ async function runTestSuite() {
       }, { provider: 'recaptcha', credentials: { secretKey: '6Ld_valid_recaptcha_secret_key_1234567890' } });
       assert.strictEqual(validRcRes.data.success, true, validRcRes.data.message);
 
-      // Network unreachable -> fail closed
-      setProviderFetch(async (url) => { throw new Error('fetch failed'); });
+      // Network unreachable -> fail closed (reCAPTCHA mock honors the same mode flag)
+      googleProbeMode = 'unreachable';
       const unreachableRcRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/validate-key`,
         method: 'POST',
@@ -525,21 +527,8 @@ async function runTestSuite() {
       assert.strictEqual(unreachableRcRes.data.success, false, 'Unreachable reCAPTCHA must fail closed');
       assert.match(unreachableRcRes.data.message, /Could not reach Google reCAPTCHA/i);
       console.log('  ✓ 2.4: Validates reCAPTCHA Secret Key length and fails closed when Google unreachable');
-      // Restore the standard mock for the remainder of the suite
-      setProviderFetch(async (url, options = {}) => {
-        if (String(url).includes('oauth2.googleapis.com/token')) {
-          const params = new URLSearchParams(options.body || '');
-          if (params.get('client_id') === VALID_GOOGLE_ID && params.get('client_secret') === VALID_GOOGLE_SECRET) {
-            return { status: 400, ok: false, json: async () => ({ error: 'invalid_grant' }) };
-          }
-          return { status: 401, ok: false, json: async () => ({ error: 'invalid_client' }) };
-        }
-        if (String(url).includes('/balance')) return { status: 200, ok: true, json: async () => ({}) };
-        if (String(url).includes('recaptcha/api/siteverify')) {
-          return { status: 200, ok: true, json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] }) };
-        }
-        throw new Error('Unexpected provider probe URL in mock: ' + url);
-      });
+      // Restore the standard mock mode for the remainder of the suite
+      googleProbeMode = 'realistic';
     }
 
     // 2.5: Never leaks raw secrets in API responses or logs
@@ -567,8 +556,11 @@ async function runTestSuite() {
     console.log(' SECTION 3: Two-Factor Authentication (2FA) Workflow');
     console.log('----------------------------------------------------------------');
 
-    // Clear mail inbox before testing
+    // Clear mail inbox and reset the shared SU-key limiter (failed requests from
+    // prior sections count toward the 15/15min window; each section gets a fresh budget)
     sentEmails.length = 0;
+    suKeyLimiter.resetKey('::ffff:127.0.0.1');
+    suKeyLimiter.resetKey('127.0.0.1');
 
     // 3.1: Rejects initiating key update with incorrect PIN
     {
@@ -601,11 +593,14 @@ async function runTestSuite() {
       console.log('  ✓ 3.2: Rejects non-allowlisted configuration keys during 2FA initiation');
     }
 
-    // 3.2b: When custom API is not working, 2FA confirms but rejects activation
+    // 3.2b: API keys are verified with their provider BEFORE any 2FA code is dispatched
     {
       sentEmails.length = 0;
+      googleProbeMode = 'realistic';
       const nonWorkingGoogleKey = 'invalid-google-client-id-without-domain';
-      const initRes = await makeHttpRequest(server, {
+
+      // (a) Malformed key -> rejected at initiation, no 2FA email
+      const malformedInit = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/initiate-key-update`,
         method: 'POST',
         headers: { Authorization: `Bearer ${adminToken}` },
@@ -613,25 +608,71 @@ async function runTestSuite() {
         su_admin_key: process.env.SU_ADMIN_KEY,
         settings: { CUSTOM_GOOGLE_CLIENT_ID: nonWorkingGoogleKey },
       });
-      assert.strictEqual(initRes.status, 200, '2FA email should be dispatched when custom API is entered');
-      assert.strictEqual(sentEmails.length, 1);
-      const nwVerId = initRes.data.data.verification_id;
-      const nwOtp = sentEmails[0].subject.match(/\((\d{6})\)/)[1];
+      assert.strictEqual(malformedInit.status, 400, 'Non-working key must be rejected at initiation');
+      assert.match(malformedInit.data.message, /Google OAuth API is not working/i);
+      assert.strictEqual(sentEmails.length, 0, 'NO 2FA email may be dispatched for a non-working key');
 
-      // Submit 2FA code; backend must verify if it is a working API and reject it!
-      const confirmNwRes = await makeHttpRequest(server, {
+      // (b) Google actively rejects the credentials (invalid_client) -> also blocked at initiation
+      const rejectedInit = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/initiate-key-update`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        su_admin_key: process.env.SU_ADMIN_KEY,
+        settings: {
+          CUSTOM_GOOGLE_CLIENT_ID: '999999999999-wrongclientid.apps.googleusercontent.com',
+          CUSTOM_GOOGLE_CLIENT_SECRET: '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enough',
+        },
+      });
+      assert.strictEqual(rejectedInit.status, 400, 'Google-rejected credentials must be blocked at initiation');
+      assert.match(rejectedInit.data.message, /Google OAuth API is not working.*invalid_client/i);
+      assert.strictEqual(sentEmails.length, 0, 'NO 2FA email may be dispatched for rejected credentials');
+
+      // (c) Google unreachable -> fail closed at initiation as well
+      googleProbeMode = 'unreachable';
+      const unreachableInit = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/initiate-key-update`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        su_admin_key: process.env.SU_ADMIN_KEY,
+        settings: { CUSTOM_GOOGLE_CLIENT_ID: VALID_GOOGLE_ID, CUSTOM_GOOGLE_CLIENT_SECRET: VALID_GOOGLE_SECRET },
+      });
+      assert.strictEqual(unreachableInit.status, 400, 'Unverifiable credentials must be blocked at initiation');
+      assert.match(unreachableInit.data.message, /Could not reach Google/i);
+      assert.strictEqual(sentEmails.length, 0, 'NO 2FA email may be dispatched when provider is unreachable');
+      googleProbeMode = 'realistic';
+
+      // (d) None of the rejected keys were written to .env
+      const envContent = fs.readFileSync(TEST_ENV_PATH, 'utf8');
+      assert.ok(!envContent.includes(nonWorkingGoogleKey), 'Non-working key must never be saved to .env');
+
+      // (e) A genuinely valid key DOES pass the provider gate and dispatch 2FA
+      const goodInit = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/initiate-key-update`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        su_admin_key: process.env.SU_ADMIN_KEY,
+        settings: { CUSTOM_GOOGLE_CLIENT_ID: VALID_GOOGLE_ID, CUSTOM_GOOGLE_CLIENT_SECRET: VALID_GOOGLE_SECRET },
+      });
+      assert.strictEqual(goodInit.status, 200, 'Working credentials must pass the provider gate');
+      assert.strictEqual(sentEmails.length, 1, '2FA email sent only after provider verification succeeds');
+
+      // (f) Second gate at confirm: tampering the pending key after initiation must still be rejected
+      await TwoFactorVerification.findByIdAndUpdate(goodInit.data.data.verification_id, {
+        pending_updates: { CUSTOM_GOOGLE_CLIENT_ID: 'tampered-invalid-id' },
+      });
+      const goodOtp = sentEmails[0].subject.match(/\((\d{6})\)/)[1];
+      const tamperedConfirm = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/confirm-key-update`,
         method: 'POST',
         headers: { Authorization: `Bearer ${adminToken}` },
-      }, { verification_id: nwVerId, code: nwOtp });
+      }, { verification_id: goodInit.data.data.verification_id, code: goodOtp });
+      assert.strictEqual(tamperedConfirm.status, 400, 'Confirm-time re-validation must reject tampered keys');
+      assert.match(tamperedConfirm.data.message, /Google OAuth API is not working/i);
 
-      assert.strictEqual(confirmNwRes.status, 400);
-      assert.match(confirmNwRes.data.message, /Google OAuth API is not working/i);
-
-      // Verify it was NOT written to .env
-      const envContent = fs.readFileSync(TEST_ENV_PATH, 'utf8');
-      assert.ok(!envContent.includes(nonWorkingGoogleKey), 'Non-working key must never be saved to .env');
-      console.log('  ✓ 3.2b: Dispatches 2FA on custom API entry, then verifies working API with provider (rejects if not working)');
+      console.log('  ✓ 3.2b: Provider verification gates 2FA dispatch; confirm re-validates before activation');
     }
 
     // 3.3: Initiates 2FA and dispatches verification code via email

@@ -329,8 +329,53 @@ async function validateApiKeyCandidate({ provider, credentials }) {
 }
 
 /**
+ * Verifies submitted custom API credentials against their live providers BEFORE they are
+ * accepted into the 2FA flow (and again at confirmation). Fails closed with a
+ * provider-specific message; never logs or echoes the raw credential.
+ */
+async function validatePendingProviderKeys(pendingUpdates = {}) {
+  if (!pendingUpdates || Object.keys(pendingUpdates).length === 0) return;
+
+  const checks = [
+    { applies: pendingUpdates.CUSTOM_REST_API_SECRET_KEY, provider: 'rest_api', label: 'REST API Key' },
+    {
+      applies: pendingUpdates.CUSTOM_GOOGLE_CLIENT_ID || pendingUpdates.CUSTOM_GOOGLE_CLIENT_SECRET,
+      provider: 'google',
+      label: 'Google OAuth API',
+    },
+    {
+      applies: pendingUpdates.CUSTOM_SMS_API_TOKEN || pendingUpdates.CUSTOM_SMS_GATEWAY_URL,
+      provider: 'sms',
+      label: 'PhilSMS Gateway API',
+    },
+    {
+      applies: pendingUpdates.CUSTOM_SMTP_USER || pendingUpdates.CUSTOM_SMTP_PASS,
+      provider: 'smtp',
+      label: 'SMTP Mail Server',
+    },
+    {
+      applies: pendingUpdates.CUSTOM_RECAPTCHA_SECRET_KEY || pendingUpdates.CUSTOM_RECAPTCHA_SITE_KEY,
+      provider: 'recaptcha',
+      label: 'Google reCAPTCHA API',
+    },
+  ];
+
+  for (const check of checks) {
+    if (!check.applies) continue;
+    const result = await validateProviderKey(check.provider, pendingUpdates);
+    if (!result.valid) {
+      const err = new Error(`${check.label} is not working: ${result.message}`);
+      err.statusCode = 400;
+      err.provider = check.provider;
+      throw err;
+    }
+  }
+}
+
+/**
  * Initiates registration of new custom API keys with mandatory 2FA email verification.
- * Verifies Super Admin PIN and dispatches 2FA code to administrator's email.
+ * Verifies Super Admin PIN and the submitted credentials with their providers BEFORE
+ * dispatching the 2FA code. A broken/unverifiable key never reaches the confirmation step.
  */
 async function initiateApiKeyRegistration({ suAdminKey, settings = {}, resetKeys = [], user, ipAddress, userAgent }) {
   if (!suAdminKey) {
@@ -358,7 +403,29 @@ async function initiateApiKeyRegistration({ suAdminKey, settings = {}, resetKeys
     }
   }
 
-  // 3. Initiate 2FA code generation and email dispatch
+  // 3. Verify credentials with their live providers BEFORE any 2FA email is dispatched.
+  //    This is the primary gate: a broken/unverifiable key is rejected here, immediately.
+  try {
+    await validatePendingProviderKeys(settings);
+  } catch (err) {
+    await AuditLog.create({
+      user_id: user._id,
+      actor_name: user.full_name,
+      action: 'API_KEY_PROVIDER_VALIDATION_FAILED',
+      module: 'SETTINGS',
+      target_type: 'AppConfig',
+      details: {
+        provider: err.provider || 'unknown',
+        reason: err.message,
+        keys_modified: Object.keys(settings || {}),
+      },
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+    throw err;
+  }
+
+  // 4. Initiate 2FA code generation and email dispatch
   return initiateApiKey2FA({
     user,
     pendingUpdates: settings,
@@ -383,49 +450,8 @@ async function confirmApiKeyRegistration({ verificationId, code, user, ipAddress
     userAgent,
   });
 
-  // 2. Verify if submitted API keys are working with their providers before activation
-  if (pending_updates && Object.keys(pending_updates).length > 0) {
-    if (pending_updates.CUSTOM_REST_API_SECRET_KEY) {
-      const v = await validateProviderKey('rest_api', pending_updates);
-      if (!v.valid) {
-        const err = new Error(`REST API Key is not working: ${v.message}`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-    if (pending_updates.CUSTOM_GOOGLE_CLIENT_ID || pending_updates.CUSTOM_GOOGLE_CLIENT_SECRET) {
-      const v = await validateProviderKey('google', pending_updates);
-      if (!v.valid) {
-        const err = new Error(`Google OAuth API is not working: ${v.message}`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-    if (pending_updates.CUSTOM_SMS_API_TOKEN || pending_updates.CUSTOM_SMS_GATEWAY_URL) {
-      const v = await validateProviderKey('sms', pending_updates);
-      if (!v.valid) {
-        const err = new Error(`PhilSMS Gateway API is not working: ${v.message}`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-    if (pending_updates.CUSTOM_SMTP_USER || pending_updates.CUSTOM_SMTP_PASS) {
-      const v = await validateProviderKey('smtp', pending_updates);
-      if (!v.valid) {
-        const err = new Error(`SMTP Mail Server is not working: ${v.message}`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-    if (pending_updates.CUSTOM_RECAPTCHA_SECRET_KEY || pending_updates.CUSTOM_RECAPTCHA_SITE_KEY) {
-      const v = await validateProviderKey('recaptcha', pending_updates);
-      if (!v.valid) {
-        const err = new Error(`Google reCAPTCHA API is not working: ${v.message}`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-  }
+  // 2. Re-verify credentials with their providers before activation (second gate).
+  await validatePendingProviderKeys(pending_updates);
 
   // 3. Perform atomic write to .env ONLY after 2FA is verified AND API is verified working!
   const { modifiedKeys } = writeCustomEnvVars(pending_updates, pending_reset_keys);
