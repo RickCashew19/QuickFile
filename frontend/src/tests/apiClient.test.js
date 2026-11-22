@@ -70,6 +70,26 @@ describe('ApiClient Service Suite', () => {
     });
   });
 
+  it('preserves a server-provided error code on 409 responses', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        success: false,
+        message: 'Profile incomplete.',
+        code: 'MISSING_PROFILE_FIELDS',
+        data: { missing_fields: [{ key: 'birthdate', label: 'Age' }] },
+      }),
+    });
+
+    await expect(apiClient.post('/citizen/requests', {})).rejects.toMatchObject({
+      status: 409,
+      code: 'MISSING_PROFILE_FIELDS',
+      data: { missing_fields: [{ key: 'birthdate', label: 'Age' }] },
+    });
+  });
+
   describe('401 Session Expiration Logic', () => {
     it('does NOT treat 401 on POST /auth/login as expired session (wrong password)', async () => {
       const dispatchSpy = vi.spyOn(window, 'dispatchEvent');

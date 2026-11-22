@@ -11,6 +11,7 @@ import { Button } from '../../../components/shared/Button';
 import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Alert } from '../../../components/shared/Alert';
 import { Icon } from '../../../components/shared/Icon';
+import { MissingProfileInfoModal } from '../../../components/shared/MissingProfileInfoModal';
 import { formatCurrency } from '../../../utils/formatters';
 import './StaffWalkInPage.css';
 
@@ -29,6 +30,8 @@ export function StaffWalkInPage() {
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [createdResult, setCreatedResult] = useState(null);
+  const [missingInfoFields, setMissingInfoFields] = useState([]);
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -101,7 +104,12 @@ export function StaffWalkInPage() {
       const result = await staffService.createWalkIn(formData);
       setCreatedResult(result);
     } catch (err) {
-      setError(err.message || 'Failed to submit walk-in document request.');
+      if (err.code === 'MISSING_PROFILE_FIELDS') {
+        setMissingInfoFields(err.data?.missing_fields || []);
+        setShowMissingInfoModal(true);
+      } else {
+        setError(err.message || 'Failed to submit walk-in document request.');
+      }
     } finally {
       setLoading(false);
     }
@@ -267,6 +275,13 @@ export function StaffWalkInPage() {
           </Button>
         </div>
       </form>
+
+      <MissingProfileInfoModal
+        isOpen={showMissingInfoModal}
+        onClose={() => setShowMissingInfoModal(false)}
+        missingFields={missingInfoFields}
+        variant="staff"
+      />
     </div>
   );
 }

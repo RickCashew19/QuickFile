@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { citizenService } from '../../../api/citizenService';
 import { requestService } from '../../../api/requestService';
 import { validateRequestForm } from '../../../validators/validators';
@@ -11,10 +11,12 @@ import { Alert } from '../../../components/shared/Alert';
 import { Loader } from '../../../components/shared/Loader';
 import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Icon } from '../../../components/shared/Icon';
+import { MissingProfileInfoModal } from '../../../components/shared/MissingProfileInfoModal';
 import './CitizenNewRequestPage.css';
 
 export function CitizenNewRequestPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const initialTypeId = searchParams.get('type') || '';
 
@@ -30,6 +32,8 @@ export function CitizenNewRequestPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [serverError, setServerError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [missingInfoFields, setMissingInfoFields] = useState([]);
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
 
   // Success State
   const [submittedRequest, setSubmittedRequest] = useState(null);
@@ -52,6 +56,7 @@ export function CitizenNewRequestPage() {
   }, []);
 
   const selectedDocType = catalog.find((d) => (d._id || d.id) === documentTypeId);
+  const selectedMissingFields = selectedDocType?.missing_fields || [];
   const feeSummary = calculateDisplayFee(selectedDocType?.fee || 0, copies);
 
   const handleSubmit = async (e) => {
@@ -97,6 +102,12 @@ export function CitizenNewRequestPage() {
       const result = await requestService.createRequest(formData);
       setSubmittedRequest(result);
     } catch (err) {
+      if (err.code === 'MISSING_PROFILE_FIELDS') {
+        // Hard gate: the server tells us exactly which values this document needs.
+        setMissingInfoFields(err.data?.missing_fields || selectedMissingFields);
+        setShowMissingInfoModal(true);
+        return;
+      }
       if (err.errors && typeof err.errors === 'object') {
         setFieldErrors(err.errors);
       }
@@ -188,6 +199,13 @@ export function CitizenNewRequestPage() {
           placeholder="-- Select a Document Service --"
         />
 
+        {selectedMissingFields.length > 0 && (
+          <Alert variant="warning" title="Update your profile first">
+            This document needs information that is missing from your profile:{' '}
+            <strong>{selectedMissingFields.map((f) => f.label).join(', ')}</strong>. You will be asked to update it when you submit.
+          </Alert>
+        )}
+
         {/* Purpose */}
         <Input
           label="Purpose of Request"
@@ -244,6 +262,13 @@ export function CitizenNewRequestPage() {
           Submit Document Request
         </Button>
       </form>
+
+      <MissingProfileInfoModal
+        isOpen={showMissingInfoModal}
+        onClose={() => setShowMissingInfoModal(false)}
+        onUpdateProfile={() => navigate('/citizen/profile')}
+        missingFields={missingInfoFields}
+      />
     </div>
   );
 }

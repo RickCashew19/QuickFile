@@ -9,6 +9,7 @@ import { Alert } from '../../../components/shared/Alert';
 import { Loader } from '../../../components/shared/Loader';
 import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Icon } from '../../../components/shared/Icon';
+import { MissingProfileInfoModal } from '../../../components/shared/MissingProfileInfoModal';
 import './CitizenNewRequestPage.css';
 
 export function CitizenEditRequestPage() {
@@ -25,6 +26,8 @@ export function CitizenEditRequestPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState(null);
+  const [missingInfoFields, setMissingInfoFields] = useState([]);
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
 
   useEffect(() => {
     async function fetchRequest() {
@@ -108,7 +111,10 @@ export function CitizenEditRequestPage() {
       await requestService.updateRequest(trackingNumber, formData);
       navigate(`/citizen/requests/${trackingNumber}`, { replace: true });
     } catch (err) {
-      if (err.status === 409) {
+      if (err.code === 'MISSING_PROFILE_FIELDS') {
+        setMissingInfoFields(err.data?.missing_fields || []);
+        setShowMissingInfoModal(true);
+      } else if (err.status === 409) {
         setErrorMessage('Cannot update request: the request status was already changed by barangay staff.');
       } else {
         setErrorMessage(err.message || 'Failed to update request.');
@@ -202,6 +208,13 @@ export function CitizenEditRequestPage() {
           </Button>
         </div>
       </form>
+
+      <MissingProfileInfoModal
+        isOpen={showMissingInfoModal}
+        onClose={() => setShowMissingInfoModal(false)}
+        onUpdateProfile={() => navigate('/citizen/profile')}
+        missingFields={missingInfoFields}
+      />
     </div>
   );
 }

@@ -119,7 +119,7 @@ function handleCommonErrors(response, body, endpoint, options, tokenSent) {
   // 3. Handle Resource Conflict (409)
   if (response.status === 409) {
     const msg = (body && body.message) || 'This record was recently modified. Please refresh and try again.';
-    throw new ApiError(msg, 409, 'CONFLICT', body ? body.data : null);
+    throw new ApiError(msg, 409, (body && body.code) || 'CONFLICT', body ? body.data : null);
   }
 
   // 4. Handle Other HTTP Error Statuses
