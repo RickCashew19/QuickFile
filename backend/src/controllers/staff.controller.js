@@ -1,4 +1,5 @@
 const staffService = require('../services/staff.service');
+const adminService = require('../services/admin.service');
 const reportsService = require('../services/reports.service');
 const requestLockService = require('../services/requestLock.service');
 const { formatContentDisposition } = require('../helpers/contentDisposition');
@@ -303,6 +304,20 @@ const searchResidents = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Staff verification of a resident's voter registration status. Reuses the
+ * admin-managed update service (including its audit trail) but is gated on
+ * either can_review_requests or can_prepare_documents at the route layer.
+ */
+const updateResidentVoterStatus = asyncHandler(async (req, res) => {
+  const result = await adminService.updateCitizenVoterStatus(req.params.id, req.body, req.user);
+  return res.status(200).json({
+    success: true,
+    message: 'Resident voter registration status verified and updated successfully.',
+    data: result,
+  });
+});
+
 const createWalkIn = asyncHandler(async (req, res) => {
   const { citizen_id, document_type_id, purpose, copies, form_data } = req.body;
   const result = await staffService.createWalkInRequest({
@@ -411,6 +426,7 @@ module.exports = {
   archiveRequest,
   listRecords,
   searchResidents,
+  updateResidentVoterStatus,
   createWalkIn,
   getReports,
   exportStaffReport,

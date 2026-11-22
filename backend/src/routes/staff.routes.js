@@ -3,7 +3,7 @@ const router = express.Router();
 const staffController = require('../controllers/staff.controller');
 const { verifyController } = require('../controllers/verify.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
-const { requirePermission } = require('../middlewares/permission.middleware');
+const { requirePermission, requireAnyPermission } = require('../middlewares/permission.middleware');
 const {
   userApiLimiter,
   pollingLimiter,
@@ -68,6 +68,12 @@ router.get('/records', requirePermission('can_archive_records'), staffController
 
 // Item 2: Residents Search & Walk-In Submission -> Guarded by can_prepare_documents
 router.get('/residents', requirePermission('can_prepare_documents'), staffController.searchResidents);
+router.patch(
+  '/residents/:id/voter-status',
+  validateObjectIdParam('id'),
+  requireAnyPermission(['can_review_requests', 'can_prepare_documents']),
+  staffController.updateResidentVoterStatus
+);
 router.post(
   '/requests/walk-in',
   requirePermission('can_prepare_documents'),
