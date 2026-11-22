@@ -94,7 +94,7 @@ const getReuseData = asyncHandler(async (req, res) => {
  * GET /api/v1/citizen/catalog
  */
 const getCatalog = asyncHandler(async (req, res) => {
-  const result = await citizenService.getActiveCatalog();
+  const result = await citizenService.getActiveCatalog(req.user ? req.user._id : null);
 
   return res.status(200).json({
     success: true,

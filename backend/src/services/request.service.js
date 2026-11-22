@@ -5,6 +5,10 @@ const { saveValidatedFile, deleteUploadedFile } = require('../helpers/fileUpload
 const { validateAndParseFormData } = require('../helpers/formDataValidator');
 const { sendNotification } = require('./notification.service');
 const { transitionRequestStatus } = require('../helpers/requestTransition');
+const {
+  getMissingFieldsForDocType,
+  missingFieldsError,
+} = require('../helpers/profileRequirements');
 
 /**
  * Generates an 8-character unique alphanumeric tracking number
@@ -93,6 +97,14 @@ async function createRequest({
     const error = new Error('Selected document type is invalid or currently inactive.');
     error.statusCode = 400;
     throw error;
+  }
+
+  // 1b. Profile-completeness gate. A document only requires the profile values
+  // its active template actually prints (the built-in layout always prints the
+  // address lines). This also covers staff walk-in requests, which funnel here.
+  const missingFields = await getMissingFieldsForDocType(docType, citizenUser._id);
+  if (missingFields.length > 0) {
+    throw missingFieldsError(missingFields);
   }
 
   // 2. Server computes unit_fee, fee and payment_status
@@ -301,6 +313,16 @@ async function updateCitizenRequest({
     );
     error.statusCode = 400;
     throw error;
+  }
+
+  // Same profile-completeness gate as creation: editing a pending request must
+  // not bypass it if the citizen's profile has since become incomplete.
+  const docType = await DocumentType.findById(existing.document_type_id);
+  if (docType) {
+    const missingFields = await getMissingFieldsForDocType(docType, citizenId);
+    if (missingFields.length > 0) {
+      throw missingFieldsError(missingFields);
+    }
   }
 
   const newlySaved = [];

@@ -1,6 +1,11 @@
 const { User, CitizenProfile, DocumentType, AuditLog } = require('../models');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
 const { buildUserProfileMirror, syncUserFromProfile } = require('../helpers/userProfileSync');
+const {
+  deriveRequiredFields,
+  loadActiveTemplates,
+  getMissingProfileFields,
+} = require('../helpers/profileRequirements');
 
 const PROFILE_COMPLETENESS_FIELDS = [
   'first_name',
@@ -186,11 +191,30 @@ async function getProfileReuseData(userId) {
 }
 
 /**
- * Returns active document types for citizen document catalog
+ * Returns active document types for citizen document catalog.
+ * Each type includes `missing_fields`: profile values its template needs that
+ * the requesting user has not filled yet (empty when there is no user/profile
+ * context, e.g. an unauthenticated or non-citizen caller).
  */
-async function getActiveCatalog() {
+async function getActiveCatalog(userId = null) {
   const documentTypes = await DocumentType.find({ is_active: true }).sort({ name: 1 }).lean();
-  return documentTypes;
+  if (!userId) {
+    return documentTypes.map((dt) => ({ ...dt, missing_fields: [] }));
+  }
+
+  const [profile, templatesByType] = await Promise.all([
+    CitizenProfile.findOne({ user_id: userId }).lean(),
+    loadActiveTemplates(documentTypes),
+  ]);
+
+  return documentTypes.map((docType) => {
+    const activeTemplate = templatesByType.get(docType._id.toString()) || null;
+    const required = deriveRequiredFields(docType, activeTemplate);
+    return {
+      ...docType,
+      missing_fields: getMissingProfileFields(profile, required),
+    };
+  });
 }
 
 module.exports = {
