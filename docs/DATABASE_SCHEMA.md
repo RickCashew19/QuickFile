@@ -57,7 +57,7 @@ The table below lists all 14 collections as they exist today (field names taken 
 | # | Collection | Purpose | Key fields / notable structures |
 | --- | --- | --- | --- |
 | 1 | `users` | All accounts (admin, staff, citizen) | `email` (unique), `password_hash`, `full_name`, `phone`, `role`, `is_active`, `google_id` (sparse unique), login timestamps |
-| 2 | `citizenprofiles` | Resident identity & address details | `user_id` (unique), name parts, `birthdate`, `gender`, address, `voter_status`, valid-ID fields, `verification_status`, `verified_by` |
+| 2 | `citizenprofiles` | Resident identity & address details | `user_id` (unique), name parts, `birthdate`, `gender`, address, `voter_status` (barangay/admin-managed; citizens cannot change it), valid-ID fields, `verification_status`, `verified_by` |
 | 3 | `staffdetails` | Staff employment details | `user_id` (unique), `employee_id`, `position`, `department`, `contact_number` |
 | 4 | `staffpermissions` | Staff capability flags | `user_id` (unique), 7 `can_*` booleans |
 | 5 | `documenttypes` | Catalog of issuable documents | `code` (unique), `fee`, `processing_days`, `requirements: [String]`, `form_template: Mixed`, `template_mode`, `active_template_id` |
@@ -341,7 +341,7 @@ CREATE TABLE citizen_profiles (
     city                    VARCHAR(100) NOT NULL DEFAULT '',
     province                VARCHAR(100) NOT NULL DEFAULT '',
     occupation              VARCHAR(100) NOT NULL DEFAULT '',
-    voter_status            VARCHAR(20)  NOT NULL DEFAULT 'registered',
+    voter_status            VARCHAR(20)  NOT NULL DEFAULT 'registered',  -- barangay-managed; admin edit is audit-logged
     emergency_contact_name  VARCHAR(150) NOT NULL DEFAULT '',
     emergency_contact_number VARCHAR(50) NOT NULL DEFAULT '',
     valid_id_type           VARCHAR(50)  NOT NULL DEFAULT '',
