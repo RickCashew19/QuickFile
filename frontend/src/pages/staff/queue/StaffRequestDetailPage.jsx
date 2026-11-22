@@ -17,6 +17,7 @@ import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { Loader } from '../../../components/shared/Loader';
 import { Alert } from '../../../components/shared/Alert';
 import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
+import { VoterStatusEditor } from '../../../components/shared/VoterStatusEditor';
 import { formatDate, formatCurrency } from '../../../utils/formatters';
 import { downloadBlob } from '../../../utils/downloadHelper';
 import './StaffRequestDetailPage.css';
@@ -315,6 +316,9 @@ export function StaffRequestDetailPage() {
 
   const citizen = request.citizen_id || {};
   const docType = request.document_type_id || {};
+  const canVerifyVoter =
+    hasPermission(STAFF_PERMISSIONS.CAN_REVIEW_REQUESTS) ||
+    hasPermission(STAFF_PERMISSIONS.CAN_PREPARE_DOCUMENTS);
 
   return (
     <div className="qf-staff-detail-page">
@@ -385,6 +389,13 @@ export function StaffRequestDetailPage() {
         {/* Main Application Details Column */}
         <div className="qf-staff-detail-column-main">
           <ApplicantInfoCard citizen={citizen} citizenProfile={citizenProfile} />
+          {canVerifyVoter && citizen._id && (
+            <VoterStatusEditor
+              currentStatus={citizenProfile?.voter_status}
+              onSave={(status) => staffService.updateResidentVoterStatus(citizen._id, status)}
+              onUpdated={fetchRequestDetails}
+            />
+          )}
           <RequestSpecsCard request={request} />
           <PaymentIssuanceCard
             request={request}

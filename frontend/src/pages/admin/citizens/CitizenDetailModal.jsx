@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Modal } from '../../../components/shared/Modal';
 import { Button } from '../../../components/shared/Button';
-import { Select } from '../../../components/shared/Select';
-import { Alert } from '../../../components/shared/Alert';
+import { VoterStatusEditor } from '../../../components/shared/VoterStatusEditor';
 import { adminService } from '../../../api/adminService';
 import { formatDate } from '../../../utils/formatters';
 
@@ -10,72 +8,6 @@ const VOTER_LABELS = {
   registered: 'Registered Barangay Voter',
   unregistered: 'Non-Registered',
 };
-
-/**
- * Voter status is barangay-managed: only an admin can change it. Kept in its
- * own component so the modal itself stays free of state when no resident is
- * selected.
- */
-function VoterStatusEditor({ citizen, onUpdated }) {
-  const current = citizen.profile?.voter_status || '';
-  const [value, setValue] = useState(current);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    setValue(current);
-    setError(null);
-  }, [current, citizen._id]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await adminService.updateCitizenVoterStatus(citizen._id, value);
-      if (onUpdated) await onUpdated();
-    } catch (err) {
-      setError(err.message || 'Failed to update voter status.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div style={{ paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 240px' }}>
-          <Select
-            label="Voter Registration Status"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            options={[
-              { value: 'registered', label: 'Registered Barangay Voter' },
-              { value: 'unregistered', label: 'Not Registered / Out of District' },
-            ]}
-            disabled={saving}
-          />
-        </div>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleSave}
-          disabled={!value || value === current}
-          loading={saving}
-        >
-          Save Voter Status
-        </Button>
-      </div>
-      <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-xs)', color: 'var(--color-text-muted)' }}>
-        Managed by the barangay. Changes are recorded in the audit log.
-      </p>
-      {error && (
-        <div style={{ marginTop: 'var(--space-2)' }}>
-          <Alert variant="danger">{error}</Alert>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function CitizenDetailModal({ isOpen, onClose, citizen, onUpdated }) {
   if (!citizen) return null;
@@ -145,7 +77,11 @@ export function CitizenDetailModal({ isOpen, onClose, citizen, onUpdated }) {
           </div>
         )}
 
-        <VoterStatusEditor citizen={citizen} onUpdated={onUpdated} />
+        <VoterStatusEditor
+          currentStatus={p.voter_status}
+          onSave={(status) => adminService.updateCitizenVoterStatus(citizen._id, status)}
+          onUpdated={onUpdated}
+        />
       </div>
     </Modal>
   );

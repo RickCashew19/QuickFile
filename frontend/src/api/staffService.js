@@ -155,6 +155,15 @@ export const staffService = {
   },
 
   /**
+   * Verifies/updates a resident's barangay-managed voter registration status
+   */
+  async updateResidentVoterStatus(id, voterStatus) {
+    return apiClient.patch(`/staff/residents/${encodeURIComponent(id)}/voter-status`, {
+      voter_status: voterStatus,
+    });
+  },
+
+  /**
    * Submits a walk-in request on behalf of a citizen (multipart/form-data)
    */
   async createWalkIn(formData) {

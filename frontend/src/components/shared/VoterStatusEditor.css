@@ -1,0 +1,25 @@
+.qf-voter-editor {
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--color-border, #e2e8f0);
+}
+
+.qf-voter-editor__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.qf-voter-editor__field {
+  flex: 1 1 240px;
+}
+
+.qf-voter-editor__hint {
+  margin: var(--space-1, 4px) 0 0;
+  font-size: var(--font-xs, 12px);
+  color: var(--color-text-muted, #64748b);
+}
+
+.qf-voter-editor__error {
+  margin-top: var(--space-2, 8px);
+}
