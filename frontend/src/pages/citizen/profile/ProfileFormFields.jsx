@@ -155,21 +155,18 @@ export function ProfileFormFields({ formData, onChange, errors, isEditing }) {
           disabled={!isEditing}
         />
 
-        <div className="qf-field-group">
-          <label className="qf-field-label" htmlFor="profile-voter-status">
-            Voter Registration Status
-          </label>
-          <select
-            id="profile-voter-status"
-            className="qf-select-control"
-            value={formData.voter_status || 'unregistered'}
-            onChange={handleChange('voter_status')}
-            disabled={!isEditing}
-          >
-            <option value="registered">Registered Barangay Voter</option>
-            <option value="unregistered">Not Registered / Out of District</option>
-          </select>
-        </div>
+        <Input
+          label="Voter Registration Status"
+          value={
+            formData.voter_status === 'registered'
+              ? 'Registered Barangay Voter'
+              : formData.voter_status === 'unregistered'
+              ? 'Not Registered / Out of District'
+              : 'Not Indicated'
+          }
+          disabled
+          helperText="Managed by the barangay — contact the barangay office to change it."
+        />
 
         <Input
           label="Emergency Contact Name"

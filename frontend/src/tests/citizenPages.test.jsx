@@ -84,6 +84,45 @@ describe('Citizen Profile Page', () => {
     vi.clearAllMocks();
   });
 
+  it('shows voter status as read-only and never submits it', async () => {
+    citizenService.getProfile.mockResolvedValueOnce({
+      profile: {
+        first_name: 'Juan',
+        last_name: 'Dela Cruz',
+        birthdate: '1995-05-15T00:00:00.000Z',
+        gender: 'male',
+        voter_status: 'registered',
+      },
+      completeness_score: 60,
+    });
+    citizenService.updateProfile.mockResolvedValueOnce({
+      profile: {
+        first_name: 'Juan',
+        last_name: 'Dela Cruz',
+        birthdate: '1995-05-15T00:00:00.000Z',
+        gender: 'male',
+        voter_status: 'registered',
+      },
+      completeness_score: 60,
+    });
+
+    render(
+      <MemoryRouter>
+        <CitizenProfilePage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Edit Profile')).toBeTruthy());
+    fireEvent.click(screen.getByText('Edit Profile'));
+
+    const voterField = screen.getByDisplayValue('Registered Barangay Voter');
+    expect(voterField.disabled).toBe(true);
+
+    fireEvent.click(screen.getByText('Save Profile Changes'));
+    await waitFor(() => expect(citizenService.updateProfile).toHaveBeenCalled());
+    expect(citizenService.updateProfile.mock.calls[0][0]).not.toHaveProperty('voter_status');
+  });
+
   it('renders profile completeness score and fields', async () => {
     citizenService.getProfile.mockResolvedValueOnce({
       profile: {

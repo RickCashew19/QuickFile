@@ -69,7 +69,11 @@ export function CitizenProfilePage() {
 
     setIsSaving(true);
     try {
-      const response = await citizenService.updateProfile(formData);
+      // Voter status is barangay-managed; never send it from the citizen form.
+      const editableData = Object.fromEntries(
+        Object.entries(formData).filter(([field]) => field !== 'voter_status')
+      );
+      const response = await citizenService.updateProfile(editableData);
       const updatedProfile = response?.profile || formData;
       setFormData(updatedProfile);
       setInitialData(updatedProfile);

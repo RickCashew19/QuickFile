@@ -137,6 +137,15 @@ export const adminService = {
   },
 
   /**
+   * Sets the barangay-managed voter registration status of a resident
+   */
+  async updateCitizenVoterStatus(id, voterStatus) {
+    return apiClient.patch(`/admin/citizens/${encodeURIComponent(id)}/voter-status`, {
+      voter_status: voterStatus,
+    });
+  },
+
+  /**
    * Permanently deletes a citizen account and associated files (requires typed DELETE confirmation)
    */
   async deleteCitizen(id) {

@@ -160,14 +160,16 @@ export function AdminCitizensPage() {
                   </td>
                   <td>{c.profile?.purok_zone || '—'}</td>
                   <td>
-                    {c.profile?.is_registered_voter ? (
+                    {c.profile?.voter_status === 'registered' ? (
                       <span style={{ color: 'var(--color-success)', fontSize: 'var(--font-xs)', fontWeight: 'var(--font-medium)' }}>
                         Registered
                       </span>
-                    ) : (
+                    ) : c.profile?.voter_status === 'unregistered' ? (
                       <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-xs)' }}>
                         Non-Registered
                       </span>
+                    ) : (
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-xs)' }}>—</span>
                     )}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 'var(--font-semibold)' }}>
@@ -232,6 +234,7 @@ export function AdminCitizensPage() {
         isOpen={Boolean(detailCitizen)}
         onClose={() => setDetailCitizen(null)}
         citizen={detailCitizen}
+        onUpdated={() => fetchCitizens(pagination.page)}
       />
 
       {/* Typed DELETE Confirmation Modal */}

@@ -14,6 +14,7 @@ vi.mock('../api/adminService', () => ({
     listCitizens: vi.fn(),
     deleteCitizen: vi.fn(),
     updateCitizenStatus: vi.fn(),
+    updateCitizenVoterStatus: vi.fn(),
   },
 }));
 
@@ -146,7 +147,7 @@ describe('Typed DELETE Confirmation & Destructive Action Safeguards', () => {
             email: 'pedro@quickfile.gov.ph',
             phone: '09171234567',
             is_active: true,
-            profile: { purok_zone: 'Purok 1', is_registered_voter: true },
+            profile: { purok_zone: 'Purok 1', voter_status: 'registered' },
             request_count: 2,
           },
         ],
