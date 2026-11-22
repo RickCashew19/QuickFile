@@ -136,6 +136,15 @@ const updateCitizenStatus = asyncHandler(async (req, res) => {
   });
 });
 
+const updateCitizenVoterStatus = asyncHandler(async (req, res) => {
+  const result = await adminService.updateCitizenVoterStatus(req.params.id, req.body, req.user);
+  return res.status(200).json({
+    success: true,
+    message: 'Resident voter registration status updated successfully.',
+    data: result,
+  });
+});
+
 const deleteCitizen = asyncHandler(async (req, res) => {
   if (!requireDeleteConfirmation(req, res)) return;
   await adminService.deleteCitizen(req.params.id, req.user);
@@ -276,6 +285,7 @@ module.exports = {
   deleteStaff,
   listCitizens,
   updateCitizenStatus,
+  updateCitizenVoterStatus,
   deleteCitizen,
   listRecords,
   getRequestDetails,

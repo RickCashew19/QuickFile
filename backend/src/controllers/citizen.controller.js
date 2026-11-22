@@ -43,7 +43,6 @@ const updateProfile = asyncHandler(async (req, res) => {
     'city',
     'province',
     'occupation',
-    'voter_status',
     'emergency_contact_name',
     'emergency_contact_number',
     'valid_id_type',

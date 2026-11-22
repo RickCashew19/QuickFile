@@ -33,6 +33,7 @@ router.delete('/staff/:id', validateObjectIdParam('id'), adminController.deleteS
 // 4. Citizens Management
 router.get('/citizens', adminController.listCitizens);
 router.patch('/citizens/:id/status', validateObjectIdParam('id'), adminController.updateCitizenStatus);
+router.patch('/citizens/:id/voter-status', validateObjectIdParam('id'), adminController.updateCitizenVoterStatus);
 router.delete('/citizens/:id', validateObjectIdParam('id'), adminController.deleteCitizen);
 
 // 5. Records & Requests Management

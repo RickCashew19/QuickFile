@@ -20,6 +20,7 @@ const {
   PAYMENT_STATUSES,
   STAFF_PERMISSIONS,
   NOTIFICATION_CHANNELS,
+  VOTER_STATUSES,
 } = require('../config/constants');
 const { getDateRanges, escapeRegex } = require('../helpers/dateUtil');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
@@ -790,6 +791,51 @@ async function updateCitizenStatus(id, { is_active }, actorUser) {
   return sanitizeUser(user);
 }
 
+/**
+ * Voter registration status is barangay-managed: citizens cannot set it
+ * themselves. Every change is audit-logged with the acting admin.
+ */
+async function updateCitizenVoterStatus(id, { voter_status }, actorUser) {
+  const allowed = Object.values(VOTER_STATUSES);
+  if (!allowed.includes(voter_status)) {
+    const err = new Error(
+      `Validation error: "voter_status" must be one of: ${allowed.join(', ')}.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findOne({ _id: id, role: ROLES.CITIZEN });
+  if (!user) {
+    const err = new Error('Citizen account not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const profile = await CitizenProfile.findOne({ user_id: user._id });
+  if (!profile) {
+    const err = new Error('Citizen profile not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const previousStatus = profile.voter_status;
+  profile.voter_status = voter_status;
+  await profile.save();
+
+  await AuditLog.create({
+    user_id: actorUser._id,
+    actor_name: actorUser.full_name,
+    action: 'CITIZEN_VOTER_STATUS_UPDATE',
+    module: 'CITIZEN',
+    target_id: user._id,
+    target_type: 'User',
+    details: { previous_status: previousStatus, voter_status },
+  });
+
+  return { user_id: user._id, voter_status: profile.voter_status };
+}
+
 async function deleteCitizen(id, actorUser) {
   const user = await User.findOne({ _id: id, role: ROLES.CITIZEN });
   if (!user) {
@@ -1197,6 +1243,7 @@ module.exports = {
   deleteStaff,
   listCitizens,
   updateCitizenStatus,
+  updateCitizenVoterStatus,
   deleteCitizen,
   deleteRequest,
   listIssuedDocuments,

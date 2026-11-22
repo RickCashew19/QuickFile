@@ -95,7 +95,6 @@ async function updateCitizenProfile(userId, updateData, ipAddress, userAgent) {
     'city',
     'province',
     'occupation',
-    'voter_status',
     'emergency_contact_name',
     'emergency_contact_number',
     'valid_id_type',
