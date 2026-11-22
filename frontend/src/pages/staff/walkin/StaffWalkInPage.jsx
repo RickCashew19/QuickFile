@@ -12,6 +12,7 @@ import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Alert } from '../../../components/shared/Alert';
 import { Icon } from '../../../components/shared/Icon';
 import { MissingProfileInfoModal } from '../../../components/shared/MissingProfileInfoModal';
+import { DocumentRequirementsPanel } from '../../../components/shared/DocumentRequirementsPanel';
 import { formatCurrency } from '../../../utils/formatters';
 import './StaffWalkInPage.css';
 
@@ -238,6 +239,13 @@ export function StaffWalkInPage() {
               required
             />
           </div>
+
+          {selectedDocType && (
+            <DocumentRequirementsPanel
+              requirements={selectedDocType.requirements}
+              title="Requirements to collect from resident"
+            />
+          )}
 
           <Input
             label="Specific Purpose / Reason for Application *"

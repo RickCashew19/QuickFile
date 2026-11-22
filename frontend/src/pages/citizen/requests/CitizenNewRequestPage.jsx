@@ -12,6 +12,7 @@ import { Loader } from '../../../components/shared/Loader';
 import { FileDropzone } from '../../../components/shared/FileDropzone';
 import { Icon } from '../../../components/shared/Icon';
 import { MissingProfileInfoModal } from '../../../components/shared/MissingProfileInfoModal';
+import { DocumentRequirementsPanel } from '../../../components/shared/DocumentRequirementsPanel';
 import './CitizenNewRequestPage.css';
 
 export function CitizenNewRequestPage() {
@@ -198,6 +199,10 @@ export function CitizenNewRequestPage() {
           }))}
           placeholder="-- Select a Document Service --"
         />
+
+        {selectedDocType && (
+          <DocumentRequirementsPanel requirements={selectedDocType.requirements} />
+        )}
 
         {selectedMissingFields.length > 0 && (
           <Alert variant="warning" title="Update your profile first">
