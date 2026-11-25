@@ -10,6 +10,7 @@ const { requireRole } = require('./src/middlewares/role.middleware');
 const { notFoundHandler } = require('./src/middlewares/notFound.middleware');
 const { errorHandler } = require('./src/middlewares/errorHandler.middleware');
 const { cacheControlHeaders } = require('./src/middlewares/cacheControl.middleware');
+const { withErrorCode } = require('./src/middlewares/errorCode.middleware');
 const { sanitizeNoSql } = require('./src/middlewares/sanitizeNoSql.middleware');
 const { redactSensitiveUrl } = require('./src/helpers/urlRedactor');
 const openApiSpec = require('./docs/openapi');
@@ -71,6 +72,10 @@ const corsOptions = {
   exposedHeaders: ['Content-Disposition', 'X-Export-Truncated', 'Retry-After'],
 };
 app.use(cors(corsOptions));
+
+// Every error envelope gets a stable code, even from handlers that write 400s
+// directly instead of throwing through the central error handler.
+app.use(withErrorCode);
 
 if (config.nodeEnv !== 'test') {
   // Log the redacted URL so verification codes and tracking numbers are never

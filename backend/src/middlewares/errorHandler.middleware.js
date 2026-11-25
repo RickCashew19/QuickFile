@@ -4,6 +4,32 @@
  * Formats Mongoose, JWT, Multer, and application errors consistently.
  */
 const { redactSensitiveUrl } = require('../helpers/urlRedactor');
+const { ERROR_CODES, ERROR_CODES_BY_STATUS } = require('../config/constants');
+
+/**
+ * Choose a stable machine-readable code. Explicit uppercase codes (e.g.
+ * MISSING_PROFILE_FIELDS, LOCKED, TOKEN_EXPIRED) are preserved; Mongoose and
+ * framework error classes get a specific code, everything else falls back to
+ * the HTTP status. Numeric driver codes such as E11000 are never echoed.
+ */
+function codeForError(err, statusCode) {
+  if (err.code === 11000) return ERROR_CODES.DUPLICATE_KEY;
+  if (err.name === 'ValidationError' || err.name === 'CastError') return ERROR_CODES.VALIDATION_ERROR;
+  if (err.name === 'VersionError') return ERROR_CODES.VERSION_CONFLICT;
+  if (err.name === 'TokenExpiredError') return ERROR_CODES.TOKEN_EXPIRED;
+  if (err.name === 'JsonWebTokenError') return ERROR_CODES.TOKEN_INVALID;
+  if (err.name === 'MulterError') {
+    return err.code === 'LIMIT_FILE_SIZE'
+      ? ERROR_CODES.UPLOAD_TOO_LARGE
+      : ERROR_CODES.UPLOAD_LIMIT_EXCEEDED;
+  }
+  if (statusCode === 413) return ERROR_CODES.PAYLOAD_TOO_LARGE;
+  if (typeof err.code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(err.code)) return err.code;
+  return (
+    ERROR_CODES_BY_STATUS[statusCode] ||
+    (statusCode >= 500 ? ERROR_CODES.INTERNAL_ERROR : ERROR_CODES.BAD_REQUEST)
+  );
+}
 
 function errorHandler(err, req, res, next) {
   let statusCode = err.statusCode || err.status || 500;
@@ -104,9 +130,9 @@ function errorHandler(err, req, res, next) {
   res.status(statusCode).json({
     success: false,
     message,
-    // Forward stable machine-readable codes (e.g. TOKEN_EXPIRED, REFRESH_REVOKED)
-    // so clients can react differently without string-matching messages.
-    ...(err.code && { code: err.code }),
+    // Stable machine-readable code for every error, so clients can branch on
+    // it instead of string-matching messages.
+    code: codeForError(err, statusCode),
     ...(errors && { errors }),
     data: err.data !== undefined ? err.data : (err.lock ? { lock: err.lock } : null),
   });

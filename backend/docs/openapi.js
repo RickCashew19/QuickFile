@@ -952,7 +952,7 @@ const spec = {
     title: 'QuickFile REST API',
     version: '1.0.0',
     description:
-      'Barangay document request and management API. All responses use the standard `{ success, message, data }` envelope; errors may also include `code` and `errors`. Browser clients authenticate with httpOnly cookies, other clients with a Bearer JWT. Admin routes require the admin role; staff routes are additionally gated by staff permissions.',
+      'Barangay document request and management API. All responses use the standard `{ success, message, data }` envelope; every error also includes a stable machine-readable `code`. Browser clients authenticate with httpOnly cookies, other clients with a Bearer JWT. Admin routes require the admin role; staff routes are additionally gated by staff permissions.',
   },
   servers: [{ url: 'http://localhost:5000', description: 'Local development' }],
   tags: [
