@@ -2,12 +2,16 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
 const { config } = require('./src/config');
-const { API_PREFIX } = require('./src/config/constants');
+const { API_PREFIX, ROLES } = require('./src/config/constants');
+const { authenticate } = require('./src/middlewares/auth.middleware');
+const { requireRole } = require('./src/middlewares/role.middleware');
 const { notFoundHandler } = require('./src/middlewares/notFound.middleware');
 const { errorHandler } = require('./src/middlewares/errorHandler.middleware');
 const { sanitizeNoSql } = require('./src/middlewares/sanitizeNoSql.middleware');
 const { redactSensitiveUrl } = require('./src/helpers/urlRedactor');
+const openApiSpec = require('./docs/openapi');
 
 // Route imports
 const authRoutes = require('./src/routes/auth.routes');
@@ -94,6 +98,35 @@ app.get(`${API_PREFIX}/health`, (req, res) => {
     data: null,
   });
 });
+
+// Interactive API documentation, generated from backend/docs/openapi.js.
+// Public in development; admin-only in production so the full route inventory
+// is not exposed to unauthenticated visitors.
+const docsGuard = config.isProduction ? [authenticate, requireRole([ROLES.ADMIN])] : [];
+const docsCsp = helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    // Swagger UI boots through an inline script and injects inline styles.
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", 'data:', 'blob:'],
+    fontSrc: ["'self'", 'data:'],
+    connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    frameAncestors: ["'none'"],
+  },
+});
+app.get(`${API_PREFIX}/openapi.json`, ...docsGuard, (req, res) => {
+  res.status(200).json(openApiSpec);
+});
+app.use(
+  `${API_PREFIX}/docs`,
+  ...docsGuard,
+  docsCsp,
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, { customSiteTitle: 'QuickFile REST API' })
+);
 
 // Mounted modules under /api/v1/
 app.use(`${API_PREFIX}/auth`, authRoutes);

@@ -56,6 +56,14 @@ npm --prefix backend run seed:demo:atlas
 Backend test suites need a local MongoDB replica set (`--replSet quickfile`);
 see the "Local development" section of [backend/docs/ATLAS.md](./backend/docs/ATLAS.md).
 
+## API documentation
+
+The machine-readable OpenAPI 3.0 spec lives in `backend/docs/openapi.js` and is
+served at `GET /api/v1/openapi.json`. Interactive Swagger UI is available at
+`/api/v1/docs` — open in development, admin-only in production. A frontend-facing
+summary of each endpoint and screen stays in
+[frontend/docs/api-contract.md](./frontend/docs/api-contract.md).
+
 ## Demonstration data
 
 The backend ships two idempotent demo seeders. They add clearly labeled request

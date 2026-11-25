@@ -41,7 +41,8 @@
     "nodemailer": "10.4.0",
     "pdfmake": "0.3.13",
     "pizzip": "3.3.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "swagger-ui-express": "^5.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
