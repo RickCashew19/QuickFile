@@ -1,6 +1,6 @@
 # QuickFile Frontend API Contract
 
-This document is the frontend-facing summary of the REST API contract. The machine-readable source of truth is the OpenAPI spec served at `GET /api/v1/openapi.json` (Swagger UI at `/api/v1/docs`, generated from `backend/docs/openapi.js`). All API routes are prefixed by `/api/v1` (`VITE_API_URL`). Every response follows the standard QuickFile envelope:
+This document is the frontend-facing summary of the REST API contract. The machine-readable source of truth is the OpenAPI spec served at `GET /api/v1/openapi.json` (Swagger UI at `/api/v1/docs`, generated from `backend/docs/openapi.js`). All API routes are prefixed by `/api/v1` (`VITE_API_URL`). Every response follows the standard QuickFile envelope. API GET responses carry `Cache-Control: private, no-store` by default because they contain user-specific data:
 ```json
 {
   "success": true,

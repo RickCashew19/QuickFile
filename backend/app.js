@@ -9,6 +9,7 @@ const { authenticate } = require('./src/middlewares/auth.middleware');
 const { requireRole } = require('./src/middlewares/role.middleware');
 const { notFoundHandler } = require('./src/middlewares/notFound.middleware');
 const { errorHandler } = require('./src/middlewares/errorHandler.middleware');
+const { cacheControlHeaders } = require('./src/middlewares/cacheControl.middleware');
 const { sanitizeNoSql } = require('./src/middlewares/sanitizeNoSql.middleware');
 const { redactSensitiveUrl } = require('./src/helpers/urlRedactor');
 const openApiSpec = require('./docs/openapi');
@@ -88,6 +89,9 @@ app.use(sanitizeNoSql);
 // ==============================================================================
 // 2. Health Check & API Version 1 Routes (/api/v1)
 // ==============================================================================
+
+// No-store default for API GETs; Swagger UI assets are exempt.
+app.use(`${API_PREFIX}`, cacheControlHeaders);
 
 app.get(`${API_PREFIX}/health`, (req, res) => {
   res.status(200).json({
