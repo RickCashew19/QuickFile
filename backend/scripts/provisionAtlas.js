@@ -146,6 +146,19 @@ const VALIDATORS = {
       },
     },
   },
+  refreshtokens: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['user_id', 'family_id', 'token_hash', 'expires_at', 'absolute_expires_at'],
+      properties: {
+        user_id: { bsonType: 'objectId' },
+        family_id: { bsonType: 'string' },
+        token_hash: { bsonType: 'string' },
+        expires_at: { bsonType: 'date' },
+        absolute_expires_at: { bsonType: 'date' },
+      },
+    },
+  },
   twofactorverifications: {
     $jsonSchema: {
       bsonType: 'object',
@@ -211,6 +224,12 @@ const INDEXES = {
     [{ token_hash: 1 }, { unique: true, name: 'token_hash_unique' }],
     // Native TTL: expired reset records purge themselves.
     [{ expires_at: 1 }, { expireAfterSeconds: 0, name: 'reset_ttl' }],
+  ],
+  refreshtokens: [
+    [{ token_hash: 1 }, { unique: true, name: 'refresh_token_hash_unique' }],
+    [{ family_id: 1, revoked_at: 1 }, { name: 'refresh_family_revoked' }],
+    // Native TTL: expired sessions purge themselves (sliding idle window).
+    [{ expires_at: 1 }, { expireAfterSeconds: 0, name: 'refresh_ttl' }],
   ],
   twofactorverifications: [
     [{ user_id: 1, action: 1 }, { name: 'user_action' }],
