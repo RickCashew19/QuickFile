@@ -350,7 +350,7 @@ async function runTests() {
     const citizenToken = citizenLoginRes.data.data.access_token;
     const citizenUser = citizenLoginRes.data.data.user;
 
-    // Send forbidden fields: verification_status, verified_at, verified_by, rejection_reason, user_id, role
+    // Send forbidden fields: user_id, role
     const updateForbiddenRes = await makeRequest(
       server,
       {
@@ -360,10 +360,6 @@ async function runTests() {
       },
       {
         occupation: 'Senior Research Analyst',
-        verification_status: 'verified_hacked',
-        verified_at: '2099-01-01',
-        verified_by: citizenUser._id,
-        rejection_reason: 'Tampered rejection',
         user_id: '6aeeb4b818046d7f93c5cd4c',
         role: 'admin',
       }
@@ -375,10 +371,9 @@ async function runTests() {
     const reloadedUser = await User.findById(citizenUser._id);
 
     assert(reloadedProfile.occupation === 'Senior Research Analyst', 'Allowed field occupation updated');
-    assert(reloadedProfile.verification_status !== 'verified_hacked', 'verification_status was NOT tampered');
     assert(reloadedUser.role === ROLES.CITIZEN, 'User role was NOT tampered');
     assert(reloadedProfile.user_id.toString() === citizenUser._id.toString(), 'user_id was NOT tampered');
-    console.log('PASS: Profile update strictly ignored restricted fields (verification_status, role, user_id).');
+    console.log('PASS: Profile update strictly ignored restricted fields (role, user_id).');
     console.log('--------------------------------------------------------------------\n');
 
     // -------------------------------------------------------------------------

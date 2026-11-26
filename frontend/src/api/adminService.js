@@ -116,9 +116,6 @@ export const adminService = {
     if (params.is_active !== undefined && params.is_active !== 'all') {
       query.set('is_active', params.is_active);
     }
-    if (params.verification_status && params.verification_status !== 'all') {
-      query.set('verification_status', params.verification_status);
-    }
     if (params.search && params.search.trim()) {
       query.set('search', params.search.trim());
     }

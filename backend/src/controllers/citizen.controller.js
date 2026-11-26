@@ -47,7 +47,6 @@ const updateProfile = asyncHandler(async (req, res) => {
     'emergency_contact_number',
     'valid_id_type',
     'valid_id_number',
-    'proof_of_residency_type',
   ];
 
   for (const field of stringFields) {

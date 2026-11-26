@@ -9,7 +9,7 @@ const {
   DocumentType,
   AppSetting,
 } = require('../models');
-const { ROLES, VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
+const { ROLES, VOTER_STATUSES } = require('../config/constants');
 
 async function seedDatabase() {
   console.log('[Seeder] Starting database seeding process...');
@@ -51,10 +51,9 @@ async function seedDatabase() {
 
   // 2. Seed Default Admin Account (Item 3: Only when no user with role admin exists at all)
   const existingAdminCount = await User.countDocuments({ role: ROLES.ADMIN });
-  let admin = null;
   if (existingAdminCount === 0) {
     const passwordHash = await User.hashPassword(config.seed.adminPassword);
-    admin = await User.create({
+    await User.create({
       email: config.seed.adminEmail,
       password_hash: passwordHash,
       full_name: 'Barangay Administrator',
@@ -64,7 +63,6 @@ async function seedDatabase() {
     });
     console.log(`[Seeder] Seeded default admin user: ${config.seed.adminEmail}`);
   } else {
-    admin = await User.findOne({ role: ROLES.ADMIN });
     console.log(`[Seeder] Admin user role already exists. Skipping admin creation.`);
   }
 
@@ -141,11 +139,7 @@ async function seedDatabase() {
         emergency_contact_number: '09191112233',
         valid_id_type: 'Passport',
         valid_id_number: 'P1234567A',
-        proof_of_residency_type: 'Utility Bill',
         profile_complete: true,
-        verification_status: VERIFICATION_STATUSES.VERIFIED,
-        verified_at: new Date(),
-        verified_by: admin ? admin._id : null,
       });
 
       console.log(`[Seeder] Seeded default citizen user: ${config.seed.citizenEmail}`);

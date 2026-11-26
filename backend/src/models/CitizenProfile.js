@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { VERIFICATION_STATUSES, VOTER_STATUSES } = require('../config/constants');
+const { VOTER_STATUSES } = require('../config/constants');
 
 const citizenProfileSchema = new mongoose.Schema(
   {
@@ -108,38 +108,6 @@ const citizenProfileSchema = new mongoose.Schema(
     valid_id_number: {
       type: String,
       trim: true,
-      default: '',
-    },
-    valid_id_image: {
-      type: String,
-      default: '',
-    },
-    proof_of_residency_type: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    proof_of_residency_image: {
-      type: String,
-      default: '',
-    },
-    verification_status: {
-      type: String,
-      enum: Object.values(VERIFICATION_STATUSES),
-      default: VERIFICATION_STATUSES.PENDING,
-      index: true,
-    },
-    verified_at: {
-      type: Date,
-      default: null,
-    },
-    verified_by: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    rejection_reason: {
-      type: String,
       default: '',
     },
   },

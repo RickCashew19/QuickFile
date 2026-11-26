@@ -40,10 +40,6 @@ const documentTypeSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
-    form_template: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
     template_mode: {
       type: String,
       enum: ['builtin', 'custom'],

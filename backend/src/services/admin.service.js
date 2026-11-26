@@ -699,7 +699,7 @@ async function deleteStaff(id, actorUser) {
 // 3. Citizen Management
 // ==============================================================================
 
-async function listCitizens({ search, is_active, verification_status, page = 1, limit = 10 }) {
+async function listCitizens({ search, is_active, page = 1, limit = 10 }) {
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (pageNum - 1) * limitNum;
@@ -716,13 +716,6 @@ async function listCitizens({ search, is_active, verification_status, page = 1, 
       { email: { $regex: escaped, $options: 'i' } },
       { phone: { $regex: escaped, $options: 'i' } },
     ];
-  }
-
-  if (verification_status && typeof verification_status === 'string') {
-    const matchingProfiles = await CitizenProfile.find({
-      verification_status: verification_status.toLowerCase(),
-    }).select('user_id');
-    userQuery._id = { $in: matchingProfiles.map((p) => p.user_id) };
   }
 
   const total = await User.countDocuments(userQuery);

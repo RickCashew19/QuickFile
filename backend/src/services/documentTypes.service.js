@@ -24,7 +24,7 @@ async function getDocumentTypeById(id) {
  * Create a new document type
  */
 async function createDocumentType(data, actorUser, ipAddress, userAgent) {
-  const { name, code, description, fee, processing_days, requirements, is_active, form_template } = data;
+  const { name, code, description, fee, processing_days, requirements, is_active } = data;
 
   if (!name || !code) {
     const error = new Error('Validation error: Document name and code are required.');
@@ -48,7 +48,6 @@ async function createDocumentType(data, actorUser, ipAddress, userAgent) {
     processing_days: processing_days !== undefined ? Number(processing_days) : 1,
     requirements: Array.isArray(requirements) ? requirements : [],
     is_active: is_active !== undefined ? Boolean(is_active) : true,
-    form_template: form_template || {},
   });
 
   await AuditLog.create({
@@ -77,7 +76,7 @@ async function updateDocumentType(id, data, actorUser, ipAddress, userAgent) {
     throw error;
   }
 
-  const updatableFields = ['name', 'code', 'description', 'fee', 'processing_days', 'requirements', 'is_active', 'form_template'];
+  const updatableFields = ['name', 'code', 'description', 'fee', 'processing_days', 'requirements', 'is_active'];
 
   if (data.code && data.code.toUpperCase().trim() !== docType.code) {
     const duplicate = await DocumentType.findOne({ code: data.code.toUpperCase().trim() });

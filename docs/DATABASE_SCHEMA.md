@@ -57,10 +57,10 @@ The table below lists all 14 collections as they exist today (field names taken 
 | # | Collection | Purpose | Key fields / notable structures |
 | --- | --- | --- | --- |
 | 1 | `users` | All accounts (admin, staff, citizen) | `email` (unique), `password_hash`, `full_name`, `phone`, `role`, `is_active`, `google_id` (sparse unique), login timestamps |
-| 2 | `citizenprofiles` | Resident identity & address details | `user_id` (unique), name parts, `birthdate`, `gender`, address, `voter_status` (barangay staff/admin-managed; citizens cannot change it), valid-ID fields, `verification_status`, `verified_by` |
+| 2 | `citizenprofiles` | Resident identity & address details | `user_id` (unique), name parts, `birthdate`, `gender`, address, `voter_status` (barangay staff/admin-managed; citizens cannot change it), `valid_id_type`, `valid_id_number` |
 | 3 | `staffdetails` | Staff employment details | `user_id` (unique), `employee_id`, `position`, `department`, `contact_number` |
 | 4 | `staffpermissions` | Staff capability flags | `user_id` (unique), 7 `can_*` booleans |
-| 5 | `documenttypes` | Catalog of issuable documents | `code` (unique), `fee`, `processing_days`, `requirements: [String]`, `form_template: Mixed`, `template_mode`, `active_template_id` |
+| 5 | `documenttypes` | Catalog of issuable documents | `code` (unique), `fee`, `processing_days`, `requirements: [String]`, `template_mode`, `active_template_id` |
 | 6 | `documenttemplates` | Versioned DOCX templates | `document_type_id`, `version` (unique per type), file metadata, `sha256`, `placeholders_found: [String]`, `uploaded_by`, `uploaded_by_name`, `is_active`, `retired_at` |
 | 7 | `documentrequests` | Core processing workflow | `tracking_number` (unique), `citizen_id`, `document_type_id`, `status`, fees/payment fields, `attachments: [subdoc]`, `form_data: Mixed`, `lock: subdoc`, 7 `*_by` / `*_at` milestone pairs |
 | 8 | `issueddocuments` | Issued certificates for public verification | `request_id` (unique), `certificate_number` (unique), `verification_code` (unique), `qr_data`, `issued_to_name`, snapshot document name, revocation fields, `render_data: Mixed` |
@@ -110,7 +110,7 @@ The same pattern appears elsewhere:
 
 | Collection | UNF violation |
 | --- | --- |
-| `documenttypes` | `requirements: [String]` repeating group; `form_template: Mixed` nested object |
+| `documenttypes` | `requirements: [String]` repeating group |
 | `documenttemplates` | `placeholders_found: [String]` repeating group |
 | `issueddocuments` | `render_data: Mixed` nested object |
 | `notifications` | `metadata: Mixed` nested object |
@@ -158,7 +158,7 @@ The same pattern appears elsewhere:
 
 | Collection | 1NF action |
 | --- | --- |
-| `documenttypes` | `requirements[]` → `document_type_requirements(document_type_id, requirement, ordinal)`; `form_template` → `form_field_definitions(document_type_id, field_key, field_label, field_type, is_required, ordinal)` |
+| `documenttypes` | `requirements[]` → `document_type_requirements(document_type_id, requirement, ordinal)` |
 | `documenttemplates` | `placeholders_found[]` → `template_placeholders(template_id, placeholder)` |
 | `issueddocuments` | `render_data` → `issued_document_render_fields(issued_document_id, field_key, field_value)` |
 | `notifications` | `metadata` → `notification_metadata(notification_id, key, value)` |
@@ -175,9 +175,7 @@ CITIZEN_PROFILES(profile_id, user_id, first_name, middle_name, last_name, suffix
       birthdate, gender, profile_complete, civil_status, contact_number,
       purok_zone, street_address, barangay, city, province, occupation,
       voter_status, emergency_contact_name, emergency_contact_number,
-      valid_id_type, valid_id_number, valid_id_image, proof_of_residency_type,
-      proof_of_residency_image, verification_status, verified_at, verified_by,
-      rejection_reason, created_at, updated_at)
+      valid_id_type, valid_id_number, created_at, updated_at)
 DOCUMENT_REQUESTS(request_id, tracking_number, citizen_id, document_type_id,
       created_by_staff_id, purpose, copies, status, unit_fee, fee, payment_status,
       paid_at, payment_reference, waiver_reason, payment_recorded_by,
@@ -346,21 +344,12 @@ CREATE TABLE citizen_profiles (
     emergency_contact_number VARCHAR(50) NOT NULL DEFAULT '',
     valid_id_type           VARCHAR(50)  NOT NULL DEFAULT '',
     valid_id_number         VARCHAR(100) NOT NULL DEFAULT '',
-    valid_id_image          VARCHAR(500) NOT NULL DEFAULT '',
-    proof_of_residency_type VARCHAR(50)  NOT NULL DEFAULT '',
-    proof_of_residency_image VARCHAR(500) NOT NULL DEFAULT '',
-    verification_status     VARCHAR(20)  NOT NULL DEFAULT 'pending',
-    verified_at             TIMESTAMP,
-    verified_by             CHAR(24) REFERENCES users(user_id) ON DELETE SET NULL,
-    rejection_reason        TEXT         NOT NULL DEFAULT '',
     created_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_cp_gender CHECK (gender IN ('male','female','other','')),
     CONSTRAINT chk_cp_civil CHECK (civil_status IN ('single','married','widowed','separated')),
-    CONSTRAINT chk_cp_voter CHECK (voter_status IN ('registered','unregistered')),
-    CONSTRAINT chk_cp_verification CHECK (verification_status IN ('pending','verified','rejected'))
+    CONSTRAINT chk_cp_voter CHECK (voter_status IN ('registered','unregistered'))
 );
-CREATE INDEX idx_cp_verification ON citizen_profiles (verification_status);
 CREATE INDEX idx_cp_created_at ON citizen_profiles (created_at DESC);
 
 CREATE TABLE staff_details (
@@ -439,7 +428,7 @@ CREATE TABLE document_type_requirements (
 );
 CREATE INDEX idx_req_type ON document_type_requirements (document_type_id, ordinal);
 
--- 1NF + 2NF: documenttypes.form_template (Mixed) -> field definitions
+-- 2NF: field definitions extracted from documentrequests.form_data (field_label/field_type)
 CREATE TABLE form_field_definitions (
     definition_id    CHAR(24) PRIMARY KEY,
     document_type_id CHAR(24) NOT NULL
@@ -830,7 +819,7 @@ erDiagram
 | 2 | `citizenprofiles` | `citizen_profiles` | 1:1 mapping + `UNIQUE(user_id)` kept (one profile per account). `full_name` stays computed (never stored) — 3NF. |
 | 3 | `staffdetails` | `staff_details` | 1:1 mapping; duplicated name fields were already removed in the current design, so nothing to normalize here. |
 | 4 | `staffpermissions` | `staff_permissions` | 1:1 mapping; seven booleans are atomic and depend only on `user_id` — already 3NF. |
-| 5 | `documenttypes` | `document_types`, `document_type_requirements`, `form_field_definitions` | `requirements[]` array → child table (1NF). `form_template` `Mixed` → typed field-definition table (1NF), with `field_label` moved out of request values (2NF). `active_template_id` becomes a real FK. |
+| 5 | `documenttypes` | `document_types`, `document_type_requirements`, `form_field_definitions` | `requirements[]` array → child table (1NF). `form_field_definitions` holds field metadata moved out of request values (2NF). `active_template_id` becomes a real FK. |
 | 6 | `documenttemplates` | `document_templates`, `template_placeholders` | `placeholders_found[]` → child table (1NF). `uploaded_by_name` kept as justified snapshot (3NF exception); `is_active` mirror removed in favour of `document_types.active_template_id`. |
 | 7 | `documentrequests` | `document_requests`, `request_attachments`, `request_form_values`, `request_locks`, `request_status_history` | Biggest change. `attachments[]` → child table (1NF); `form_data` → EAV (1NF) with definitions split out (2NF); `lock` → child table (1NF) with derived `is_locked` and `locked_by_name` removed (3NF); `fee` removed as derivable (3NF); seven milestone `*_by`/`*_at` pairs → `request_status_history` (1NF); `__v` → `version`. |
 | 8 | `issueddocuments` | `issued_documents`, `issued_document_render_fields` | `render_data` → EAV child table (1NF). `document_name` / `issued_to_name` snapshots deliberately kept (3NF exception) so verification survives deletions. |
