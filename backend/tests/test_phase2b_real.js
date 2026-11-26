@@ -49,7 +49,7 @@ fs.writeFileSync(
     'PROVINCE=Bukidnon',
     'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
-    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SITE_KEY=6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
     'DEFAULT_SMS_API_TOKEN=test-sms-api-token',

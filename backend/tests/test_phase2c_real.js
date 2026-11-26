@@ -68,7 +68,7 @@ fs.writeFileSync(
     'CERTIFICATE_VALIDITY_DAYS=180',
     'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
-    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SITE_KEY=6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
     'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
@@ -334,7 +334,7 @@ async function runTests() {
 
     assert.strictEqual(config.google.resolveClientId().value, 'test-google-client-id');
     assert.strictEqual(config.google.resolveClientSecret().value, 'test-google-secret');
-    assert.strictEqual(config.recaptcha.resolveSiteKey().value, 'test-recaptcha-site-key');
+    assert.strictEqual(config.recaptcha.resolveSiteKey().value, '6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
     assert.strictEqual(config.recaptcha.resolveSecretKey().value, 'test-recaptcha-secret-key');
     assert.strictEqual(config.sms.resolveGatewayUrl().value, 'test-sms-gateway-url');
     assert.strictEqual(config.sms.resolveApiToken().value, 'test-sms-api-token');

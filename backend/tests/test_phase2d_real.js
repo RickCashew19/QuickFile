@@ -56,7 +56,7 @@ fs.writeFileSync(
     'CERTIFICATE_VALIDITY_DAYS=180',
     'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-secret',
-    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SITE_KEY=6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
     'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
@@ -206,7 +206,7 @@ async function runTests() {
 
     assert.strictEqual(config.google.resolveClientId().value, 'test-google-client-id');
     assert.strictEqual(config.google.resolveClientSecret().value, 'test-google-secret');
-    assert.strictEqual(config.recaptcha.resolveSiteKey().value, 'test-recaptcha-site-key');
+    assert.strictEqual(config.recaptcha.resolveSiteKey().value, '6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
     assert.strictEqual(config.recaptcha.resolveSecretKey().value, 'test-recaptcha-secret-key');
     assert.strictEqual(config.sms.resolveGatewayUrl().value, 'test-sms-gateway-url');
     assert.strictEqual(config.sms.resolveApiToken().value, 'test-sms-api-token');
@@ -321,6 +321,24 @@ async function runTests() {
     );
     assert.strictEqual(recapDisableRes.status, 200);
     console.log('PASS: enable_recaptcha toggle rejected enabling with 400 when keys unset, succeeded with 200 when set, and disabled cleanly.');
+
+    // A stored but malformed site key (e.g. typed before the format check existed)
+    // must not be activatable, since it would break every login/registration form.
+    const origCustomSite = process.env.CUSTOM_RECAPTCHA_SITE_KEY;
+    process.env.CUSTOM_RECAPTCHA_SITE_KEY = 'not-a-google-site-key';
+    const badKeyEnableRes = await makeRequest(
+      server,
+      { path: `${API_PREFIX}/admin/settings/toggles`, method: 'PATCH', headers: { Authorization: `Bearer ${adminToken}` } },
+      { su_admin_key: DYNAMIC_SU_ADMIN_KEY, enable_recaptcha: true }
+    );
+    assert.strictEqual(badKeyEnableRes.status, 400);
+    assert.match(JSON.stringify(badKeyEnableRes.data), /Site Key is not a valid/i);
+    if (origCustomSite === undefined) {
+      delete process.env.CUSTOM_RECAPTCHA_SITE_KEY;
+    } else {
+      process.env.CUSTOM_RECAPTCHA_SITE_KEY = origCustomSite;
+    }
+    console.log('PASS: enable_recaptcha toggle rejects a stored, malformed site key.');
 
     // 2c: SMS Notifications Toggle
     const origSmsToken = process.env.DEFAULT_SMS_API_TOKEN;

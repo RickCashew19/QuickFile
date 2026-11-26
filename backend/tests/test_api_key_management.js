@@ -509,6 +509,35 @@ async function runTestSuite() {
       assert.strictEqual(shortSecretRes.data.success, false);
       assert.match(shortSecretRes.data.message, /at least 20 characters/i);
 
+      // Typo'd site key -> rejected locally before any provider probe.
+      const badSiteKeyRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'recaptcha',
+        credentials: {
+          secretKey: '6Ld_valid_recaptcha_secret_key_1234567890',
+          siteKey: "typo'd-site-key",
+        },
+      });
+      assert.strictEqual(badSiteKeyRes.data.success, false);
+      assert.match(badSiteKeyRes.data.message, /Site Key format/i);
+
+      // Valid site key format + secret -> passes both format check and Google probe.
+      const validSiteKeyRes = await makeHttpRequest(server, {
+        path: `${API_PREFIX}/admin/settings/validate-key`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, {
+        provider: 'recaptcha',
+        credentials: {
+          secretKey: '6Ld_valid_recaptcha_secret_key_1234567890',
+          siteKey: '6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        },
+      });
+      assert.strictEqual(validSiteKeyRes.data.success, true, validSiteKeyRes.data.message);
+
       // Valid format secret -> Google verifies (mock returns invalid-input-response, not invalid-input-secret)
       const validRcRes = await makeHttpRequest(server, {
         path: `${API_PREFIX}/admin/settings/validate-key`,

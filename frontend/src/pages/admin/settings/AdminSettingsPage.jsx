@@ -1054,6 +1054,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     placeholder="Site key..."
                     value={customDrafts.CUSTOM_RECAPTCHA_SITE_KEY || ''}
                     onChange={(e) => handleDraftChange('CUSTOM_RECAPTCHA_SITE_KEY', e.target.value)}
+                    helperText="Google cannot verify site keys server-side; format only. Test the widget in a browser after saving."
                   />
                   <Input
                     label="Custom reCAPTCHA Secret Key"
@@ -1084,7 +1085,7 @@ export function AdminSettingsPage({ initialPinVerified = false }) {
                     disabled={!customDrafts.CUSTOM_RECAPTCHA_SECRET_KEY}
                     iconLeft={<Icon name="check-circle" size={14} />}
                   >
-                    Validate Secret Key
+                    Validate with Google
                   </Button>
                   {integrations.recaptcha?.source === 'custom' && (
                     <Button

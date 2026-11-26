@@ -929,7 +929,9 @@ const paths = {
   '/admin/settings/validate-key': {
     post: op('Validate a provider API key without saving it', {
       tag: 'Admin Settings',
-      body: obj({ provider: strProp('Provider name'), api_key: strProp('API key to validate') }),
+      description:
+        'Provider credentials are probed live. Exception: reCAPTCHA site keys are only format-checked (Google has no standalone site-key verification endpoint); the reCAPTCHA secret is probed live.',
+      body: obj({ provider: strProp('Provider name'), credentials: obj({}) }),
     }),
   },
   '/admin/settings/initiate-key-update': {

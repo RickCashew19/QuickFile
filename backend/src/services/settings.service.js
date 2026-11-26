@@ -3,7 +3,7 @@ const { AppSetting, AuditLog } = require('../models');
 const { verifySuperAdminKey } = require('../helpers/superAdminKeyVerifier');
 const { formatEnvValue, writeCustomEnvVars } = require('../helpers/envWriter');
 const { normalizePhilippinePhone } = require('../helpers/phoneUtil');
-const { validateProviderKey } = require('./apiKeyValidator.service');
+const { validateProviderKey, isPlausibleRecaptchaSiteKey } = require('./apiKeyValidator.service');
 const { initiateApiKey2FA, verifyApiKey2FA } = require('./twoFactor.service');
 const { ALLOWED_CUSTOM_ENV_KEYS } = require('../config/constants');
 
@@ -146,13 +146,22 @@ async function updateToggles({ suAdminKey, updates, actorUser, ipAddress, userAg
     err.statusCode = 400;
     throw err;
   }
-  if (
-    updates.enable_recaptcha === true &&
-    (!config.recaptcha.resolveSiteKey().value || !config.recaptcha.resolveSecretKey().value)
-  ) {
-    const err = new Error('Cannot enable reCAPTCHA: RECAPTCHA credentials are not configured.');
-    err.statusCode = 400;
-    throw err;
+  if (updates.enable_recaptcha === true) {
+    const siteKey = config.recaptcha.resolveSiteKey().value;
+    if (!siteKey || !config.recaptcha.resolveSecretKey().value) {
+      const err = new Error('Cannot enable reCAPTCHA: RECAPTCHA credentials are not configured.');
+      err.statusCode = 400;
+      throw err;
+    }
+    // A typo'd site key silently breaks every login/registration form, so reject
+    // it here too (covers keys saved before the format check was introduced).
+    if (!isPlausibleRecaptchaSiteKey(siteKey)) {
+      const err = new Error(
+        'Cannot enable reCAPTCHA: Site Key is not a valid Google reCAPTCHA key (40 characters starting with "6L").'
+      );
+      err.statusCode = 400;
+      throw err;
+    }
   }
   if (updates.enable_sms_notifications === true && !config.sms.resolveApiToken().value) {
     const err = new Error('Cannot enable SMS notifications: SMS_API_TOKEN is not configured.');

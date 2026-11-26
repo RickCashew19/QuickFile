@@ -351,10 +351,29 @@ async function validateSmtpCredentials({ host, port, secure, user, pass }) {
   }
 }
 
+// Google site keys are exactly 40 characters and start with "6L". Google exposes
+// no endpoint to verify a site key on its own, so a format check is the strongest
+// server-side check available; the secret key is verified live below.
+const RECAPTCHA_SITE_KEY_PATTERN = /^6L[a-zA-Z0-9_-]{38}$/;
+
+function isPlausibleRecaptchaSiteKey(value) {
+  return typeof value === 'string' && RECAPTCHA_SITE_KEY_PATTERN.test(value.trim());
+}
+
 /**
- * Validate Google reCAPTCHA Secret Key
+ * Validate Google reCAPTCHA keys. The secret is probed live with Google; the
+ * site key can only be format-checked (Google has no standalone verify API).
  */
 async function validateRecaptchaCredentials({ secretKey, siteKey }) {
+  // Validate a supplied site key (e.g. from the admin form). When omitted,
+  // callers may be re-validating an unchanged stored secret, so skip this check.
+  if (siteKey !== undefined && siteKey !== null && String(siteKey).trim() && !isPlausibleRecaptchaSiteKey(siteKey)) {
+    return {
+      valid: false,
+      message: 'Invalid reCAPTCHA Site Key format. Google site keys are 40 characters starting with "6L".',
+    };
+  }
+
   if (!secretKey || typeof secretKey !== 'string') {
     return { valid: false, message: 'reCAPTCHA Secret Key is required.' };
   }
@@ -401,7 +420,7 @@ async function validateRecaptchaCredentials({ secretKey, siteKey }) {
 
   return {
     valid: true,
-    message: 'Google reCAPTCHA secret key verified with Google verification servers.',
+    message: 'Google reCAPTCHA secret key verified with Google verification servers. Site key format checked locally.',
   };
 }
 
@@ -454,4 +473,5 @@ module.exports = {
   validateSmsCredentials,
   validateSmtpCredentials,
   validateRecaptchaCredentials,
+  isPlausibleRecaptchaSiteKey,
 };

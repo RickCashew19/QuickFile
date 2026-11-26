@@ -46,7 +46,7 @@ fs.writeFileSync(
     'PROVINCE=Bukidnon',
     'DEFAULT_GOOGLE_CLIENT_ID=test-google-client-id',
     'DEFAULT_GOOGLE_CLIENT_SECRET=test-google-client-secret',
-    'DEFAULT_RECAPTCHA_SITE_KEY=test-recaptcha-site-key',
+    'DEFAULT_RECAPTCHA_SITE_KEY=6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     'DEFAULT_RECAPTCHA_SECRET_KEY=test-recaptcha-secret-key',
     'DEFAULT_SMS_GATEWAY_URL=test-sms-gateway-url',
     'DEFAULT_SMS_API_TOKEN=test-sms-api-token',
@@ -137,7 +137,7 @@ async function runTests() {
     assert.strictEqual(config.sms.resolveGatewayUrl().value, 'test-sms-gateway-url');
     assert.strictEqual(config.smtp.resolveUser().value, 'test-smtp-user');
     assert.strictEqual(config.smtp.resolvePass().value, 'test-smtp-pass');
-    assert.strictEqual(config.recaptcha.resolveSiteKey().value, 'test-recaptcha-site-key');
+    assert.strictEqual(config.recaptcha.resolveSiteKey().value, '6Lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
     assert.strictEqual(config.recaptcha.resolveSecretKey().value, 'test-recaptcha-secret-key');
     assert.strictEqual(config.restApi.resolveSecretKey().value, 'test-rest-api-secret-key');
     console.log('PASS: resolved configuration values for Google, SMS, SMTP, reCAPTCHA, and REST API matched test- fixtures.');
