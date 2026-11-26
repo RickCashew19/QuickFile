@@ -66,7 +66,11 @@ export function AdminRecordsPage() {
   const handleView = async (rec) => {
     try {
       const details = await adminService.getRequestDetails(rec._id);
-      setSelectedRecord(details);
+      // The endpoint returns { request, citizen_profile, issued_document }; the
+      // modal expects a flat request object.
+      // The endpoint returns { request, citizen_profile, issued_document }; the
+      // modal expects a flat request object.
+      setSelectedRecord(details?.request || rec);
       setDetailModalOpen(true);
     } catch {
       setSelectedRecord(rec);

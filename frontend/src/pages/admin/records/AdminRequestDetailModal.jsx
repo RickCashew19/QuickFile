@@ -60,27 +60,24 @@ export function AdminRequestDetailModal({ isOpen, onClose, request }) {
           </div>
         </div>
 
-        {Array.isArray(request.processing_notes) && request.processing_notes.length > 0 && (
+        {typeof request.processing_notes === 'string' && request.processing_notes.trim() && (
           <div>
             <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-2)' }}>
-              Internal Processing Notes ({request.processing_notes.length})
+              Internal Processing Notes
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              {request.processing_notes.map((n, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: 'var(--space-2) var(--space-3)',
-                    backgroundColor: 'var(--color-surface-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-xs)',
-                  }}
-                >
-                  <div style={{ fontWeight: 'var(--font-semibold)' }}>{n.staff_name || 'Staff'}:</div>
-                  <div>{n.note}</div>
-                </div>
-              ))}
-            </div>
+            <pre
+              style={{
+                margin: 0,
+                padding: 'var(--space-2) var(--space-3)',
+                backgroundColor: 'var(--color-surface-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--font-xs)',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'inherit',
+              }}
+            >
+              {request.processing_notes}
+            </pre>
           </div>
         )}
       </div>
