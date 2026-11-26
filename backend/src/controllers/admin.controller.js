@@ -160,7 +160,7 @@ const deleteCitizen = asyncHandler(async (req, res) => {
 // ==============================================================================
 
 const listRecords = asyncHandler(async (req, res) => {
-  const data = await staffService.listRecords(req.query);
+  const data = await adminService.listAllRecords(req.query);
   return res.status(200).json({
     success: true,
     message: 'Records retrieved successfully.',

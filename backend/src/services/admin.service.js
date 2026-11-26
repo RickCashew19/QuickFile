@@ -1223,9 +1223,18 @@ async function listAuditLogs({ action, module, user_id, actor_name, from, to, pa
   };
 }
 
+/**
+ * Master records listing: unlike the staff archive endpoint, this shows every
+ * request status. Status filters are validated by the shared listing helper.
+ */
+function listAllRecords(query) {
+  return staffService.listStaffRequests(query);
+}
+
 module.exports = {
   getDashboard,
   getLiveStats,
+  listAllRecords,
   listStaff,
   getStaffById,
   createStaff,
