@@ -241,7 +241,7 @@ export function AdminAuditLogsPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)' }}>
-              Logged on <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatDateTimeMs(viewedLog.created_at)}</strong> ({viewedLog.created_at ? new Date(viewedLog.created_at).toISOString() : '—'}) by <strong>{viewedLog.actor_name}</strong> (IP: {viewedLog.ip_address || 'N/A'})
+              Logged on <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatDateTimeMs(viewedLog.created_at)}</strong> by <strong>{viewedLog.actor_name}</strong> (IP: {viewedLog.ip_address || 'N/A'})
             </div>
             <pre
               style={{
@@ -257,8 +257,7 @@ export function AdminAuditLogsPage() {
               {JSON.stringify(
                 {
                   _id: viewedLog._id,
-                  timestamp: viewedLog.created_at ? new Date(viewedLog.created_at).toISOString() : null,
-                  timestamp_formatted: formatDateTimeMs(viewedLog.created_at),
+                  created_at: viewedLog.created_at || null,
                   actor_name: viewedLog.actor_name,
                   module: viewedLog.module,
                   action: viewedLog.action,
