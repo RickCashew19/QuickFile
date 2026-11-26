@@ -76,6 +76,9 @@ async function transitionRequestStatus({
   } else if (newStatus === REQUEST_STATUSES.APPROVED) {
     updateFields.approved_by = actorUser._id;
     updateFields.approved_at = new Date();
+  } else if (newStatus === REQUEST_STATUSES.IN_PREPARATION) {
+    updateFields.prepared_by = actorUser._id;
+    updateFields.prepared_at = new Date();
   } else if (newStatus === REQUEST_STATUSES.READY_FOR_PICKUP) {
     updateFields.ready_at = new Date();
   } else if (newStatus === REQUEST_STATUSES.RELEASED) {
