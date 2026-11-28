@@ -130,7 +130,8 @@
 
 .qf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 260px));
+  justify-content: center;
   gap: var(--space-6);
   max-width: 1100px;
   margin: 0 auto;
@@ -180,6 +181,10 @@
    leaving the icon stranded against the left edge. Keep the description
    left-aligned for readability. */
 @media (max-width: 767px) {
+  .qf-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .qf-card__icon {
     margin: 0 auto var(--space-4);
   }
