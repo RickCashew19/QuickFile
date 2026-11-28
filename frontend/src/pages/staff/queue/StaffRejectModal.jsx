@@ -49,13 +49,13 @@ export function StaffRejectModal({ isOpen, onClose, onConfirm, loading = false }
           via email and within their portal.
         </p>
 
-        <div className="qf-input-group">
-          <label htmlFor="rejection-reason" className="qf-input-label">
-            Rejection Reason <span style={{ color: 'var(--color-danger)' }}>*</span>
+        <div className="qf-field" style={{ marginBottom: 0 }}>
+          <label htmlFor="rejection-reason" className="qf-field__label">
+            Rejection Reason <span className="qf-field__required">*</span>
           </label>
           <textarea
             id="rejection-reason"
-            className="qf-input"
+            className="qf-field__input"
             rows={4}
             value={reason}
             onChange={(e) => {
@@ -66,9 +66,12 @@ export function StaffRejectModal({ isOpen, onClose, onConfirm, loading = false }
             disabled={loading}
             maxLength={500}
             required
+            aria-invalid={Boolean(validationError)}
+            aria-describedby={validationError ? 'rejection-reason-error' : undefined}
+            style={{ resize: 'none', minHeight: '96px', lineHeight: 1.5 }}
           />
           {validationError && (
-            <span className="qf-input-error" role="alert">
+            <span id="rejection-reason-error" className="qf-field__error" role="alert">
               {validationError}
             </span>
           )}
