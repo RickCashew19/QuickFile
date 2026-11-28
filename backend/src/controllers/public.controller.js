@@ -15,7 +15,22 @@ const getPublicConfig = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Public active document types for landing-page service cards
+ * GET /api/v1/public/document-types
+ */
+const getPublicDocumentTypes = asyncHandler(async (req, res) => {
+  const data = await publicService.getPublicDocumentTypes();
+
+  return res.status(200).json({
+    success: true,
+    message: 'Active document types retrieved successfully.',
+    data,
+  });
+});
+
 module.exports = {
   getPublicConfig,
+  getPublicDocumentTypes,
 };
 

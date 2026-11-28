@@ -5,22 +5,45 @@ import { Button } from '../../components/shared/Button';
 import { Icon } from '../../components/shared/Icon';
 import './LandingPage.css';
 
+const FALLBACK_CONFIG = {
+  system_name: 'QuickFile Barangay Portal',
+  barangay_name: 'Barangay Central',
+  city_municipality: 'City Hall',
+  province: 'Metro Manila',
+};
+
 export function LandingPage() {
   const [config, setConfig] = useState(null);
+  const [documentTypes, setDocumentTypes] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     publicService
       .getConfig()
-      .then((data) => setConfig(data))
+      .then((data) => {
+        if (isMounted) setConfig(data);
+      })
       .catch(() => {
-        // Fallback default
-        setConfig({
-          system_name: 'QuickFile Barangay Portal',
-          barangay_name: 'Barangay Central',
-          city_municipality: 'City Hall',
-          province: 'Metro Manila',
-        });
+        if (isMounted) setConfig(FALLBACK_CONFIG);
       });
+
+    publicService
+      .getDocumentTypes()
+      .then((data) => {
+        if (isMounted) setDocumentTypes(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (isMounted) setDocumentTypes([]);
+      })
+      .finally(() => {
+        if (isMounted) setServicesLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const barangayName = config?.barangay_name || 'Barangay Portal';
@@ -69,67 +92,33 @@ export function LandingPage() {
             </p>
           </div>
 
-          <div className="qf-grid">
-            <div className="qf-card">
-              <div className="qf-card__icon">
-                <Icon name="file" size={24} />
-              </div>
-              <h3 className="qf-card__title">Barangay Clearance</h3>
-              <p className="qf-card__desc">
-                Required for employment, postal ID, government applications, and utility connections.
-              </p>
-              <Link to="/login?redirect=/citizen/requests/new">
-                <Button variant="outline" size="sm" fullWidth>
-                  Apply Now
-                </Button>
-              </Link>
+          {servicesLoading ? (
+            <p className="qf-section-subtitle">Loading available document services...</p>
+          ) : documentTypes.length === 0 ? (
+            <p className="qf-section-subtitle">
+              No document services are currently available. Please check back later.
+            </p>
+          ) : (
+            <div className="qf-grid">
+              {documentTypes.map((doc) => (
+                <div className="qf-card" key={doc._id || doc.code}>
+                  <div className="qf-card__icon">
+                    <Icon name="file" size={24} />
+                  </div>
+                  <h3 className="qf-card__title">{doc.name}</h3>
+                  <p className="qf-card__desc">
+                    {doc.description ||
+                      `Estimated processing: ${doc.processing_days || 1} business day(s).`}
+                  </p>
+                  <Link to="/login?redirect=/citizen/requests/new">
+                    <Button variant="outline" size="sm" fullWidth>
+                      Apply Now
+                    </Button>
+                  </Link>
+                </div>
+              ))}
             </div>
-
-            <div className="qf-card">
-              <div className="qf-card__icon">
-                <Icon name="file" size={24} />
-              </div>
-              <h3 className="qf-card__title">Certificate of Residency</h3>
-              <p className="qf-card__desc">
-                Official verification proving continuous residency within the barangay jurisdiction.
-              </p>
-              <Link to="/login?redirect=/citizen/requests/new">
-                <Button variant="outline" size="sm" fullWidth>
-                  Apply Now
-                </Button>
-              </Link>
-            </div>
-
-            <div className="qf-card">
-              <div className="qf-card__icon">
-                <Icon name="file" size={24} />
-              </div>
-              <h3 className="qf-card__title">Certificate of Indigency</h3>
-              <p className="qf-card__desc">
-                For scholarship assistance, medical aid, social welfare, or legal aid representation.
-              </p>
-              <Link to="/login?redirect=/citizen/requests/new">
-                <Button variant="outline" size="sm" fullWidth>
-                  Apply Now
-                </Button>
-              </Link>
-            </div>
-
-            <div className="qf-card">
-              <div className="qf-card__icon">
-                <Icon name="shield" size={24} />
-              </div>
-              <h3 className="qf-card__title">Business Clearance</h3>
-              <p className="qf-card__desc">
-                Barangay endorsement and operational clearance for local commercial establishments.
-              </p>
-              <Link to="/login?redirect=/citizen/requests/new">
-                <Button variant="outline" size="sm" fullWidth>
-                  Apply Now
-                </Button>
-              </Link>
-            </div>
-          </div>
+          )}
         </div>
       </section>
     </div>

@@ -16,6 +16,14 @@ export const publicService = {
   },
 
   /**
+   * Fetches active document types for public display. Not cached so that
+   * admin deactivations are reflected on the next page load.
+   */
+  async getDocumentTypes() {
+    return apiClient.get('/public/document-types');
+  },
+
+  /**
    * Dynamically loads Google Identity Services script if enabled
    */
   loadGoogleScript() {

@@ -1,5 +1,5 @@
 const { config } = require('../config');
-const { AppSetting } = require('../models');
+const { AppSetting, DocumentType } = require('../models');
 
 /**
  * Returns safe public configuration for frontend initialization
@@ -49,7 +49,20 @@ async function getPublicConfig() {
   };
 }
 
+/**
+ * Returns only active document types for public display (landing page).
+ * Explicit field selection keeps internal/admin-only metadata out of the
+ * unauthenticated response.
+ */
+async function getPublicDocumentTypes() {
+  return DocumentType.find({ is_active: true })
+    .select('code name description fee processing_days requirements')
+    .sort({ name: 1 })
+    .lean();
+}
+
 module.exports = {
   getPublicConfig,
+  getPublicDocumentTypes,
 };
 

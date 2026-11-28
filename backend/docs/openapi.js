@@ -160,6 +160,9 @@ const paths = {
   '/public/config': {
     get: op('Public app configuration', { tag: 'Public', security: [] }),
   },
+  '/public/document-types': {
+    get: op('List active document types for public display', { tag: 'Public', security: [] }),
+  },
   '/verify/{code}': {
     get: op('Public QR certificate verification', {
       tag: 'Public',
